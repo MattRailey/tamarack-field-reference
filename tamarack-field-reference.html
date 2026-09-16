@@ -173,15 +173,7 @@
   /* ---- Mobile layout ---- */
   @media (max-width: 760px){
     .layout{ display:block; }
-    nav{
-      width:100%; padding:8px 6px; position:sticky; top:0; z-index:10;
-      display:flex; overflow-x:auto; -webkit-overflow-scrolling:touch; gap:2px;
-    }
-    nav button{
-      flex:0 0 auto; border-left:none; border-bottom:3px solid transparent; margin-bottom:0;
-      padding:10px 12px; min-height:44px; white-space:nowrap; font-size:.85rem;
-    }
-    nav button.active{ border-bottom-color:var(--blueprint); background:var(--navy-light); }
+    nav{ display:none; }
     main{ padding:16px 14px 40px; }
     header{ padding:calc(env(safe-area-inset-top) + 14px) 16px 12px; }
     header h1{ font-size:1.1rem; }
@@ -189,17 +181,25 @@
     button.run{ width:100%; margin:4px 0; }
     .grid2{ grid-template-columns:1fr; }
     .side-by-side{ flex-direction:column; }
-    nav{ display:none; }
-    #mobileNavSelect{
-      display:block; width:100%; position:sticky; top:0; z-index:10;
-      background:var(--navy); color:#fff; border:none; border-bottom:1px solid var(--navy-light);
-      padding:13px 16px; font-family:var(--sans); font-size:.95rem; font-weight:600;
-      -webkit-appearance:none; appearance:none; min-height:48px;
-      background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='%23aab2c8'%3E%3Cpath d='M5.5 7.5l4.5 4.5 4.5-4.5z'/%3E%3C/svg%3E");
-      background-repeat:no-repeat; background-position:right 14px center; background-size:16px;
+    /* Persistent top tab strip, icon-only so every panel fits in one row
+       across the screen width with no scrolling, replacing the old
+       horizontal-scroll text nav and the dropdown. */
+    .mobile-topbar{
+      display:flex; width:100%; position:sticky; top:0; z-index:10;
+      background:var(--navy); border-bottom:1px solid var(--navy-light);
     }
+    .mobile-topbar button{
+      flex:1 1 0; min-width:0; background:none; border:none; color:#aab2c8; cursor:pointer;
+      display:flex; align-items:center; justify-content:center;
+      padding:10px 2px; min-height:42px; border-bottom:2px solid transparent;
+    }
+    .mobile-topbar button span{ display:none; }
+    .mobile-topbar button svg{ width:17px; height:17px; flex-shrink:0; fill:none; stroke:currentColor; stroke-width:1.8; }
+    .mobile-topbar button.active{ color:#fff; border-bottom-color:var(--blueprint); background:var(--navy-light); }
+    .mobile-topbar button.active svg{ stroke:var(--blueprint); }
   }
   #mobileNavSelect{ display:none; }
+  .mobile-topbar{ display:none; }
 </style>
 </head>
 <body>
@@ -223,13 +223,45 @@
       <button data-panel="sheetindex"><span class="idx">10</span>Sheet Index</button>
     </nav>
     <select id="mobileNavSelect" aria-label="Jump to section"></select>
+    <nav class="mobile-topbar" id="mobileTopbar" aria-label="Quick navigation">
+      <button data-panel="glulam" class="active" type="button" aria-label="Glulam Sizing" title="Glulam Sizing">
+        <svg viewBox="0 0 24 24"><rect x="3" y="9" width="18" height="6" rx="1"/><path d="M3 9v6M21 9v6"/></svg>
+      </button>
+      <button data-panel="spancalc" type="button" aria-label="Span Calculator" title="Span Calculator">
+        <svg viewBox="0 0 24 24"><path d="M3 18l6-9 4 5 3-4 5 8"/><path d="M3 21h18"/></svg>
+      </button>
+      <button data-panel="joist" type="button" aria-label="Joist Spans" title="Joist Spans">
+        <svg viewBox="0 0 24 24"><path d="M3 6h18M3 12h18M3 18h18"/><path d="M6 3v6M12 9v6M18 3v6"/></svg>
+      </button>
+      <button data-panel="spans" type="button" aria-label="Section Properties" title="Section Properties">
+        <svg viewBox="0 0 24 24"><rect x="5" y="4" width="14" height="16" rx="1"/><path d="M9 8h6M9 12h6M9 16h3"/></svg>
+      </button>
+      <button data-panel="site" type="button" aria-label="Site Data (ZIP)" title="Site Data (ZIP)">
+        <svg viewBox="0 0 24 24"><path d="M12 21s7-6.4 7-12a7 7 0 0 0-14 0c0 5.6 7 12 7 12z"/><circle cx="12" cy="9" r="2.5"/></svg>
+      </button>
+      <button data-panel="footing" type="button" aria-label="Footing / Bearing" title="Footing / Bearing">
+        <svg viewBox="0 0 24 24"><path d="M12 3v11"/><rect x="4" y="14" width="16" height="4"/><path d="M2 21h20"/></svg>
+      </button>
+      <button data-panel="loadpath" type="button" aria-label="Load Path" title="Load Path">
+        <svg viewBox="0 0 24 24"><circle cx="6" cy="5" r="2"/><circle cx="18" cy="12" r="2"/><circle cx="6" cy="19" r="2"/><path d="M6 7v10M6 12h10"/></svg>
+      </button>
+      <button data-panel="code" type="button" aria-label="Code Reference" title="Code Reference">
+        <svg viewBox="0 0 24 24"><path d="M6 3h9l4 4v14H6z"/><path d="M14 3v5h5M9 13h6M9 17h6"/></svg>
+      </button>
+      <button data-panel="pdfcompare" type="button" aria-label="PDF Compare" title="PDF Compare">
+        <svg viewBox="0 0 24 24"><rect x="2.5" y="5" width="9" height="14" rx="1"/><rect x="12.5" y="5" width="9" height="14" rx="1"/></svg>
+      </button>
+      <button data-panel="sheetindex" type="button" aria-label="Sheet Index" title="Sheet Index">
+        <svg viewBox="0 0 24 24"><path d="M4 4h13l3 3v13H4z"/><path d="M4 9h16M8 9v11"/></svg>
+      </button>
+    </nav>
 
     <main>
 
       <!-- GLULAM -->
       <section class="panel active" id="glulam">
         <h2>Glulam beam sizing</h2>
-        <p class="sub">Preliminary uniform-load beam check. Gives a starting section — not a substitute for a stamped calculation.</p>
+        <p class="sub">Quick uniform-load beam check — not a stamped calculation.</p>
         <div class="card">
           <div class="grid">
             <div><label>Typical load case</label>
@@ -287,7 +319,7 @@
       <!-- SPAN CALCULATOR -->
       <section class="panel" id="spancalc">
         <h2>Span calculator</h2>
-        <p class="sub">Preliminary simple-span beam check for sawn lumber, engineered lumber (LVL), or engineered I-joists. Handles uniform load, a point load, or both together (superposition, load at midspan). Not a substitute for a stamped calculation.</p>
+        <p class="sub">Simple-span check for sawn lumber, LVL, or I-joists — uniform load, point load, or both. Not a stamped calculation.</p>
         <div class="card">
           <div class="seg" id="sp-type-seg">
             <button class="active" data-type="sawn" onclick="setSpanType('sawn')">Sawn Lumber</button>
@@ -361,7 +393,7 @@
       <!-- JOIST -->
       <section class="panel" id="joist">
         <h2>Sawn lumber joist spans</h2>
-        <p class="sub">Douglas Fir-Larch, 40 psf live load, 10 psf dead load, L/360 — representative values for quick field checks.</p>
+        <p class="sub">DF-L, 40 psf live, 10 psf dead, L/360 — quick field reference.</p>
         <div class="card">
           <div class="grid">
             <div><label>Grade</label>
@@ -380,7 +412,7 @@
       <!-- SECTION PROPERTIES -->
       <section class="panel" id="spans">
         <h2>Standard glulam section properties</h2>
-        <p class="sub">Sx and I by width and depth, generated on the fly. Covers both the Southern Pine series (5-1/2", 7-1/2", 9-1/2" — matches dimension lumber width) and the Western/DF series (3-1/8", 5-1/8", 6-3/4", 8-3/4" — does not match dimension lumber).</p>
+        <p class="sub">Sx and I by width and depth — covers Southern Pine and Western/DF series.</p>
         <div class="card">
           <div class="grid">
             <div><label>Width</label>
@@ -403,7 +435,7 @@
       <!-- SITE DATA / ZIP -->
       <section class="panel" id="site">
         <h2>Site design data (by ZIP)</h2>
-        <p class="sub">Rough regional planning values for Oregon, Washington, and Idaho sites, to get you in the ballpark before an EOR pulls exact site-specific hazard data.</p>
+        <p class="sub">Rough OR/WA/ID planning values — ballpark before your EOR pulls exact data.</p>
         <div class="card">
           <div class="grid">
             <div><label>Project ZIP code (OR / WA / ID)</label><input id="z-zip" type="text" inputmode="numeric" value="97850" maxlength="5"></div>
@@ -418,7 +450,7 @@
       <!-- FOOTING / BEARING PRESSURE -->
       <section class="panel" id="footing">
         <h2>Footing sizing / bearing pressure</h2>
-        <p class="sub">Size a footing from a load and an allowable soil bearing pressure, or check the bearing pressure a footing size you already have in mind actually produces. Isolated (spread) or continuous (strip/wall) footings, with optional uniaxial eccentricity. Not a substitute for a geotechnical report or a stamped foundation design.</p>
+        <p class="sub">Size a footing from load + bearing pressure, or check one you already have in mind. Isolated or continuous, with eccentricity. Not a stamped design.</p>
         <div class="card">
           <div class="seg" id="f-mode-seg">
             <button class="active" data-mode="size" onclick="setFootingMode('size')">Size a footing</button>
@@ -475,7 +507,7 @@
       <!-- LOAD PATH -->
       <section class="panel" id="loadpath">
         <h2>Load path</h2>
-        <p class="sub">Reads the "Export Load Path" pyRevit button's output — traces each column/wall down through the model's physical geometry (columns, walls, beams, footings) to the footing it lands on, flags any that don't connect all the way down, and estimates a rough gravity load per footing from a simple nearest-neighbor tributary area × each level's own dead/live load, set per level below. Not a substitute for a real structural analysis.</p>
+        <p class="sub">Reads the Export Load Path output — traces columns/walls to their footing, flags gaps, and estimates gravity loads per footing. Not a real structural analysis.</p>
 
         <div class="card">
           <div class="row" style="align-items:center; gap:14px;">
@@ -497,11 +529,7 @@
         <div class="card" id="lp-levelLoadsCard" style="display:none;">
           <h2 class="lp-cardHead" style="font-size:1rem;" onclick="lpToggleSection(this)">Level loads<span class="lp-chevron">▾</span></h2>
           <div class="lp-cardBody">
-            <p class="sub" style="margin-top:0;">Dead and live/snow load per level, read straight off your General Notes sheet — one row per level found in this
-              project's export, roof levels called out separately. Applied per-member by its own level: a column's footing load sums each
-              story's own DL+LL x tributary area, not one blanket number for the whole building. Used by the Footings table below (for both
-              column point loads and, using the wall tributary width above, wall line loads on continuous footings) and the Beam / Joist
-              Check. Values are remembered per project/level in this browser.</p>
+            <p class="sub" style="margin-top:0;">Dead/live load per level, read off your General Notes sheet. Used by the Footings table and the Beam/Joist Check below.</p>
             <div class="table-wrap"><table id="lp-levelLoadsTable"></table></div>
           </div>
         </div>
@@ -513,7 +541,7 @@
         <div class="card" id="lp-brokenCard" style="display:none;">
           <h2 class="lp-cardHead" style="font-size:1rem; color:var(--rust);" onclick="lpToggleSection(this)">Broken / unresolved load paths<span class="lp-chevron">▾</span></h2>
           <div class="lp-cardBody">
-            <p class="sub" style="margin-top:0;">These columns or walls don't connect down to a footing within the search tolerance — could be a real modeling gap, or just this tool's endpoint-matching missing an unusual connection. Worth a visual check in Revit either way.</p>
+            <p class="sub" style="margin-top:0;">Doesn't connect to a footing within tolerance — could be a real gap or a missed match. Worth checking in Revit.</p>
             <div class="table-wrap"><table id="lp-brokenTable"></table></div>
           </div>
         </div>
@@ -521,7 +549,7 @@
         <div class="card">
           <h2 class="lp-cardHead" style="font-size:1rem;" onclick="lpToggleSection(this)">Isolated (bearing) footings<span class="lp-chevron">▾</span></h2>
           <div class="lp-cardBody">
-            <p class="sub" style="margin-top:0;">Column loads only — each connected column's own tributary load, summed per footing. Wall loads never contribute here.</p>
+            <p class="sub" style="margin-top:0;">Column loads only, summed per footing.</p>
             <div class="table-wrap"><table id="lp-footingTableIso"></table></div>
           </div>
         </div>
@@ -529,7 +557,7 @@
         <div class="card">
           <h2 class="lp-cardHead" style="font-size:1rem;" onclick="lpToggleSection(this)">Continuous footings<span class="lp-chevron">▾</span></h2>
           <div class="lp-cardBody">
-            <p class="sub" style="margin-top:0;">Wall loads only, per linear foot — column loads never contribute here. Which table a footing appears in is decided by the footing's own type/geometry (isolated pad vs. continuous strip), not by which load traced to it — foundation slabs are excluded entirely. A column load that traces to a continuous footing, or a wall load that traces to an isolated pad, is flagged in the summary above as a likely trace mismatch worth checking manually, rather than pulled into this table. Each wall's tributary width is computed from your actual modeled floors (not a single typed-in number) — the "Wall tributary width fallback" field above is only used where that couldn't be computed.</p>
+            <p class="sub" style="margin-top:0;">Wall loads only, per linear foot. Table is decided by footing type — mismatches are flagged above. Tributary width comes from modeled floors unless the fallback is used.</p>
             <div class="table-wrap"><table id="lp-footingTableCont"></table></div>
           </div>
         </div>
@@ -537,12 +565,7 @@
         <div class="card">
           <h2 class="lp-cardHead" style="font-size:1rem;" onclick="lpToggleSection(this)">Beam / Joist Check<span class="lp-chevron">▾</span></h2>
           <div class="lp-cardBody">
-            <p class="sub" style="margin-top:0;">Flags modeled beams/joists that look undersized for their span, reusing the same
-              bending/shear/deflection math as the Span Calculator tab. Tributary width here is a single value applied to every
-              member (this project's typical joist/beam spacing) — not read per-member, so treat this as a first pass, not a
-              per-beam design check. A member whose size couldn't be parsed from its family/type name is flagged rather than guessed.
-              Open Web Wood Joists (OWWJ) are assumed to bear only at their two ends — they are never flagged as multi-span continuous,
-              even if a column happens to sit under the middle of one.</p>
+            <p class="sub" style="margin-top:0;">Flags beams/joists that look undersized for their span, using the Span Calculator's math. A first pass, not a per-beam design check.</p>
             <p class="note" style="margin-top:0;">Dead/live loads come from the Level loads table above — each beam/joist uses its own level's values. Tributary width is measured per-member from the modeled spacing to its nearest parallel neighbor on the same level (half-distance each side) — the fallback below is used only when no neighbor running alongside a member can be found.</p>
             <div class="grid" style="margin-top:10px;">
               <div><label>Tributary width fallback (ft) — used only when a member's real spacing can't be measured from your modeled framing</label><input id="bc-trib" type="number" inputmode="decimal" value="4" step="0.5" oninput="renderBeamCheck()"></div>
@@ -594,7 +617,7 @@
       <!-- CODE -->
       <section class="panel" id="code">
         <h2>Code quick reference</h2>
-        <p class="sub">Jump points to the sections you pull most — not a replacement for the full text.</p>
+        <p class="sub">Jump points to the sections you use most.</p>
         <input id="codesearch" type="text" placeholder="Search: snow, wind, bracing, deflection…" oninput="renderCode()">
         <div id="code-list"></div>
       </section>
@@ -602,7 +625,7 @@
       <!-- PDF COMPARE -->
       <section class="panel" id="pdfcompare">
         <h2>PDF Set Compare</h2>
-        <p class="sub">Client-side comparison of two PDF sets — red/blue overlay and diff highlighting for catching revisions, the kind of overlay/compare Bluebeam Basics doesn't include. Nothing is uploaded; both PDFs stay in your browser.</p>
+        <p class="sub">Compare two PDF sets — red/blue overlay for catching revisions. Nothing is uploaded, stays in your browser.</p>
 
         <div class="card">
           <h2 style="font-size:1.05rem;">1. Load two sets</h2>
@@ -720,7 +743,7 @@
       <!-- SHEET INDEX -->
       <section class="panel" id="sheetindex">
         <h2>Sheet index</h2>
-        <p class="sub">Sheet numbers, names, and current revisions across every project, pulled from the Revit "Export All Sheet Lists" pyRevit button. Checks for a fresh export and pulls in any changes automatically every time this page loads — no manual import step. Your saved history and hidden items sync to Dropbox through the Time Tracker app's connection (see below), so they follow you across devices.</p>
+        <p class="sub">Sheet numbers, names, and revisions across every project — auto-updates from the Revit export. Syncs to Dropbox across devices.</p>
 
         <div class="card">
           <div class="row" style="align-items:center; gap:14px;">
@@ -749,7 +772,7 @@
         <div class="card" id="si-hiddenCard" style="display:none;">
           <details>
             <summary id="si-hiddenSummary" style="cursor:pointer; font-weight:600;">Hidden from index</summary>
-            <p class="sub" style="margin-top:8px;">Projects/sheets you've hidden with "Hide" — they stay hidden through future imports (the manual batch tool and the automatic save-in-Revit updates) until you un-hide them here.</p>
+            <p class="sub" style="margin-top:8px;">Hidden projects/sheets — stay hidden until you un-hide them here.</p>
             <div class="table-wrap"><table id="si-hiddenTable"></table></div>
           </details>
         </div>
@@ -769,9 +792,13 @@
     document.querySelectorAll('.panel').forEach(p=>p.classList.toggle('active', p.id===name));
     const mobileSel = document.getElementById('mobileNavSelect');
     if(mobileSel) mobileSel.value = name;
+    document.querySelectorAll('.mobile-topbar button').forEach(b=>b.classList.toggle('active', b.dataset.panel===name));
     window.scrollTo(0,0);
   }
   document.querySelectorAll('nav button').forEach(btn=>{
+    btn.addEventListener('click', ()=> showPanel(btn.dataset.panel));
+  });
+  document.querySelectorAll('.mobile-topbar button').forEach(btn=>{
     btn.addEventListener('click', ()=> showPanel(btn.dataset.panel));
   });
   (function initMobileNav(){
