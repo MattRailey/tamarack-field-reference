@@ -1319,7 +1319,7 @@
       const arcTip = vadd(center, v2(R*Math.cos(tipAngle), R*Math.sin(tipAngle)));
       const tailDir = vunit(vsub(arcTip, center));
       const tailNormal = v2(-tailDir.y, tailDir.x); // tangent direction at tip
-      const tailUnit = vunit(vscale(tailNormal, (hook.side||1)*(ccw?1:-1)));
+      const tailUnit = vunit(vscale(tailNormal, ccw?1:-1));
       const tailEnd = vadd(arcTip, vscale(tailUnit, hook.extension));
       const hookSegs = [
         {type:'arc', center, r:R, a0, a1, ccw},
@@ -1450,14 +1450,14 @@
     {
       id:'tie90', name:'Closed Rect. Tie — 90° Hooks', code:'Type 12', isStirrupTie:true,
       dims:[{key:'width', label:'Width (in)', def:12},{key:'height', label:'Height (in)', def:18}],
-      hooks:{start:{angle:90, side:-1}, end:{angle:90, side:1}},
+      hooks:{start:{angle:90, side:1}, end:{angle:90, side:-1}},
       verts:(d)=> [v2(0,0.001), v2(0,d.height), v2(d.width,d.height), v2(d.width,0), v2(0.001,0)],
       radii:(d,R)=> [R,R,R]
     },
     {
       id:'tie135', name:'Closed Rect. Tie — 135° Seismic Hooks', code:'Type 11', isStirrupTie:true,
       dims:[{key:'width', label:'Width (in)', def:12},{key:'height', label:'Height (in)', def:18}],
-      hooks:{start:{angle:135, side:-1}, end:{angle:135, side:1}},
+      hooks:{start:{angle:135, side:1}, end:{angle:135, side:-1}},
       verts:(d)=> [v2(0,0.001), v2(0,d.height), v2(d.width,d.height), v2(d.width,0), v2(0.001,0)],
       radii:(d,R)=> [R,R,R]
     },
