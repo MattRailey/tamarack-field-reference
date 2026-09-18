@@ -260,12 +260,12 @@
 
   <div class="layout">
     <nav>
-      <button class="active" data-panel="glulam"><span class="idx">01</span>Glulam Sizing</button>
-      <button data-panel="spancalc"><span class="idx">02</span>Span Calculator</button>
+      <button class="active" data-panel="glulam"><span class="idx">01</span>Beam Sizing</button>
+      <button data-panel="spancalc"><span class="idx">02</span>LVL/I-Joist Calc</button>
       <button data-panel="joist"><span class="idx">03</span>Joist Spans</button>
-      <button data-panel="spans"><span class="idx">04</span>Section Properties</button>
-      <button data-panel="site"><span class="idx">05</span>Site Data (ZIP)</button>
-      <button data-panel="footing"><span class="idx">06</span>Footing / Bearing</button>
+      <button data-panel="footing"><span class="idx">04</span>Footing / Bearing</button>
+      <button data-panel="spans"><span class="idx">05</span>Section Properties</button>
+      <button data-panel="site"><span class="idx">06</span>Site Data (ZIP)</button>
       <button data-panel="loadpath"><span class="idx">07</span>Load Path</button>
       <button data-panel="code"><span class="idx">08</span>Code Reference</button>
       <button data-panel="pdfcompare"><span class="idx">09</span>PDF Compare</button>
@@ -275,8 +275,8 @@
     </nav>
 
     <nav class="mobile-topbar" id="mobileTopbar">
-      <button class="primary active" data-panel="glulam"><svg viewBox="0 0 24 24"><rect x="3" y="10" width="18" height="4"/><line x1="7" y1="14" x2="7" y2="19"/><line x1="17" y1="14" x2="17" y2="19"/></svg><span>Glulam</span></button>
-      <button class="primary" data-panel="spancalc"><svg viewBox="0 0 24 24"><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="7" x2="4" y2="17"/><line x1="20" y1="7" x2="20" y2="17"/></svg><span>Spans</span></button>
+      <button class="primary active" data-panel="glulam"><svg viewBox="0 0 24 24"><rect x="3" y="10" width="18" height="4"/><line x1="7" y1="14" x2="7" y2="19"/><line x1="17" y1="14" x2="17" y2="19"/></svg><span>Beam</span></button>
+      <button class="primary" data-panel="spancalc"><svg viewBox="0 0 24 24"><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="7" x2="4" y2="17"/><line x1="20" y1="7" x2="20" y2="17"/></svg><span>LVL/I-Joist</span></button>
       <button class="primary" data-panel="joist"><svg viewBox="0 0 24 24"><line x1="4" y1="6" x2="4" y2="18"/><line x1="9" y1="6" x2="9" y2="18"/><line x1="14" y1="6" x2="14" y2="18"/><line x1="19" y1="6" x2="19" y2="18"/></svg><span>Joist</span></button>
       <button class="primary" data-panel="footing"><svg viewBox="0 0 24 24"><path d="M4 20h16"/><rect x="6" y="14" width="12" height="6"/><rect x="9" y="4" width="6" height="10"/></svg><span>Footing</span></button>
       <button class="primary" data-panel="code"><svg viewBox="0 0 24 24"><path d="M4 4h16v16H4z"/><line x1="8" y1="9" x2="16" y2="9"/><line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="12" y2="17"/></svg><span>Code</span></button>
@@ -299,12 +299,12 @@
 
       <!-- GLULAM -->
       <section class="panel active" id="glulam">
-        <h2>Glulam beam sizing</h2>
-        <p class="sub">Preliminary uniform-load beam check. Gives a starting section — not a substitute for a stamped calculation.</p>
+        <h2>Beam sizing</h2>
+        <p class="sub">Preliminary uniform-load beam check. Gives a starting section — not a substitute for a stamped calculation. "Member type" below covers Glulam and bundled sawn-lumber headers/beams (e.g. (3) 2x8) using the full diagram, overhangs, point loads, and reactions above — the LVL/I-Joist Calc tab is still there for a quick single-span LVL or I-joist check.</p>
 
         <div class="card">
           <h3 style="margin-top:0;font-size:.95rem;">Beam &amp; supports</h3>
-          <p class="note" style="margin-top:0;">Click the beam to add a post, drag a post to move it, double-click a post to remove it (2 minimum). Click a post's label to toggle Post/Wall. Set an overhang below for a beam that cantilevers past its end support.</p>
+          <p class="note" style="margin-top:0;">Click the beam to add a support, drag a support to move it, double-click a support to remove it (2 minimum). Click a support's label to cycle Post/Wall/Beam (bearing on a beam or girder below). Set an overhang below for a beam that cantilevers past its end support.</p>
           <div class="beam-diagram-wrap">
             <svg id="g-beam-svg" viewBox="0 0 900 286" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid meet"></svg>
           </div>
@@ -360,7 +360,13 @@
                 <option value="15,70">Roof — heavy mountain snow (DL 15 / LL 70)</option>
               </select>
             </div>
-            <div><label>Beam width</label>
+            <div><label>Member type</label>
+              <select id="g-member-type" onchange="onBeamMaterialChange()">
+                <option value="glulam" selected>Glulam (fixed width, solve depth)</option>
+                <option value="sawn">Sawn lumber, bundled plies — e.g. (3) 2x8</option>
+              </select>
+            </div>
+            <div id="g-width-wrap"><label>Beam width</label>
               <select id="g-width" onchange="onBeamMaterialChange()">
                 <option value="3.125">3-1/8" (Western/DF series)</option>
                 <option value="5.125">5-1/8" (Western/DF series)</option>
@@ -373,11 +379,26 @@
               </select>
             </div>
             <div class="hide" id="g-width-custom-wrap"><label>Custom width (in)</label><input id="g-width-custom" type="number" inputmode="decimal" value="5.5" step="0.125" oninput="updateBeamAnalysis()"></div>
+            <div class="hide" id="g-sawn-grade-wrap"><label>Grade (DF-L)</label>
+              <select id="g-sawn-grade" onchange="updateBeamAnalysis()">
+                <option value="ss">Select Structural</option>
+                <option value="1" selected>No. 1</option>
+                <option value="2">No. 2</option>
+              </select>
+            </div>
+            <div class="hide" id="g-sawn-plies-wrap"><label>Number of plies</label>
+              <select id="g-sawn-plies" onchange="updateBeamAnalysis()">
+                <option value="1">(1) single ply</option>
+                <option value="2">(2) plies</option>
+                <option value="3" selected>(3) plies</option>
+                <option value="4">(4) plies</option>
+              </select>
+            </div>
             <div><label>Bay span(s) (ft) &mdash; from the diagram above, or type directly (comma-separated)</label><input id="g-span" type="text" inputmode="decimal" value="20" oninput="onBeamSpanTextChange()"></div>
             <div><label>Spacing / tributary distance (ft)</label><input id="g-trib" type="number" inputmode="decimal" value="12" step="0.5" oninput="updateBeamAnalysis()"></div>
             <div><label>Dead load (psf)</label><input id="g-dl" type="number" inputmode="decimal" value="15" step="1" oninput="updateBeamAnalysis()"></div>
             <div><label>Live load / snow (psf)</label><input id="g-ll" type="number" inputmode="decimal" value="35" step="1" oninput="updateBeamAnalysis()"></div>
-            <div><label>Stress grade (Fb, psi)</label>
+            <div id="g-fb-wrap"><label>Stress grade (Fb, psi)</label>
               <select id="g-fb" onchange="onBeamMaterialChange()">
                 <option value="1800">24F-V1 DF/DF — Fb 1800</option>
                 <option value="2000">24F-V3 DF/DF — Fb 2000</option>
@@ -392,7 +413,7 @@
               </select>
             </div>
             <div class="hide" id="g-fb-custom-wrap"><label>Custom Fb (psi)</label><input id="g-fb-custom" type="number" inputmode="decimal" value="2400" step="50" oninput="updateBeamAnalysis()"></div>
-            <div><label>E (x10^6 psi)</label>
+            <div id="g-e-wrap"><label>E (x10^6 psi)</label>
               <select id="g-e" onchange="onBeamMaterialChange()">
                 <option value="1.7">1.7</option><option value="1.8" selected>1.8</option><option value="1.9">1.9</option>
                 <option value="custom">— custom E —</option>
@@ -417,8 +438,8 @@
 
       <!-- SPAN CALCULATOR -->
       <section class="panel" id="spancalc">
-        <h2>Span calculator</h2>
-        <p class="sub">Preliminary simple-span beam check for sawn lumber, engineered lumber (LVL), or engineered I-joists. Handles uniform load, a point load, or both together (superposition, load at midspan). Not a substitute for a stamped calculation.</p>
+        <h2>LVL / I-Joist calculator</h2>
+        <p class="sub">Preliminary simple-span beam check for engineered lumber (LVL) or engineered I-joists (also handles plain sawn lumber, if you want a quick single-span check without the Beam Sizing tab's diagram). Handles uniform load, a point load, or both together (superposition, load at midspan). Not a substitute for a stamped calculation.</p>
         <div class="card">
           <div class="seg" id="sp-type-seg">
             <button class="active" data-type="sawn" onclick="setSpanType('sawn')">Sawn Lumber</button>
@@ -492,11 +513,29 @@
       <!-- JOIST -->
       <section class="panel" id="joist">
         <h2>Sawn lumber joist spans</h2>
-        <p class="sub">Douglas Fir-Larch, calculated from the load and deflection limit you enter below — not a fixed table.</p>
+        <p class="sub">Douglas Fir-Larch. Lay out the actual bearing points below — including a mid-span beam and a cantilever — and it suggests the smallest size that works for every bay/overhang at once, live.</p>
+
+        <div class="card">
+          <h3 style="margin-top:0;font-size:.95rem;">Joist &amp; bearings</h3>
+          <p class="note" style="margin-top:0;">Click the joist to add a bearing, drag a bearing to move it, double-click a bearing to remove it (2 minimum). Click a bearing's label to toggle Wall/Beam. Set an overhang below for a joist that cantilevers past its end bearing.</p>
+          <div class="beam-diagram-wrap">
+            <svg id="j-beam-svg" viewBox="0 0 900 286" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid meet"></svg>
+          </div>
+          <div class="grid" style="margin-top:10px;">
+            <div><label>Total number of bearings</label><input id="j-support-count" type="number" inputmode="numeric" value="2" step="1" min="2" onchange="onJoistSupportCountChange()"></div>
+            <div><label>Total joist length (ft) &mdash; controlling</label><input id="j-total-length" type="number" inputmode="decimal" step="0.5" min="0.5" onchange="onJoistTotalLengthChange()"></div>
+            <div style="align-self:end;"><label style="display:flex;align-items:center;gap:6px;margin-bottom:8px;"><input type="checkbox" id="j-lock-total" onchange="onJoistLockToggle()" style="width:auto;margin:0;"> Lock total length while adjusting bearings</label></div>
+            <div><label>Start overhang (ft) &mdash; cantilever past the first bearing</label><input id="j-oh-start" type="number" inputmode="decimal" value="0" step="0.5" min="0" oninput="onJoistOverhangChange()"></div>
+            <div><label>End overhang (ft) &mdash; cantilever past the last bearing</label><input id="j-oh-end" type="number" inputmode="decimal" value="0" step="0.5" min="0" oninput="onJoistOverhangChange()"></div>
+          </div>
+          <div class="note" id="j-span-readout" style="margin-top:2px;"></div>
+          <p class="note" style="margin-top:2px;">Click any dimension number in the diagram to type an exact value for that bay or overhang. Setting total joist length scales the bay spans proportionally to hit that overall length (overhangs stay as entered).</p>
+        </div>
+
         <div class="card">
           <div class="grid">
             <div><label>Grade</label>
-              <select id="j-grade" onchange="renderJoist()">
+              <select id="j-grade" onchange="updateJoistAnalysis()">
                 <option value="ss">Select Structural</option>
                 <option value="1" selected>No. 1</option>
                 <option value="2">No. 2</option>
@@ -510,59 +549,23 @@
                 <option value="10,60">Deck (DL 10 / LL 60)</option>
               </select>
             </div>
-            <div><label>Dead load (psf)</label><input id="j-dl" type="number" inputmode="decimal" value="10" step="1" oninput="renderJoist()"></div>
-            <div><label>Live load (psf)</label><input id="j-ll" type="number" inputmode="decimal" value="40" step="1" oninput="renderJoist()"></div>
+            <div><label>Spacing (in o.c.)</label><input id="j-spacing" type="number" inputmode="decimal" value="16" step="1" min="1" oninput="updateJoistAnalysis()"></div>
+            <div><label>Dead load (psf)</label><input id="j-dl" type="number" inputmode="decimal" value="10" step="1" oninput="updateJoistAnalysis()"></div>
+            <div><label>Live load (psf)</label><input id="j-ll" type="number" inputmode="decimal" value="40" step="1" oninput="updateJoistAnalysis()"></div>
             <div><label>Deflection limit (live load)</label>
-              <select id="j-defl" onchange="renderJoist()">
+              <select id="j-defl" onchange="updateJoistAnalysis()">
                 <option value="360" selected>L/360</option>
                 <option value="480">L/480 (stiffer floor)</option>
                 <option value="240">L/240</option>
               </select>
             </div>
           </div>
-          <div class="table-wrap"><table id="j-table"></table></div>
+          <div class="result" id="j-result"></div>
         </div>
-        <p class="flag">Calculated from standard NDS-style Fb/E design values for DF-L (with size factor CF and a 1.15 repetitive-member factor, since these tables assume joists spaced &le;24" o.c.), checking bending and live-load deflection only — shear and bearing at supports are not checked here, same as the Glulam tab. These will not exactly match a specific published AWC/IRC span table (which may use slightly different reference values), so still confirm against the current adopted IRC/AWC span tables and Oregon amendments before use in a drawing set. Also remember: if your load case isn't a plain floor (a deck at 60 psf, for instance), you must change the Dead/Live load fields above — they do not update automatically from context.</p>
+        <p class="flag">Calculated from standard NDS-style Fb/E design values for DF-L (with size factor CF and a 1.15 repetitive-member factor, since these span/size checks assume joists spaced &le;24" o.c.), checking bending and live-load deflection only — shear and bearing at supports are not checked here, same as the Beam Sizing tab. Each bay and overhang above is checked independently (bay = simple span, overhang = cantilever from its bearing), and one common size is suggested that satisfies all of them at once — the worst bay or overhang governs. These will not exactly match a specific published AWC/IRC span table (which may use slightly different reference values), so still confirm against the current adopted IRC/AWC span tables and Oregon amendments before use in a drawing set. Also remember: if your load case isn't a plain floor (a deck at 60 psf, for instance), you must change the Dead/Live load fields above — they do not update automatically from context. Sizes checked run 2x6 through 2x14; if nothing that size works, look at an LVL/I-joist on the LVL/I-Joist Calc tab instead.</p>
       </section>
 
       <!-- SECTION PROPERTIES -->
-      <section class="panel" id="spans">
-        <h2>Standard glulam section properties</h2>
-        <p class="sub">Sx and I by width and depth, generated on the fly. Covers both the Southern Pine series (5-1/2", 7-1/2", 9-1/2" — matches dimension lumber width) and the Western/DF series (3-1/8", 5-1/8", 6-3/4", 8-3/4" — does not match dimension lumber).</p>
-        <div class="card">
-          <div class="grid">
-            <div><label>Width</label>
-              <select id="s-width" onchange="renderSections()">
-                <option value="all">All widths</option>
-                <option value="3.125">3-1/8" (Western/DF series)</option>
-                <option value="5.125">5-1/8" (Western/DF series)</option>
-                <option value="5.5" selected>5-1/2" (Southern Pine series — Tamarack default)</option>
-                <option value="6.75">6-3/4" (Western/DF series)</option>
-                <option value="7.5">7-1/2" (Southern Pine series)</option>
-                <option value="8.75">8-3/4" (Western/DF series)</option>
-                <option value="9.5">9-1/2" (Southern Pine series)</option>
-              </select>
-            </div>
-          </div>
-          <div class="table-wrap"><table id="s-table"></table></div>
-        </div>
-      </section>
-
-      <!-- SITE DATA / ZIP -->
-      <section class="panel" id="site">
-        <h2>Site design data (by ZIP)</h2>
-        <p class="sub">Rough regional planning values for Oregon, Washington, and Idaho sites, to get you in the ballpark before an EOR pulls exact site-specific hazard data.</p>
-        <div class="card">
-          <div class="grid">
-            <div><label>Project ZIP code (OR / WA / ID)</label><input id="z-zip" type="text" inputmode="numeric" value="97850" maxlength="5"></div>
-            <div><label>Site elevation (ft) — optional</label><input id="z-elev" type="number" inputmode="decimal" placeholder="leave blank for regional default"></div>
-          </div>
-          <button class="run" onclick="lookupZip()">Look up</button>
-          <div class="result" id="z-result"></div>
-        </div>
-        <p class="flag">Values are coarse 3-digit-ZIP regional estimates, not a site-specific hazard report. Ground snow load in the Cascades/Rockies foothills and the eastern Idaho/Yellowstone corridor is strongly elevation- and fault-proximity-dependent — always confirm snow against the state/county-adopted snow load map (SEAO for Oregon; local jurisdiction maps for WA and ID) and confirm wind/seismic against the ASCE 7 Hazard Tool (asce7hazardtool.online) before finalizing a design. Coverage: Oregon (970–979), Washington (980–986, 988–994), and Idaho (832–838) 3-digit ZIP prefixes. Elevations are regional-default (largest city/town in that prefix) — always enter the actual site elevation above when you know it, since it drives the snow load estimate directly.</p>
-      </section>
-
       <!-- FOOTING / BEARING PRESSURE -->
       <section class="panel" id="footing">
         <h2>Footing sizing / bearing pressure</h2>
@@ -619,6 +622,44 @@
         </div>
         <p class="flag">Service-level (unfactored) loads only — this sizes/checks soil bearing pressure against an allowable value you provide, it does NOT check concrete design (one-way/punching shear, flexure, or reinforcing) or overturning/sliding. Footing self-weight and any soil surcharge above the footing are NOT added automatically — fold them into the load you enter if you want them reflected. Eccentricity is uniaxial (one direction at a time, computed by e=M/P) — a footing with real biaxial eccentricity needs a full two-way check, not this tool. When e exceeds the kern (L/6 or W/6), the soil is assumed to lift off part of the footing and pressure is redistributed as a triangular block over the remaining bearing length — a condition worth avoiding under sustained loads even if the sized/checked q<sub>max</sub> still passes; sizing mode rounds the solved dimension UP to the nearest inch, so the actual q<sub>max</sub> at that rounded size is always at or slightly under q<sub>a</sub>, never over. The allowable bearing value is whatever you type in q<sub>a</sub> — the Site Data (ZIP) tab can hand you a rough regional placeholder as a starting point, but always confirm the real number against the project's actual geotechnical report before finalizing a footing size.</p>
       </section>
+
+      <section class="panel" id="spans">
+        <h2>Standard glulam section properties</h2>
+        <p class="sub">Sx and I by width and depth, generated on the fly. Covers both the Southern Pine series (5-1/2", 7-1/2", 9-1/2" — matches dimension lumber width) and the Western/DF series (3-1/8", 5-1/8", 6-3/4", 8-3/4" — does not match dimension lumber).</p>
+        <div class="card">
+          <div class="grid">
+            <div><label>Width</label>
+              <select id="s-width" onchange="renderSections()">
+                <option value="all">All widths</option>
+                <option value="3.125">3-1/8" (Western/DF series)</option>
+                <option value="5.125">5-1/8" (Western/DF series)</option>
+                <option value="5.5" selected>5-1/2" (Southern Pine series — Tamarack default)</option>
+                <option value="6.75">6-3/4" (Western/DF series)</option>
+                <option value="7.5">7-1/2" (Southern Pine series)</option>
+                <option value="8.75">8-3/4" (Western/DF series)</option>
+                <option value="9.5">9-1/2" (Southern Pine series)</option>
+              </select>
+            </div>
+          </div>
+          <div class="table-wrap"><table id="s-table"></table></div>
+        </div>
+      </section>
+
+      <!-- SITE DATA / ZIP -->
+      <section class="panel" id="site">
+        <h2>Site design data (by ZIP)</h2>
+        <p class="sub">Rough regional planning values for Oregon, Washington, and Idaho sites, to get you in the ballpark before an EOR pulls exact site-specific hazard data.</p>
+        <div class="card">
+          <div class="grid">
+            <div><label>Project ZIP code (OR / WA / ID)</label><input id="z-zip" type="text" inputmode="numeric" value="97850" maxlength="5"></div>
+            <div><label>Site elevation (ft) — optional</label><input id="z-elev" type="number" inputmode="decimal" placeholder="leave blank for regional default"></div>
+          </div>
+          <button class="run" onclick="lookupZip()">Look up</button>
+          <div class="result" id="z-result"></div>
+        </div>
+        <p class="flag">Values are coarse 3-digit-ZIP regional estimates, not a site-specific hazard report. Ground snow load in the Cascades/Rockies foothills and the eastern Idaho/Yellowstone corridor is strongly elevation- and fault-proximity-dependent — always confirm snow against the state/county-adopted snow load map (SEAO for Oregon; local jurisdiction maps for WA and ID) and confirm wind/seismic against the ASCE 7 Hazard Tool (asce7hazardtool.online) before finalizing a design. Coverage: Oregon (970–979), Washington (980–986, 988–994), and Idaho (832–838) 3-digit ZIP prefixes. Elevations are regional-default (largest city/town in that prefix) — always enter the actual site elevation above when you know it, since it drives the snow load estimate directly.</p>
+      </section>
+
 
       <!-- LOAD PATH -->
       <section class="panel" id="loadpath">
@@ -686,7 +727,7 @@
           <h2 class="lp-cardHead" style="font-size:1rem;" onclick="lpToggleSection(this)">Beam / Joist Check<span class="lp-chevron">▾</span></h2>
           <div class="lp-cardBody">
             <p class="sub" style="margin-top:0;">Flags modeled beams/joists that look undersized for their span, reusing the same
-              bending/shear/deflection math as the Span Calculator tab. Tributary width here is a single value applied to every
+              bending/shear/deflection math as the LVL/I-Joist Calc tab. Tributary width here is a single value applied to every
               member (this project's typical joist/beam spacing) — not read per-member, so treat this as a first pass, not a
               per-beam design check. A member whose size couldn't be parsed from its family/type name is flagged rather than guessed.
               Open Web Wood Joists (OWWJ) are assumed to bear only at their two ends — they are never flagged as multi-span continuous,
@@ -959,7 +1000,7 @@
       <!-- TUTORIAL -->
       <section class="panel" id="tutorial">
         <h2>Tutorial &mdash; sizing a simple deck</h2>
-        <p class="sub">A worked example walking Glulam Sizing, Joist Spans, Section Properties, and Footing Sizing together on one real deck, so you can confirm the tools' numbers match a hand check.</p>
+        <p class="sub">A worked example walking Beam Sizing, Joist Spans, Section Properties, and Footing Sizing together on one real deck, so you can confirm the tools' numbers match a hand check.</p>
 
         <div class="card">
           <h3 style="margin-top:0;">The example project</h3>
@@ -998,12 +1039,12 @@
         </div>
 
         <div class="card">
-          <h3 style="margin-top:0;">1 &middot; Glulam Sizing &mdash; the beam (a mid-post changes the answer a lot)</h3>
+          <h3 style="margin-top:0;">1 &middot; Beam Sizing &mdash; the beam (a mid-post changes the answer a lot)</h3>
           <p>Enter: preset <b>Deck (DL 10 / LL 60)</b> &middot; width <b>5-1/2"</b> &middot; <b>Bay span(s): "6,6"</b> (this is the field to watch &mdash; NOT "12", since the mid post breaks the beam into two 6-ft spans) &middot; tributary <b>5 ft</b> &middot; Fb 2400 &middot; E 1.8 &middot; L/360.</p>
           <p style="font-family:var(--sans);font-size:.85rem;color:var(--steel);">
             w = (10+60) &times; 5 = 350 plf per bay &nbsp;&middot;&nbsp; each 6-ft bay: M = 350 &times; 6&sup2;/8 = 1,575 ft-lb &nbsp;&middot;&nbsp; Sx req = 1,575&times;12/2400 = 7.9 in&sup3; &nbsp;&middot;&nbsp; I req = 28.4 in&#8308;
           </p>
-          <div class="result">Tool's answer for "6,6": <b>5-1/2" x 6"</b> &mdash; a much smaller beam than the 5-1/2" x 9" a (wrong) single 12-ft span would call for. Treating the mid post as if it weren't there is the single easiest way to over-order material on a deck this size &mdash; or, read backwards, entering "6,6" instead of "12" is the check that catches it. (For a beam with a point load partway along a bay instead of a uniform load, the separate Span Calculator tab handles that superposition case &mdash; it just doesn't do multiple bays.)</p>
+          <div class="result">Tool's answer for "6,6": <b>5-1/2" x 6"</b> &mdash; a much smaller beam than the 5-1/2" x 9" a (wrong) single 12-ft span would call for. Treating the mid post as if it weren't there is the single easiest way to over-order material on a deck this size &mdash; or, read backwards, entering "6,6" instead of "12" is the check that catches it. (Beam Sizing itself now handles a point load partway along a bay via its own point-load fields, alongside the multiple-bay diagram &mdash; the LVL/I-Joist Calc tab is only needed for an LVL or engineered I-joist member.)</p>
           <p class="flag">Each bay is checked as its own simple span (the multi-span input takes the worst bay) &mdash; that's conservative versus true continuous-beam behavior, not unconservative. Also: the L/360 deflection check uses combined dead+live load, not live load alone, which is slightly conservative in the same safe direction.</p>
         </div>
 
@@ -1015,14 +1056,14 @@
 
         <div class="card">
           <h3 style="margin-top:0;">3 &middot; Section Properties &mdash; the cross-check</h3>
-          <p>No inputs here &mdash; just Sx and I generated from geometry, so you can verify what Glulam Sizing handed you:</p>
+          <p>No inputs here &mdash; just Sx and I generated from geometry, so you can verify what Beam Sizing handed you:</p>
           <p style="font-family:var(--sans);font-size:.85rem;color:var(--steel);">Sx = b&middot;d&sup2;/6 = 5.5&times;6&sup2;/6 = 33.0 in&sup3; &nbsp;&middot;&nbsp; I = b&middot;d&sup3;/12 = 5.5&times;6&sup3;/12 = 99.0 in&#8308;</p>
-          <p>Filter Width to 5-1/2" and find the 6" row &mdash; it should read Sx 33.0, I 99, matching the Glulam tool's "provided" numbers for the "6,6" case exactly. If those two tabs ever disagree, that's a real bug worth reporting.</p>
+          <p>Filter Width to 5-1/2" and find the 6" row &mdash; it should read Sx 33.0, I 99, matching the Beam Sizing tool's "provided" numbers for the "6,6" case exactly. If those two tabs ever disagree, that's a real bug worth reporting.</p>
         </div>
 
         <div class="card">
           <h3 style="margin-top:0;">4 &middot; Footing / Bearing &mdash; the posts</h3>
-          <p>Carry the beam's post reactions over by hand (there's no automatic link between the Glulam tab and this one): with w = 350 plf and 6-ft bays on each side of the mid post, the <b>end posts</b> each pick up roughly <span class="mono">350&times;6/2 = 1,050 lb</span>, and the <b>mid post</b> picks up both adjacent half-bays: <span class="mono">350&times;6/2 + 350&times;6/2 = 2,100 lb</span> (2.1 kips &mdash; this tab takes load in kips, not lb).</p>
+          <p>Beam Sizing's own "Send to Footing" button (next to each support reaction) can carry this over automatically now, but by hand: with w = 350 plf and 6-ft bays on each side of the mid post, the <b>end posts</b> each pick up roughly <span class="mono">350&times;6/2 = 1,050 lb</span>, and the <b>mid post</b> picks up both adjacent half-bays: <span class="mono">350&times;6/2 + 350&times;6/2 = 2,100 lb</span> (2.1 kips &mdash; this tab takes load in kips, not lb).</p>
           <p>Set: mode <b>Size a footing</b> &middot; type <b>Isolated / Spread</b> &middot; shape <b>Square</b> &middot; P <b>2.1</b> kips (the mid post, worst case) &middot; e = 0 &middot; q<sub>a</sub> <b>1,500 psf</b>.</p>
           <div class="result">Tool's answer: <b>1'-3" x 1'-3"</b> square footing (1.6 ft&sup2;), q<sub>max</sub> = 1,344 psf against the 1,500 psf allowable &mdash; hand-checked (P/q<sub>a</sub> = 2,100/1,500 = 1.4 ft&sup2; &rarr; ~1.18 ft side, rounded up to the nearest inch) and it matches. Note this tool doesn't apply a code-minimum footing size floor the way some jurisdictions require (commonly 18"+ regardless of load) &mdash; that's on you to check separately, same as frost depth.</p>
           <p class="flag">Service-level loads only, no concrete design (shear/flexure/reinforcing), no footing self-weight added automatically, uniaxial eccentricity only. Always confirm frost depth and the locally adopted minimum footing size for La Grande / Union County.</p>
@@ -1066,6 +1107,97 @@
   document.querySelectorAll('.mobile-more-panel button[data-panel]').forEach(btn=>{
     btn.addEventListener('click', ()=> showPanel(btn.dataset.panel));
   });
+
+  // ---- CARRYING A LOAD FROM ONE TAB TO ANOTHER ----
+  // Small "Send to..." buttons on a result (Joist bearing loads, Glulam
+  // support reactions) jump to the target tab and drop the number straight
+  // into its load field, so nothing has to be hand-carried/retyped between
+  // tools. flashField()/showToast() just make it visually obvious what moved.
+  function flashField(el){
+    if(!el) return;
+    el.scrollIntoView({behavior:'smooth', block:'center'});
+    const prevTransition = el.style.transition;
+    el.style.transition = 'background-color .25s';
+    el.style.backgroundColor = '#fff3cd';
+    setTimeout(()=>{ el.style.backgroundColor=''; el.style.transition = prevTransition; }, 1400);
+  }
+  function showLoadToast(msg){
+    let t = document.getElementById('load-toast');
+    if(!t){
+      t = document.createElement('div');
+      t.id = 'load-toast';
+      t.style.cssText = 'position:fixed;bottom:22px;left:50%;transform:translateX(-50%);max-width:90vw;background:#2b6cb0;color:#fff;padding:10px 18px;border-radius:6px;font-family:var(--sans,sans-serif);font-size:.82rem;z-index:9999;box-shadow:0 2px 10px rgba(0,0,0,.25);opacity:0;transition:opacity .25s;pointer-events:none;';
+      document.body.appendChild(t);
+    }
+    t.textContent = msg;
+    t.style.opacity = '1';
+    clearTimeout(t._hideTimer);
+    t._hideTimer = setTimeout(()=>{ t.style.opacity='0'; }, 3200);
+  }
+
+  // Isolated (point/column) load into the Footing tab, in lb -> kips.
+  function sendLoadToFootingPoint(P_lb, label){
+    showPanel('footing');
+    setFootingMode('size');
+    setFootingType('isolated');
+    const el = document.getElementById('f-size-P');
+    if(!el) return;
+    el.value = Math.round((P_lb/1000)*100)/100;
+    if(typeof runFooting==='function') runFooting();
+    flashField(el);
+    showLoadToast(`Sent ${Math.round(P_lb).toLocaleString()} lb (${label}) to Footing as a column load — ${el.value} kips.`);
+  }
+  // Continuous (wall) running load into the Footing tab, already in plf.
+  function sendLoadToFootingWall(p_plf, label){
+    showPanel('footing');
+    setFootingMode('size');
+    setFootingType('continuous');
+    const el = document.getElementById('f-size-p');
+    if(!el) return;
+    el.value = Math.round(p_plf);
+    if(typeof runFooting==='function') runFooting();
+    flashField(el);
+    showLoadToast(`Sent ${Math.round(p_plf).toLocaleString()} plf (${label}) to Footing as a wall load.`);
+  }
+  // A joist bearing's reaction as a NEW point load on the Glulam beam it
+  // lands on — location isn't known automatically (that's wherever the joist
+  // actually frames into the beam), so it's left for you to set.
+  function sendJoistReactionToGlulam(idx){
+    const reactions = computeJoistReactions();
+    if(!reactions || !reactions[idx]) return;
+    const r = reactions[idx];
+    const countEl = document.getElementById('g-pl-count');
+    let n = parseInt(countEl.value) || 0;
+    if(n>=4){ showLoadToast('Glulam already has 4 point loads (its max) — clear one first, then send this one.'); return; }
+    n += 1;
+    showPanel('glulam');
+    countEl.value = n;
+    onPointLoadCountChange();
+    const magEl = document.getElementById('g-pl-mag-'+(n-1));
+    const locEl = document.getElementById('g-pl-loc-'+(n-1));
+    if(magEl) magEl.value = Math.round(r.R);
+    if(typeof updateBeamAnalysis==='function') updateBeamAnalysis();
+    flashField(locEl || magEl);
+    showLoadToast(`Sent ${Math.round(r.R).toLocaleString()} lb (${r.type==='wall'?'Wall':'Beam'} ${idx+1} from Joist) to Glulam as point load #${n} — set where it falls along the beam.`);
+  }
+  function sendJoistReactionToFooting(idx){
+    const reactions = computeJoistReactions();
+    if(!reactions || !reactions[idx]) return;
+    const r = reactions[idx];
+    const label = `${r.type==='wall'?'Wall':'Beam'} ${idx+1} from Joist`;
+    if(r.type==='wall') sendLoadToFootingWall(r.Rplf, label);
+    else sendLoadToFootingPoint(r.R, label);
+  }
+  function sendGlulamReactionToFooting(idx){
+    const reactions = computeReactions();
+    if(!reactions || !reactions[idx]) return;
+    const r = reactions[idx];
+    const label = `${r.type==='wall'?'Wall':r.type==='beam'?'Beam':'Post'} ${idx+1} from Glulam`;
+    sendLoadToFootingPoint(r.R, label);
+  }
+  function sendBtn(onclick, text, outline){
+    return `<button type="button" onclick="${onclick}" style="font-size:.72rem;padding:2px 8px;margin-left:4px;border:1px solid ${outline||'var(--blueprint)'};border-radius:4px;background:#fff;color:${outline||'var(--blueprint)'};cursor:pointer;">${text} &rarr;</button>`;
+  }
 
   function openMobileMoreSheet(){
     const sheet = document.getElementById('mobileMoreSheet');
@@ -1364,11 +1496,18 @@
   }
 
   function onBeamMaterialChange(){
-    document.getElementById('g-width-custom-wrap').classList.toggle('hide', document.getElementById('g-width').value!=='custom');
-    const fbCustom = document.getElementById('g-fb').value==='custom';
+    const memberTypeEl = document.getElementById('g-member-type');
+    const isSawn = memberTypeEl && memberTypeEl.value==='sawn';
+    document.getElementById('g-width-wrap').classList.toggle('hide', isSawn);
+    document.getElementById('g-width-custom-wrap').classList.toggle('hide', isSawn || document.getElementById('g-width').value!=='custom');
+    document.getElementById('g-sawn-grade-wrap').classList.toggle('hide', !isSawn);
+    document.getElementById('g-sawn-plies-wrap').classList.toggle('hide', !isSawn);
+    document.getElementById('g-fb-wrap').classList.toggle('hide', isSawn);
+    document.getElementById('g-e-wrap').classList.toggle('hide', isSawn);
+    const fbCustom = !isSawn && document.getElementById('g-fb').value==='custom';
     document.getElementById('g-fb-custom-wrap').classList.toggle('hide', !fbCustom);
     document.getElementById('g-species-wrap').classList.toggle('hide', !fbCustom);
-    document.getElementById('g-e-custom-wrap').classList.toggle('hide', document.getElementById('g-e').value!=='custom');
+    document.getElementById('g-e-custom-wrap').classList.toggle('hide', isSawn || document.getElementById('g-e').value!=='custom');
     if(typeof updateBeamAnalysis==='function') updateBeamAnalysis();
   }
 
@@ -1756,13 +1895,18 @@
         for(let h=0; h<40; h+=8){
           g += `<line x1="${x-14}" y1="${topY+h}" x2="${x-14+8}" y2="${topY+h+8}" stroke="#6b6250" stroke-width="1"/>`;
         }
+      } else if(type==='beam'){
+        // bearing on a beam/girder below — drawn as a girder cross-section under the post
+        g += `<rect x="${x-16}" y="${topY}" width="32" height="16" fill="#8a6a45" stroke="#4d3a26" stroke-width="1.5"/>`;
+        g += `<polygon points="${x-13},${topY+16+22} ${x+13},${topY+16+22} ${x},${topY+16} " fill="#8a94a3" stroke="#4d5561" stroke-width="1.5"/>`;
+        g += `<line x1="${x-18}" y1="${topY+16+22}" x2="${x+18}" y2="${topY+16+22}" stroke="#4d5561" stroke-width="3"/>`;
       } else {
         g += `<polygon points="${x-13},${topY+38} ${x+13},${topY+38} ${x},${topY} " fill="#8a94a3" stroke="#4d5561" stroke-width="1.5"/>`;
         g += `<line x1="${x-18}" y1="${topY+38}" x2="${x+18}" y2="${topY+38}" stroke="#4d5561" stroke-width="3"/>`;
         for(let h=-16;h<=16;h+=8){ g += `<line x1="${x+h}" y1="${topY+38}" x2="${x+h-6}" y2="${topY+48}" stroke="#4d5561" stroke-width="1.5"/>`; }
       }
       g += `<circle cx="${x}" cy="${beamY+beamH/2}" r="5" fill="#fff" stroke="#4d5561" stroke-width="1.5"/>`;
-      g += `<text class="beam-support-label" data-idx="${i}" x="${x}" y="${topY+64}" text-anchor="middle" font-size="12" font-family="var(--sans,sans-serif)" fill="#4d5561">${type==='wall'?'Wall':'Post'} ${i+1}</text>`;
+      g += `<text class="beam-support-label" data-idx="${i}" x="${x}" y="${topY+64}" text-anchor="middle" font-size="12" font-family="var(--sans,sans-serif)" fill="#4d5561">${type==='wall'?'Wall':type==='beam'?'Beam':'Post'} ${i+1}</text>`;
       if(reactions && reactions[i]){
         g += `<text x="${x}" y="${topY+80}" text-anchor="middle" font-size="12" font-weight="600" font-family="var(--sans,sans-serif)" fill="#8a5a1e">${fmtNumShort(reactions[i].R)} lb</text>`;
       }
@@ -1870,7 +2014,8 @@
       const lbl = ev.target.closest('.beam-support-label');
       if(lbl){
         const idx = +lbl.dataset.idx;
-        beamSupportTypes[idx] = (beamSupportTypes[idx]==='wall') ? 'post' : 'wall';
+        const cur = beamSupportTypes[idx] || 'post';
+        beamSupportTypes[idx] = cur==='post' ? 'wall' : cur==='wall' ? 'beam' : 'post';
         updateBeamAnalysis();
         return;
       }
@@ -1957,17 +2102,35 @@
   }
 
   function calcGlulam(){
-    const widthSel = document.getElementById('g-width').value;
-    const width = widthSel==='custom' ? parseFloat(document.getElementById('g-width-custom').value) : parseFloat(widthSel);
+    const memberTypeEl = document.getElementById('g-member-type');
+    const memberType = memberTypeEl ? memberTypeEl.value : 'glulam';
+    const isSawn = memberType==='sawn';
+    let width, fb, E, sawnPlies;
+    if(isSawn){
+      sawnPlies = parseInt(document.getElementById('g-sawn-plies').value) || 1;
+      const gradeKey = document.getElementById('g-sawn-grade').value;
+      const grade = JOIST_DESIGN[gradeKey] || JOIST_DESIGN['1'];
+      // fb here is just an internal constant used to derive Sreq/M consistently
+      // in the per-bay loop below — the ACTUAL bending capacity check for a
+      // bundled sawn size applies that size's own NDS size factor (CF) against
+      // this same base Fb, done in the size-catalog search further down, not
+      // here. E is the real modulus, used directly for deflection.
+      fb = grade.Fb;
+      E = grade.E;
+      width = 1.5*sawnPlies; // for display only until a size is picked
+    } else {
+      const widthSel = document.getElementById('g-width').value;
+      width = widthSel==='custom' ? parseFloat(document.getElementById('g-width-custom').value) : parseFloat(widthSel);
+      const fbSel = document.getElementById('g-fb').value;
+      fb = fbSel==='custom' ? parseFloat(document.getElementById('g-fb-custom').value) : parseFloat(fbSel);
+      const eSel = document.getElementById('g-e').value;
+      E = (eSel==='custom' ? parseFloat(document.getElementById('g-e-custom').value) : parseFloat(eSel)) * 1e6;
+    }
     const spanRaw = document.getElementById('g-span').value;
     const spans = spanRaw.split(',').map(s=>parseFloat(s.trim())).filter(s=>!isNaN(s) && s>0);
     const trib = parseFloat(document.getElementById('g-trib').value);
     const dl = parseFloat(document.getElementById('g-dl').value);
     const ll = parseFloat(document.getElementById('g-ll').value);
-    const fbSel = document.getElementById('g-fb').value;
-    const fb = fbSel==='custom' ? parseFloat(document.getElementById('g-fb-custom').value) : parseFloat(fbSel);
-    const eSel = document.getElementById('g-e').value;
-    const E = (eSel==='custom' ? parseFloat(document.getElementById('g-e-custom').value) : parseFloat(eSel)) * 1e6;
     const defl = parseFloat(document.getElementById('g-defl').value);
     const ohStart = Math.max(0, parseFloat(document.getElementById('g-oh-start').value) || 0);
     const ohEnd   = Math.max(0, parseFloat(document.getElementById('g-oh-end').value) || 0);
@@ -2052,30 +2215,60 @@
     const govSpanS = worst.SreqSpan || worst.span;
     const govSpanI = worst.IreqSpan || worst.span;
 
-    // Fixed width — only the depth is solved for, since width is picked to match
-    // the wall/post it lands on, not to minimize material.
-    const sizes = depthsForWidth(width);
-    const fit = sizes.find(s => s.Sx >= Sreq && s.I >= Ireq);
-
-    const wFrac = (width % 1 === 0.5) ? (Math.floor(width)+'-1/2') : (width % 1 === 0.125 ? Math.floor(width)+'-1/8' : (width%1===0.75? Math.floor(width)+'-3/4' : width));
     const govFt = Math.max(govSpanS,govSpanI);
     const govIsOH = (govSpanS===govFt && worst.SreqOH) || (govSpanI===govFt && worst.IreqOH);
     const bayNote = (spans.length>1 || ohStart>0 || ohEnd>0) ? ` &nbsp; (${spans.length} bay${spans.length>1?'s':''}: ${spans.join("', ")}'${ohStart>0?`, start O.H. ${ohStart}'`:''}${ohEnd>0?`, end O.H. ${ohEnd}'`:''} — governing ${govIsOH?'overhang':'bay'} ${govFt}')` : '';
     const plNote = hasPL ? ` &nbsp; +${pointLoads.length} point load${pointLoads.length>1?'s':''} (${pointLoads.map(p=>`${Math.round(p.P)} lb @ ${p.loc}'`).join(', ')})` : '';
     const reactions = computeReactions();
-    const reactionNote = reactions ? `<div style="margin-top:8px;">Support reactions (for the Footing/Bearing tab) — ${reactions.map(r=>`${r.type==='wall'?'Wall':'Post'} ${r.idx+1}: <b>${Math.round(r.R).toLocaleString()} lb</b>`).join(' &nbsp;|&nbsp; ')}</div>` : '';
-    if(fit){
-      box.classList.remove('warn');
-      const dFrac = (fit.d % 1 === 0.5) ? (Math.floor(fit.d)+'-1/2') : fit.d;
-      box.innerHTML = `<div class="headline">Suggested: ${wFrac}" x ${dFrac}"</div>
-        w = ${w.toFixed(0)} plf${bayNote}${plNote}<br>
-        Sx required = ${Sreq.toFixed(1)} in3 -> provided ${fit.Sx.toFixed(1)} in3<br>
-        I required (defl) = ${Ireq.toFixed(0)} in4 -> provided ${fit.I.toFixed(0)} in4<br>
-        Governs: ${fit.Sx/Sreq < fit.I/Ireq ? 'bending' : 'deflection'}${reactionNote}`;
+    const reactionNote = reactions ? `<div style="margin-top:8px;">Support reactions — ${reactions.map(r=>`${r.type==='wall'?'Wall':r.type==='beam'?'Beam':'Post'} ${r.idx+1}: <b>${Math.round(r.R).toLocaleString()} lb</b> ${sendBtn(`sendGlulamReactionToFooting(${r.idx})`, 'Send to Footing')}`).join('<br>')}</div>` : '';
+
+    if(isSawn){
+      // Bundled sawn lumber — pick the smallest catalog size (2x6..2x14) at
+      // the chosen ply count that clears both bending (with that size's own
+      // NDS size factor CF applied — no repetitive-member Cr, since a bundled
+      // beam/header isn't a repetitive framing member) and deflection.
+      const Mreq = Sreq * fb / 12; // recover the raw required moment (fb was held constant through the bay loop above)
+      const gradeKey = document.getElementById('g-sawn-grade').value;
+      let fit = null;
+      for(const key of JOIST_SIZE_ORDER){
+        const sz = JOIST_SIZES[key];
+        const b = 1.5*sawnPlies;
+        const Sx = b*sz.d*sz.d/6, I = b*sz.d*sz.d*sz.d/12;
+        const Mallow = (fb*sz.CF)*Sx/12;
+        if(Mallow >= Mreq && I >= Ireq){ fit = {key, b, d:sz.d, Sx, I, Mallow}; break; }
+      }
+      if(fit){
+        box.classList.remove('warn');
+        const dFrac = (fit.d % 1 === 0.5) ? (Math.floor(fit.d)+'-1/2') : fit.d;
+        box.innerHTML = `<div class="headline">Suggested: (${sawnPlies}) ${fit.key} — ${fit.b}" x ${dFrac}" bundled</div>
+          Grade: ${JOIST_GRADE_LABEL[gradeKey]||gradeKey} DF-L &nbsp; w = ${w.toFixed(0)} plf${bayNote}${plNote}<br>
+          Moment required = ${Mreq.toFixed(0)} ft-lb -> allowable ${fit.Mallow.toFixed(0)} ft-lb<br>
+          I required (defl) = ${Ireq.toFixed(0)} in4 -> provided ${fit.I.toFixed(0)} in4<br>
+          Governs: ${fit.Mallow/Mreq < fit.I/Ireq ? 'bending' : 'deflection'}${reactionNote}`;
+      } else {
+        box.classList.add('warn');
+        box.innerHTML = `<div class="headline">No size up to (${sawnPlies}) 2x14 works</div>
+          Even (${sawnPlies}) 2x14 doesn't clear the required moment/deflection for this span.${bayNote} Try more plies, a higher grade, or switch to Glulam.${reactionNote}`;
+      }
     } else {
-      box.classList.add('warn');
-      box.innerHTML = `<div class="headline">No depth up to 30" at ${wFrac}" width fits — needs a wider beam, a deeper custom glulam, or a different framing scheme.</div>
-        Sx required = ${Sreq.toFixed(1)} in3, I required = ${Ireq.toFixed(0)} in4 exceed what a 30"-deep ${wFrac}"-wide section provides.${bayNote}${reactionNote}`;
+      // Fixed width — only the depth is solved for, since width is picked to match
+      // the wall/post it lands on, not to minimize material.
+      const sizes = depthsForWidth(width);
+      const fit = sizes.find(s => s.Sx >= Sreq && s.I >= Ireq);
+      const wFrac = (width % 1 === 0.5) ? (Math.floor(width)+'-1/2') : (width % 1 === 0.125 ? Math.floor(width)+'-1/8' : (width%1===0.75? Math.floor(width)+'-3/4' : width));
+      if(fit){
+        box.classList.remove('warn');
+        const dFrac = (fit.d % 1 === 0.5) ? (Math.floor(fit.d)+'-1/2') : fit.d;
+        box.innerHTML = `<div class="headline">Suggested: ${wFrac}" x ${dFrac}"</div>
+          w = ${w.toFixed(0)} plf${bayNote}${plNote}<br>
+          Sx required = ${Sreq.toFixed(1)} in3 -> provided ${fit.Sx.toFixed(1)} in3<br>
+          I required (defl) = ${Ireq.toFixed(0)} in4 -> provided ${fit.I.toFixed(0)} in4<br>
+          Governs: ${fit.Sx/Sreq < fit.I/Ireq ? 'bending' : 'deflection'}${reactionNote}`;
+      } else {
+        box.classList.add('warn');
+        box.innerHTML = `<div class="headline">No depth up to 30" at ${wFrac}" width fits — needs a wider beam, a deeper custom glulam, or a different framing scheme.</div>
+          Sx required = ${Sreq.toFixed(1)} in3, I required = ${Ireq.toFixed(0)} in4 exceed what a 30"-deep ${wFrac}"-wide section provides.${bayNote}${reactionNote}`;
+      }
     }
   }
 
@@ -2202,12 +2395,16 @@
     '1': {Fb:1000, E:1700000},
     '2': {Fb:900,  E:1600000}
   };
+  const JOIST_GRADE_LABEL = {ss:'Select Structural', '1':'No. 1', '2':'No. 2'};
   // Actual dressed dimensions + NDS size factor CF (applies to Fb only).
   const JOIST_SIZES = {
+    '2x6':  {b:1.5, d:5.5,   CF:1.3},
     '2x8':  {b:1.5, d:7.25,  CF:1.2},
     '2x10': {b:1.5, d:9.25,  CF:1.1},
-    '2x12': {b:1.5, d:11.25, CF:1.0}
+    '2x12': {b:1.5, d:11.25, CF:1.0},
+    '2x14': {b:1.5, d:13.25, CF:0.9}
   };
+  const JOIST_SIZE_ORDER = ['2x6','2x8','2x10','2x12','2x14'];
   const JOIST_CR = 1.15; // repetitive-member factor (framing spaced <=24" o.c.)
   const JOIST_CD = 1.0;  // load duration factor, normal/floor occupancy
 
@@ -2217,7 +2414,477 @@
     const [dl, ll] = v.split(',');
     document.getElementById('j-dl').value = dl;
     document.getElementById('j-ll').value = ll;
-    renderJoist();
+    updateJoistAnalysis();
+  }
+
+  // ---- JOIST & BEARINGS DIAGRAM (Joist Spans) ----
+  // Same interaction model as the Glulam beam diagram (drag/click-to-edit
+  // bearings, overhangs, lockable total length) but bearings are 'wall' or
+  // 'beam' (a mid-span or end girder) rather than 'post', since a joist
+  // doesn't bear directly on a post.
+  let jSupports = [0, 12];
+  let jSupportTypes = ['wall','wall'];
+  let jDragIdx = null;
+  let currentJSegs = [];
+  let jLockedTotal = null;
+  let jRenderState = null;
+  let jRafId = null;
+
+  function jLayout(){
+    const ohStart = Math.max(0, parseFloat(document.getElementById('j-oh-start').value) || 0);
+    const ohEnd   = Math.max(0, parseFloat(document.getElementById('j-oh-end').value) || 0);
+    const supports = [...jSupports].sort((a,b)=>a-b);
+    const totalFt = ohStart + (supports[supports.length-1]-supports[0]) + ohEnd;
+    return {ohStart, ohEnd, supports, totalFt};
+  }
+  function jSpansFromSupports(){
+    const s = [...jSupports].sort((a,b)=>a-b);
+    const spans = [];
+    for(let i=1;i<s.length;i++) spans.push(+(s[i]-s[i-1]).toFixed(2));
+    return spans;
+  }
+
+  // Per-joist bearing reaction (lb, PER JOIST — multiply by joists-per-foot,
+  // i.e. 12/spacing-in-inches, to get a running load along the wall/beam).
+  // Same bay/overhang decomposition as the Glulam beam diagram's
+  // computeReactions(): each bay is its own independent simple span, each
+  // overhang dumps its whole load onto the one bearing it cantilevers from.
+  function computeJoistReactions(){
+    const {ohStart, ohEnd, supports, totalFt} = jLayout();
+    if(totalFt<=0 || supports.length<2) return null;
+    const dl = parseFloat(document.getElementById('j-dl').value)||0;
+    const ll = parseFloat(document.getElementById('j-ll').value)||0;
+    const spacing = parseFloat(document.getElementById('j-spacing').value)||0;
+    if(spacing<=0) return null;
+    const trib = spacing/12;
+    const w = (dl+ll)*trib; // plf, per joist
+    const spans = jSpansFromSupports();
+    let cursor = ohStart;
+    const bays = spans.map(sp=>{ const r={start:cursor, end:cursor+sp, span:sp}; cursor+=sp; return r; });
+    const bayReactions = bays.map(b=>{
+      const L = b.span;
+      if(L<=0) return {Rl:0, Rr:0};
+      return {Rl: w*L/2, Rr: w*L/2};
+    });
+    const n = supports.length;
+    const R = new Array(n).fill(0);
+    bayReactions.forEach((br,i)=>{ R[i]+=br.Rl; R[i+1]+=br.Rr; });
+    if(ohStart>0) R[0] += w*ohStart;
+    if(ohEnd>0) R[n-1] += w*ohEnd;
+    // Rplf: that same reaction spread out as a running load along the wall/
+    // beam it lands on (one joist's reaction x joists-per-foot = R/trib) —
+    // more directly usable than a per-joist point load when sizing the
+    // wall's top plate/header or the beam it's bearing on.
+    return R.map((val,i)=>({idx:i, type: jSupportTypes[i]||'wall', R:val, Rplf: val/trib}));
+  }
+
+  function onJoistLockToggle(){
+    const cb = document.getElementById('j-lock-total');
+    if(cb.checked){
+      const {totalFt} = jLayout();
+      jLockedTotal = totalFt;
+      document.getElementById('j-total-length').value = Math.round(totalFt*100)/100;
+    } else {
+      jLockedTotal = null;
+    }
+  }
+
+  function enforceJoistTotalLock(excludeBayIdx0){
+    if(jLockedTotal===null) return;
+    const ohStart = Math.max(0, parseFloat(document.getElementById('j-oh-start').value) || 0);
+    const ohEnd   = Math.max(0, parseFloat(document.getElementById('j-oh-end').value) || 0);
+    const targetSpanRun = jLockedTotal - ohStart - ohEnd;
+    if(targetSpanRun<=0) return;
+    const s = [...jSupports].sort((a,b)=>a-b);
+    const n = s.length;
+    if(n<2) return;
+    const bays = [];
+    for(let i=1;i<n;i++) bays.push(s[i]-s[i-1]);
+    const curRun = s[n-1]-s[0];
+    const diff = targetSpanRun - curRun;
+    if(Math.abs(diff)<0.005) return;
+    let eligible = bays.map((_,i)=>i).filter(i=> !excludeBayIdx0.includes(i));
+    if(eligible.length===0) eligible = bays.map((_,i)=>i);
+    const eligibleTotalLen = eligible.reduce((sum,i)=> sum+bays[i], 0);
+    if(eligibleTotalLen<=0.001){
+      const share = diff/eligible.length;
+      eligible.forEach(i=>{ bays[i] = Math.max(0.1, bays[i]+share); });
+    } else {
+      eligible.forEach(i=>{
+        const w = bays[i]/eligibleTotalLen;
+        bays[i] = Math.max(0.1, bays[i] + diff*w);
+      });
+    }
+    const newS = [s[0]];
+    for(const b of bays) newS.push(+(newS[newS.length-1]+b).toFixed(2));
+    jSupports = newS;
+  }
+
+  function onJoistSupportCountChange(){
+    const field = document.getElementById('j-support-count');
+    let n = Math.round(parseFloat(field.value));
+    if(isNaN(n) || n<2) n = 2;
+    field.value = n;
+    const cur = [...jSupports].sort((a,b)=>a-b);
+    if(n === cur.length){ return; }
+    let next;
+    if(n < cur.length){
+      next = [cur[0]];
+      for(let i=1;i<n-1;i++) next.push(cur[Math.round(i*(cur.length-1)/(n-1))]);
+      next.push(cur[cur.length-1]);
+      next = [...new Set(next)];
+      if(next.length<n){
+        const total = cur[cur.length-1]-cur[0];
+        next = Array.from({length:n}, (_,i)=> +(cur[0] + total*i/(n-1)).toFixed(2));
+      }
+    } else {
+      const total = cur[cur.length-1]-cur[0];
+      next = Array.from({length:n}, (_,i)=> +(cur[0] + total*i/(n-1)).toFixed(2));
+    }
+    jSupports = next;
+    jSupportTypes = next.map((_,i)=> jSupportTypes[i] || 'wall');
+    updateJoistAnalysis();
+  }
+
+  function onJoistTotalLengthChange(){
+    const field = document.getElementById('j-total-length');
+    const target = parseFloat(field.value);
+    if(isNaN(target) || target<=0) return;
+    const ohStart = Math.max(0, parseFloat(document.getElementById('j-oh-start').value) || 0);
+    const ohEnd   = Math.max(0, parseFloat(document.getElementById('j-oh-end').value) || 0);
+    const targetSpanRun = target - ohStart - ohEnd;
+    if(targetSpanRun<=0){
+      field.title = 'Total length must be greater than the two overhangs combined.';
+      return;
+    }
+    field.removeAttribute('title');
+    const cur = [...jSupports].sort((a,b)=>a-b);
+    const curSpanRun = cur[cur.length-1] - cur[0];
+    const base = cur[0];
+    let next;
+    if(curSpanRun<=0){
+      next = cur.map((_,i)=> +(base + targetSpanRun*i/(cur.length-1)).toFixed(2));
+    } else {
+      const scale = targetSpanRun/curSpanRun;
+      next = cur.map(v => +(base + (v-base)*scale).toFixed(2));
+    }
+    jSupports = next;
+    jLockedTotal = target;
+    const lockCb = document.getElementById('j-lock-total');
+    if(lockCb) lockCb.checked = true;
+    updateJoistAnalysis();
+  }
+
+  function onJoistOverhangChange(){
+    enforceJoistTotalLock([]);
+    updateJoistAnalysis();
+  }
+
+  function editJoistSegment(seg, textEl){
+    const wrap = textEl.closest('.beam-diagram-wrap');
+    if(!wrap) return;
+    document.querySelectorAll('.beam-dim-input').forEach(el=>el.remove());
+    const rectText = textEl.getBoundingClientRect();
+    const rectWrap = wrap.getBoundingClientRect();
+    wrap.style.position = 'relative';
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.inputMode = 'decimal';
+    input.className = 'beam-dim-input';
+    const curLen = seg.b - seg.a;
+    input.value = (Math.round(curLen*100)/100).toString();
+    input.style.position = 'absolute';
+    input.style.left = Math.max(0, rectText.left - rectWrap.left - 30) + 'px';
+    input.style.top = Math.max(0, rectText.top - rectWrap.top - 6) + 'px';
+    input.style.width = '64px';
+    input.style.fontSize = '12px';
+    input.style.padding = '2px 4px';
+    input.style.zIndex = '20';
+    input.style.border = '1px solid #2b6cb0';
+    input.style.borderRadius = '3px';
+    wrap.appendChild(input);
+    input.focus();
+    input.select();
+    let done = false;
+    function commit(){
+      if(done) return; done = true;
+      const v = parseFloat(input.value);
+      input.remove();
+      if(isNaN(v) || v<=0) return;
+      if(seg.oh==='start'){
+        document.getElementById('j-oh-start').value = v;
+        onJoistOverhangChange();
+      } else if(seg.oh==='end'){
+        document.getElementById('j-oh-end').value = v;
+        onJoistOverhangChange();
+      } else {
+        const s = [...jSupports].sort((a,b)=>a-b);
+        if(jLockedTotal!==null){
+          if(seg.idx < s.length-1){
+            s[seg.idx] = +(s[seg.idx-1] + v).toFixed(2);
+            if(s[seg.idx] >= s[seg.idx+1]) s[seg.idx] = s[seg.idx+1]-0.1;
+          } else {
+            let newLeft = +(s[seg.idx] - v).toFixed(2);
+            if(seg.idx-1>0) newLeft = Math.max(newLeft, s[seg.idx-2]+0.1);
+            s[seg.idx-1] = newLeft;
+          }
+        } else {
+          const delta = v - (s[seg.idx]-s[seg.idx-1]);
+          for(let i=seg.idx;i<s.length;i++) s[i] = +(s[i]+delta).toFixed(2);
+        }
+        jSupports = s;
+        updateJoistAnalysis();
+      }
+    }
+    input.addEventListener('keydown', (e)=>{
+      if(e.key==='Enter'){ commit(); }
+      else if(e.key==='Escape'){ done=true; input.remove(); }
+    });
+    input.addEventListener('blur', commit);
+  }
+
+  function editJoistTotal(textEl){
+    const wrap = textEl.closest('.beam-diagram-wrap');
+    if(!wrap) return;
+    document.querySelectorAll('.beam-dim-input').forEach(el=>el.remove());
+    const rectText = textEl.getBoundingClientRect();
+    const rectWrap = wrap.getBoundingClientRect();
+    wrap.style.position = 'relative';
+    const {totalFt} = jLayout();
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.inputMode = 'decimal';
+    input.className = 'beam-dim-input';
+    input.value = (Math.round(totalFt*100)/100).toString();
+    input.style.position = 'absolute';
+    input.style.left = Math.max(0, rectText.left - rectWrap.left - 34) + 'px';
+    input.style.top = Math.max(0, rectText.top - rectWrap.top - 6) + 'px';
+    input.style.width = '68px';
+    input.style.fontSize = '12px';
+    input.style.padding = '2px 4px';
+    input.style.zIndex = '20';
+    input.style.border = '1px solid #b7541f';
+    input.style.borderRadius = '3px';
+    wrap.appendChild(input);
+    input.focus();
+    input.select();
+    let done = false;
+    function commit(){
+      if(done) return; done = true;
+      const v = parseFloat(input.value);
+      input.remove();
+      if(isNaN(v) || v<=0) return;
+      document.getElementById('j-total-length').value = v;
+      onJoistTotalLengthChange();
+    }
+    input.addEventListener('keydown', (e)=>{
+      if(e.key==='Enter'){ commit(); }
+      else if(e.key==='Escape'){ done=true; input.remove(); }
+    });
+    input.addEventListener('blur', commit);
+  }
+
+  function scheduleJoistRedraw(){
+    if(jRafId!==null) return;
+    jRafId = requestAnimationFrame(()=>{ jRafId=null; updateJoistAnalysis(); });
+  }
+
+  function drawJoistDiagram(){
+    const svg = document.getElementById('j-beam-svg');
+    if(!svg) return;
+    const readout = document.getElementById('j-span-readout');
+    const {ohStart, ohEnd, supports, totalFt} = jLayout();
+    if(totalFt<=0 || supports.length<2){ svg.innerHTML=''; jRenderState=null; return; }
+
+    const W = 900, H = 286;
+    const padL = 50, padR = 50;
+    const usableW = W - padL - padR;
+    const beamY = 146, beamH = 34;
+    const ftToX = (ft) => padL + ((ft + ohStart) / totalFt) * usableW;
+    jRenderState = {padL, usableW, totalFt, ohStart, supports};
+
+    let svgParts = [];
+    svgParts.push(`
+      <defs>
+        <linearGradient id="woodGradJ" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stop-color="#c9945f"/>
+          <stop offset="45%" stop-color="#b9814c"/>
+          <stop offset="55%" stop-color="#a8703f"/>
+          <stop offset="100%" stop-color="#96602f"/>
+        </linearGradient>
+      </defs>`);
+
+    svgParts.push(`<line x1="${padL-20}" y1="${beamY+beamH+46}" x2="${W-padR+20}" y2="${beamY+beamH+46}" stroke="#cfc7b4" stroke-width="2"/>`);
+
+    const xLeft = ftToX(supports[0]-ohStart);
+    const xRight = ftToX(supports[supports.length-1]+ohEnd);
+    svgParts.push(`<rect class="beam-body" x="${xLeft}" y="${beamY}" width="${xRight-xLeft}" height="${beamH}" rx="3" fill="url(#woodGradJ)" stroke="#6b4423" stroke-width="1.5" style="cursor:copy;"/>`);
+    for(let i=1;i<7;i++){
+      const gy = beamY + (beamH/7)*i + (Math.sin(i*13)*2);
+      svgParts.push(`<path d="M ${xLeft+4} ${gy} Q ${(xLeft+xRight)/2} ${gy+(i%2?3:-3)} ${xRight-4} ${gy}" stroke="#6b4423" stroke-width="0.6" fill="none" opacity="0.35"/>`);
+    }
+
+    if(ohStart>0){
+      const xa = ftToX(supports[0]-ohStart), xb = ftToX(supports[0]);
+      svgParts.push(`<rect x="${xa}" y="${beamY}" width="${xb-xa}" height="${beamH}" fill="#fff" opacity="0.18"/>`);
+    }
+    if(ohEnd>0){
+      const xa = ftToX(supports[supports.length-1]), xb = ftToX(supports[supports.length-1]+ohEnd);
+      svgParts.push(`<rect x="${xa}" y="${beamY}" width="${xb-xa}" height="${beamH}" fill="#fff" opacity="0.18"/>`);
+    }
+
+    const jReactions = computeJoistReactions();
+    supports.forEach((sft, i)=>{
+      const x = ftToX(sft);
+      const type = jSupportTypes[i] || 'wall';
+      const topY = beamY + beamH;
+      let g = `<g class="beam-support-grp" data-idx="${i}">`;
+      if(type==='wall'){
+        g += `<rect x="${x-14}" y="${topY}" width="28" height="40" fill="#b9b2a0" stroke="#6b6250" stroke-width="1"/>`;
+        for(let h=0; h<40; h+=8){
+          g += `<line x1="${x-14}" y1="${topY+h}" x2="${x-14+8}" y2="${topY+h+8}" stroke="#6b6250" stroke-width="1"/>`;
+        }
+      } else {
+        // 'beam' bearing — drawn as a girder cross-section under the joist
+        g += `<rect x="${x-16}" y="${topY}" width="32" height="16" fill="#8a6a45" stroke="#4d3a26" stroke-width="1.5"/>`;
+        g += `<polygon points="${x-13},${topY+16+22} ${x+13},${topY+16+22} ${x},${topY+16} " fill="#8a94a3" stroke="#4d5561" stroke-width="1.5"/>`;
+        g += `<line x1="${x-18}" y1="${topY+16+22}" x2="${x+18}" y2="${topY+16+22}" stroke="#4d5561" stroke-width="3"/>`;
+      }
+      g += `<circle cx="${x}" cy="${beamY+beamH/2}" r="5" fill="#fff" stroke="#4d5561" stroke-width="1.5"/>`;
+      g += `<text class="beam-support-label" data-idx="${i}" x="${x}" y="${topY+64}" text-anchor="middle" font-size="12" font-family="var(--sans,sans-serif)" fill="#4d5561">${type==='wall'?'Wall':'Beam'} ${i+1}</text>`;
+      if(jReactions && jReactions[i]){
+        g += `<text x="${x}" y="${topY+80}" text-anchor="middle" font-size="12" font-weight="600" font-family="var(--sans,sans-serif)" fill="#8a5a1e">${fmtNumShort(jReactions[i].Rplf)} plf</text>`;
+      }
+      g += `</g>`;
+      svgParts.push(g);
+    });
+
+    const dimY = beamY - 22;
+    const segs = [];
+    if(ohStart>0) segs.push({a: supports[0]-ohStart, b: supports[0], oh:'start'});
+    for(let i=1;i<supports.length;i++) segs.push({a: supports[i-1], b: supports[i], oh:false, idx:i});
+    if(ohEnd>0) segs.push({a: supports[supports.length-1], b: supports[supports.length-1]+ohEnd, oh:'end'});
+    currentJSegs = segs;
+    segs.forEach((seg, si)=>{
+      const xa = ftToX(seg.a), xb = ftToX(seg.b);
+      svgParts.push(`<line x1="${xa}" y1="${dimY}" x2="${xb}" y2="${dimY}" stroke="#8a8272" stroke-width="1"/>`);
+      svgParts.push(`<line x1="${xa}" y1="${dimY-5}" x2="${xa}" y2="${dimY+5}" stroke="#8a8272" stroke-width="1"/>`);
+      svgParts.push(`<line x1="${xb}" y1="${dimY-5}" x2="${xb}" y2="${dimY+5}" stroke="#8a8272" stroke-width="1"/>`);
+      const mid = (xa+xb)/2;
+      svgParts.push(`<rect class="beam-dim-hit" data-seg-idx="${si}" x="${mid-28}" y="${dimY-20}" width="56" height="16" fill="transparent"/>`);
+      svgParts.push(`<text class="beam-dim-label" data-seg-idx="${si}" x="${mid}" y="${dimY-8}" text-anchor="middle" font-size="12" font-family="var(--sans,sans-serif)" fill="#2b6cb0" text-decoration="underline" style="cursor:text;">${fmtFt(seg.b-seg.a)}${seg.oh?' (O.H.)':''}</text>`);
+    });
+
+    const dimY0 = dimY - 24;
+    const xTotalA = ftToX(supports[0]-ohStart), xTotalB = ftToX(supports[supports.length-1]+ohEnd);
+    svgParts.push(`<line x1="${xTotalA}" y1="${dimY0}" x2="${xTotalB}" y2="${dimY0}" stroke="#5a5648" stroke-width="1"/>`);
+    svgParts.push(`<line x1="${xTotalA}" y1="${dimY0-5}" x2="${xTotalA}" y2="${dimY0+5}" stroke="#5a5648" stroke-width="1"/>`);
+    svgParts.push(`<line x1="${xTotalB}" y1="${dimY0-5}" x2="${xTotalB}" y2="${dimY0+5}" stroke="#5a5648" stroke-width="1"/>`);
+    const midTotal = (xTotalA+xTotalB)/2;
+    svgParts.push(`<rect class="beam-dim-hit" data-total="1" x="${midTotal-40}" y="${dimY0-20}" width="80" height="16" fill="transparent"/>`);
+    svgParts.push(`<text class="beam-dim-label beam-total-label" data-total="1" x="${midTotal}" y="${dimY0-8}" text-anchor="middle" font-size="12" font-weight="600" font-family="var(--sans,sans-serif)" fill="${jLockedTotal!==null?'#b7541f':'#2b6cb0'}" text-decoration="underline" style="cursor:text;">${fmtFt(totalFt)} total${jLockedTotal!==null?' 🔒':''}</text>`);
+
+    svg.innerHTML = svgParts.join('');
+
+    if(readout){
+      const spanList = jSpansFromSupports();
+      readout.textContent = `${supports.length} bearing${supports.length>1?'s':''} · ${spanList.length} bay${spanList.length>1?'s':''} (${spanList.map(fmtFt).join(', ')})${ohStart>0?`, start overhang ${fmtFt(ohStart)}`:''}${ohEnd>0?`, end overhang ${fmtFt(ohEnd)}`:''} · overall ${fmtFt(totalFt)}`;
+    }
+    const countField = document.getElementById('j-support-count');
+    if(countField && document.activeElement!==countField) countField.value = supports.length;
+    const lenField = document.getElementById('j-total-length');
+    if(lenField && document.activeElement!==lenField) lenField.value = (Math.round(totalFt*100)/100);
+  }
+
+  function initJoistDiagramInteractions(){
+    const svg = document.getElementById('j-beam-svg');
+    if(!svg || svg.dataset.boundInteractions) return;
+    svg.dataset.boundInteractions = '1';
+
+    svg.addEventListener('click', (ev)=>{
+      if(!jRenderState) return;
+      const totalLbl = ev.target.closest('[data-total="1"]');
+      if(totalLbl){
+        const textEl = svg.querySelector('.beam-total-label');
+        if(textEl) editJoistTotal(textEl);
+        return;
+      }
+      const dimEl = ev.target.closest('[data-seg-idx]');
+      if(dimEl){
+        const si = +dimEl.dataset.segIdx;
+        const seg = currentJSegs[si];
+        const textEl = svg.querySelector(`.beam-dim-label[data-seg-idx="${si}"]`);
+        if(seg && textEl) editJoistSegment(seg, textEl);
+        return;
+      }
+      const lbl = ev.target.closest('.beam-support-label');
+      if(lbl){
+        const idx = +lbl.dataset.idx;
+        jSupportTypes[idx] = (jSupportTypes[idx]==='wall') ? 'beam' : 'wall';
+        updateJoistAnalysis();
+        return;
+      }
+      if(ev.target.closest('.beam-body')){
+        const {padL, usableW, totalFt, ohStart, supports} = jRenderState;
+        const pt = svgPoint(svg, ev);
+        const ft = ((pt.x - padL)/usableW)*totalFt - ohStart;
+        let newFt = Math.round(ft*2)/2;
+        newFt = Math.min(Math.max(newFt, supports[0]+0.5), supports[supports.length-1]-0.5);
+        if(supports.some(s=>Math.abs(s-newFt)<0.25)) return;
+        const insertAt = supports.filter(s=>s<newFt).length;
+        jSupports = [...supports, newFt];
+        jSupportTypes.splice(insertAt, 0, 'beam');
+        updateJoistAnalysis();
+      }
+    });
+
+    svg.addEventListener('dblclick', (ev)=>{
+      const grp = ev.target.closest('.beam-support-grp');
+      if(!grp || !jRenderState) return;
+      ev.stopPropagation();
+      const idx = +grp.dataset.idx;
+      const supports = jRenderState.supports;
+      if(supports.length<=2) return;
+      jSupports = supports.filter((_,i)=>i!==idx);
+      jSupportTypes = jSupportTypes.filter((_,i)=>i!==idx);
+      enforceJoistTotalLock([]);
+      updateJoistAnalysis();
+    });
+
+    svg.addEventListener('pointerdown', (ev)=>{
+      if(ev.target.closest('.beam-support-label')) return;
+      const grp = ev.target.closest('.beam-support-grp');
+      if(!grp) return;
+      ev.stopPropagation();
+      jDragIdx = +grp.dataset.idx;
+    });
+
+    svg.addEventListener('pointermove', (ev)=>{
+      if(jDragIdx===null || !jRenderState) return;
+      const {padL, usableW, totalFt, ohStart, supports} = jRenderState;
+      const pt = svgPoint(svg, ev);
+      let ft = ((pt.x - padL)/usableW)*totalFt - ohStart;
+      ft = Math.round(ft*2)/2;
+      const s = [...supports];
+      const lo = (jDragIdx===0) ? -1e9 : s[jDragIdx-1]+0.5;
+      const hi = (jDragIdx===s.length-1) ? 1e9 : s[jDragIdx+1]-0.5;
+      ft = Math.min(Math.max(ft, lo), hi);
+      s[jDragIdx] = ft;
+      if(jLockedTotal!==null && (jDragIdx===0 || jDragIdx===s.length-1)){
+        const ohS = Math.max(0, parseFloat(document.getElementById('j-oh-start').value) || 0);
+        const ohE = Math.max(0, parseFloat(document.getElementById('j-oh-end').value) || 0);
+        const targetRun = jLockedTotal - ohS - ohE;
+        if(targetRun>0){
+          if(jDragIdx===0) s[s.length-1] = +(s[0]+targetRun).toFixed(2);
+          else s[0] = +(s[s.length-1]-targetRun).toFixed(2);
+        }
+      }
+      jSupports = s;
+      scheduleJoistRedraw();
+    });
+    window.addEventListener('pointerup', ()=>{
+      if(jDragIdx!==null){ jDragIdx=null; updateJoistAnalysis(); }
+    }, {once:false});
   }
 
   function fmtSpan(v){
@@ -2250,25 +2917,120 @@
     return { span: Math.min(Lb,Ld), governs: Lb<Ld?'bending':'deflection' };
   }
 
-  function renderJoist(){
+  // Allowable cantilever length (ft) for one joist size at one spacing —
+  // same bending/deflection check as joistAllowableSpan() but with cantilever
+  // mechanics (M = w*L^2/2 at the bearing, tip deflection = w*L^4/(8EI)).
+  function joistAllowableCantilever(grade, sizeKey, spacingIn, dl, ll, deflRatio){
+    const dv = JOIST_DESIGN[grade];
+    const sz = JOIST_SIZES[sizeKey];
+    const FbAdj = dv.Fb * sz.CF * JOIST_CR * JOIST_CD;
+    const S = sz.b*sz.d*sz.d/6;
+    const I = sz.b*sz.d*sz.d*sz.d/12;
+    const trib = spacingIn/12;
+    const wTotal = (dl+ll)*trib;
+    const wLL = ll*trib;
+
+    const Mallow = FbAdj*S/12; // ft-lb
+    const Lb = Math.sqrt(2*Mallow/wTotal); // ft, bending-governed cantilever
+
+    const wLLpli = wLL/12;
+    const Lin = Math.cbrt((8*dv.E*I) / (wLLpli*deflRatio));
+    const Ld = Lin/12;
+
+    return { span: Math.min(Lb,Ld), governs: Lb<Ld?'bending':'deflection' };
+  }
+
+  // Builds the bay/overhang list straight from the diagram's bearings, the
+  // same way the Glulam beam diagram does — a bay is a simple span between
+  // two adjacent bearings, an overhang is a cantilever past the first/last one.
+  function joistSegmentsFromDiagram(){
+    const {ohStart, ohEnd, totalFt} = jLayout();
+    if(totalFt<=0) return [];
+    const spans = jSpansFromSupports();
+    const segs = [];
+    if(ohStart>0) segs.push({type:'overhang', length:ohStart, label:'start overhang'});
+    spans.forEach((sp,i)=> segs.push({type:'bay', length:sp, label:`bay ${i+1}`}));
+    if(ohEnd>0) segs.push({type:'overhang', length:ohEnd, label:'end overhang'});
+    return segs;
+  }
+
+  function calcJoist(){
+    const box = document.getElementById('j-result');
+    if(!box) return;
     const grade = document.getElementById('j-grade').value;
+    const spacing = parseFloat(document.getElementById('j-spacing').value);
     const dl = parseFloat(document.getElementById('j-dl').value) || 0;
     const ll = parseFloat(document.getElementById('j-ll').value) || 0;
     const deflRatio = parseFloat(document.getElementById('j-defl').value) || 360;
-    const rows = ['2x8','2x10','2x12'];
-    const spacings = [12,16,24];
-    let html = '<tr><th>Size</th><th>12" o.c.</th><th>16" o.c.</th><th>24" o.c.</th></tr>';
-    for(const r of rows){
-      const cells = spacings.map(sp=>{
-        const res = joistAllowableSpan(grade, r, sp, dl, ll, deflRatio);
-        const title = res.governs==='bending' ? 'governed by bending' : 'governed by live-load deflection';
-        return `<td title="${title}">${fmtSpan(res.span)}</td>`;
-      }).join('');
-      html += `<tr><td>${r}</td>${cells}</tr>`;
+    const segs = joistSegmentsFromDiagram();
+
+    if(!spacing || spacing<=0 || segs.length===0){
+      box.className = 'result warn';
+      box.style.display = 'block';
+      box.innerHTML = 'Lay out at least two bearings above, and enter a spacing, to see a suggested size.';
+      return;
     }
-    document.getElementById('j-table').innerHTML = html;
+
+    const trib = spacing/12;
+    const wTotal = (dl+ll)*trib;
+
+    // Check every bay/overhang for each candidate size, smallest first; the
+    // first size that clears ALL of them (the worst one governs) wins.
+    function checkSize(key){
+      let worst = null; // {seg, allow, ok}
+      for(const seg of segs){
+        const res = seg.type==='bay'
+          ? joistAllowableSpan(grade, key, spacing, dl, ll, deflRatio)
+          : joistAllowableCantilever(grade, key, spacing, dl, ll, deflRatio);
+        const margin = res.span - seg.length;
+        if(worst===null || margin < worst.margin) worst = {seg, allow:res.span, governs:res.governs, margin};
+      }
+      return worst;
+    }
+
+    let pick = null;
+    for(const key of JOIST_SIZE_ORDER){
+      const worst = checkSize(key);
+      if(worst.margin >= 0){ pick = {key, worst}; break; }
+    }
+
+    const longestSeg = segs.reduce((a,b)=> b.length>a.length ? b : a, segs[0]);
+
+    const reactions = computeJoistReactions();
+    const reactionNote = reactions ? `<div style="margin-top:8px;">Bearing loads — ${reactions.map(r=>{
+      const lbl = `${r.type==='wall'?'Wall':'Beam'} ${r.idx+1}`;
+      const btns = r.type==='wall'
+        ? sendBtn(`sendJoistReactionToFooting(${r.idx})`, 'Send to Footing')
+        : sendBtn(`sendJoistReactionToGlulam(${r.idx})`, 'Send to Glulam') + sendBtn(`sendJoistReactionToFooting(${r.idx})`, 'Send to Footing', 'var(--steel)');
+      return `${lbl}: ${Math.round(r.Rplf)} plf (${Math.round(r.R)} lb/joist) ${btns}`;
+    }).join('<br>')}<div class="note" style="margin-top:4px;">The plf figure is the running load into that wall's top plate; the per-joist lb figure is what one joist itself delivers to a beam below.</div></div>` : '';
+
+    if(pick){
+      const {key, worst} = pick;
+      const governText = worst.governs==='bending' ? 'bending' : `live-load deflection (L/${deflRatio})`;
+      box.className = 'result';
+      box.style.display = 'block';
+      box.innerHTML = `<div class="headline">Suggested: ${key} @ ${spacing}" o.c.</div>
+        Grade: ${JOIST_GRADE_LABEL[grade]||grade} DF-L &nbsp;|&nbsp; Total load: ${wTotal.toFixed(0)} plf<br>
+        Governing element: ${worst.seg.label} — ${fmtSpan(worst.seg.length)} ${worst.seg.type==='bay'?'span':'cantilever'}, allowable ${fmtSpan(worst.allow)} (governed by ${governText})<br>
+        Other bays/overhangs: ${segs.filter(s=>s!==worst.seg).map(s=>`${s.label} ${fmtSpan(s.length)}`).join(', ') || '—'}${reactionNote}<br>
+        <span style="color:#5b6b83">Next size down would not clear the governing bay/overhang above.</span>`;
+    }else{
+      const worst14 = checkSize('2x14');
+      box.className = 'result warn';
+      box.style.display = 'block';
+      box.innerHTML = `<div class="headline">No size up to 2x14 works</div>
+        Grade: ${JOIST_GRADE_LABEL[grade]||grade} DF-L &nbsp;|&nbsp; Total load: ${wTotal.toFixed(0)} plf<br>
+        Even a 2x14 @ ${spacing}" o.c. only reaches ${fmtSpan(worst14.allow)} as a ${worst14.seg.type==='bay'?'span':'cantilever'}, short of the ${worst14.seg.label} at ${fmtSpan(worst14.seg.length)}.${reactionNote}<br>
+        Try tighter spacing, a higher grade, moving that bearing, or check an LVL/I-joist on the LVL/I-Joist Calc tab.`;
+    }
   }
-  renderJoist();
+
+  function updateJoistAnalysis(){
+    drawJoistDiagram();
+    calcJoist();
+  }
+  try{ initJoistDiagramInteractions(); updateJoistAnalysis(); }catch(e){ console.warn('joist diagram init failed', e); }
 
   function renderSections(){
     const sel = document.getElementById('s-width') ? document.getElementById('s-width').value : 'all';
