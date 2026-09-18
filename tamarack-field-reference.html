@@ -306,15 +306,34 @@
           <h3 style="margin-top:0;font-size:.95rem;">Beam &amp; supports</h3>
           <p class="note" style="margin-top:0;">Click the beam to add a post, drag a post to move it, double-click a post to remove it (2 minimum). Click a post's label to toggle Post/Wall. Set an overhang below for a beam that cantilevers past its end support.</p>
           <div class="beam-diagram-wrap">
-            <svg id="g-beam-svg" viewBox="0 0 900 220" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid meet"></svg>
+            <svg id="g-beam-svg" viewBox="0 0 900 236" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid meet"></svg>
           </div>
           <div class="grid" style="margin-top:10px;">
             <div><label>Total number of supports</label><input id="g-support-count" type="number" inputmode="numeric" value="2" step="1" min="2" onchange="onSupportCountChange()"></div>
+            <div><label>Total beam length (ft) &mdash; controlling</label><input id="g-total-length" type="number" inputmode="decimal" step="0.5" min="0.5" onchange="onTotalLengthChange()"></div>
+            <div style="align-self:end;"><label style="display:flex;align-items:center;gap:6px;margin-bottom:8px;"><input type="checkbox" id="g-lock-total" onchange="onLockToggle()" style="width:auto;margin:0;"> Lock total length while adjusting supports</label></div>
             <div><label>Start overhang (ft) &mdash; cantilever past the first support</label><input id="g-oh-start" type="number" inputmode="decimal" value="0" step="0.5" min="0" oninput="onBeamOverhangChange()"></div>
             <div><label>End overhang (ft) &mdash; cantilever past the last support</label><input id="g-oh-end" type="number" inputmode="decimal" value="0" step="0.5" min="0" oninput="onBeamOverhangChange()"></div>
           </div>
           <div class="note" id="g-span-readout" style="margin-top:2px;"></div>
-          <p class="note" style="margin-top:2px;">Click any dimension number in the diagram to type an exact value for that bay or overhang.</p>
+          <p class="note" style="margin-top:2px;">Click any dimension number in the diagram to type an exact value for that bay or overhang. Setting total beam length scales the bay spans proportionally to hit that overall length (overhangs stay as entered).</p>
+        </div>
+
+        <div class="card">
+          <h3 style="margin-top:0;font-size:.95rem;">Point loads (optional)</h3>
+          <div class="grid">
+            <div><label>Number of point loads</label>
+              <select id="g-pl-count" onchange="onPointLoadCountChange()">
+                <option value="0">None &mdash; uniform load only</option>
+                <option value="1">1 point load</option>
+                <option value="2">2 point loads</option>
+                <option value="3">3 point loads</option>
+                <option value="4">4 point loads</option>
+              </select>
+            </div>
+          </div>
+          <div id="g-pl-rows"></div>
+          <p class="note" id="g-pl-note" style="margin-top:2px;display:none;">Location is measured from the left end of the beam (including any start overhang), matching the diagram above. Each bay/overhang is still checked as its own simple span or cantilever — a point load only affects the bay or overhang it physically falls in.</p>
         </div>
 
         <div class="card">
@@ -1099,6 +1118,53 @@
   let beamSupportTypes = ['post','post'];
   let beamDragIdx = null;
   let currentBeamSegs = [];
+  let beamLockedTotal = null; // null = free; a number = overall length (ft) to hold constant
+
+  function onLockToggle(){
+    const cb = document.getElementById('g-lock-total');
+    if(cb.checked){
+      const {totalFt} = beamLayout();
+      beamLockedTotal = totalFt;
+      document.getElementById('g-total-length').value = Math.round(totalFt*100)/100;
+    } else {
+      beamLockedTotal = null;
+    }
+  }
+
+  // Redistributes whatever difference a support/dimension edit just introduced
+  // into the OTHER bays (proportional to their current length), so the overall
+  // beam length holds at beamLockedTotal. excludeBayIdx0 lists 0-based bay
+  // indices that were the direct target of the edit and should be left alone.
+  function enforceTotalLock(excludeBayIdx0){
+    if(beamLockedTotal===null) return;
+    const ohStart = Math.max(0, parseFloat(document.getElementById('g-oh-start').value) || 0);
+    const ohEnd   = Math.max(0, parseFloat(document.getElementById('g-oh-end').value) || 0);
+    const targetSpanRun = beamLockedTotal - ohStart - ohEnd;
+    if(targetSpanRun<=0) return;
+    const s = [...beamSupports].sort((a,b)=>a-b);
+    const n = s.length;
+    if(n<2) return;
+    const bays = [];
+    for(let i=1;i<n;i++) bays.push(s[i]-s[i-1]);
+    const curRun = s[n-1]-s[0];
+    const diff = targetSpanRun - curRun;
+    if(Math.abs(diff)<0.005) return;
+    let eligible = bays.map((_,i)=>i).filter(i=> !excludeBayIdx0.includes(i));
+    if(eligible.length===0) eligible = bays.map((_,i)=>i);
+    const eligibleTotalLen = eligible.reduce((sum,i)=> sum+bays[i], 0);
+    if(eligibleTotalLen<=0.001){
+      const share = diff/eligible.length;
+      eligible.forEach(i=>{ bays[i] = Math.max(0.1, bays[i]+share); });
+    } else {
+      eligible.forEach(i=>{
+        const w = bays[i]/eligibleTotalLen;
+        bays[i] = Math.max(0.1, bays[i] + diff*w);
+      });
+    }
+    const newS = [s[0]];
+    for(const b of bays) newS.push(+(newS[newS.length-1]+b).toFixed(2));
+    beamSupports = newS;
+  }
 
   function onSupportCountChange(){
     const field = document.getElementById('g-support-count');
@@ -1126,6 +1192,41 @@
     }
     beamSupports = next;
     beamSupportTypes = next.map((_,i)=> beamSupportTypes[i] || 'post');
+    syncSpanFieldFromSupports();
+    drawBeamDiagram();
+  }
+
+  // Total beam length as the controlling input: scale every bay span
+  // proportionally so the supports + spans add up to the requested overall
+  // length. Overhangs are left exactly as entered — they're their own field —
+  // so "total length" here means ohStart + (support-to-support run) + ohEnd.
+  function onTotalLengthChange(){
+    const field = document.getElementById('g-total-length');
+    const target = parseFloat(field.value);
+    if(isNaN(target) || target<=0) return;
+    const ohStart = Math.max(0, parseFloat(document.getElementById('g-oh-start').value) || 0);
+    const ohEnd   = Math.max(0, parseFloat(document.getElementById('g-oh-end').value) || 0);
+    const targetSpanRun = target - ohStart - ohEnd;
+    if(targetSpanRun<=0){
+      field.title = 'Total length must be greater than the two overhangs combined.';
+      return;
+    }
+    field.removeAttribute('title');
+    const cur = [...beamSupports].sort((a,b)=>a-b);
+    const curSpanRun = cur[cur.length-1] - cur[0];
+    const base = cur[0];
+    let next;
+    if(curSpanRun<=0){
+      // degenerate (all supports stacked at one point) — spread evenly instead
+      next = cur.map((_,i)=> +(base + targetSpanRun*i/(cur.length-1)).toFixed(2));
+    } else {
+      const scale = targetSpanRun/curSpanRun;
+      next = cur.map(v => +(base + (v-base)*scale).toFixed(2));
+    }
+    beamSupports = next;
+    beamLockedTotal = target;
+    const lockCb = document.getElementById('g-lock-total');
+    if(lockCb) lockCb.checked = true;
     syncSpanFieldFromSupports();
     drawBeamDiagram();
   }
@@ -1169,8 +1270,26 @@
         onBeamOverhangChange();
       } else {
         const s = [...beamSupports].sort((a,b)=>a-b);
-        const delta = v - (s[seg.idx]-s[seg.idx-1]);
-        for(let i=seg.idx;i<s.length;i++) s[i] = +(s[i]+delta).toFixed(2);
+        if(beamLockedTotal!==null){
+          // Locked: touch only the ONE support that bounds this bay — every
+          // other support (and the overall length) stays exactly where it was.
+          if(seg.idx < s.length-1){
+            // move the near support of this bay; the next bay silently
+            // absorbs the difference since its far support doesn't move.
+            s[seg.idx] = +(s[seg.idx-1] + v).toFixed(2);
+            const floor = (seg.idx+1<s.length-1) ? s[seg.idx+1]-s[seg.idx-1] : s[seg.idx-1]+0.1;
+            if(s[seg.idx] >= s[seg.idx+1]) s[seg.idx] = s[seg.idx+1]-0.1;
+          } else {
+            // editing the LAST bay: the last support anchors the locked total
+            // and must not move, so the previous support absorbs it instead.
+            let newLeft = +(s[seg.idx] - v).toFixed(2);
+            if(seg.idx-1>0) newLeft = Math.max(newLeft, s[seg.idx-2]+0.1);
+            s[seg.idx-1] = newLeft;
+          }
+        } else {
+          const delta = v - (s[seg.idx]-s[seg.idx-1]);
+          for(let i=seg.idx;i<s.length;i++) s[i] = +(s[i]+delta).toFixed(2);
+        }
         beamSupports = s;
         syncSpanFieldFromSupports();
         drawBeamDiagram();
@@ -1183,10 +1302,96 @@
     input.addEventListener('blur', commit);
   }
 
+  // Editing the overall-length dimension directly is the same as typing into
+  // the "Total beam length" field: it becomes the controlling value and locks.
+  function editBeamTotal(textEl){
+    const wrap = document.querySelector('.beam-diagram-wrap');
+    if(!wrap) return;
+    document.querySelectorAll('.beam-dim-input').forEach(el=>el.remove());
+    const rectText = textEl.getBoundingClientRect();
+    const rectWrap = wrap.getBoundingClientRect();
+    wrap.style.position = 'relative';
+    const {totalFt} = beamLayout();
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.inputMode = 'decimal';
+    input.className = 'beam-dim-input';
+    input.value = (Math.round(totalFt*100)/100).toString();
+    input.style.position = 'absolute';
+    input.style.left = Math.max(0, rectText.left - rectWrap.left - 34) + 'px';
+    input.style.top = Math.max(0, rectText.top - rectWrap.top - 6) + 'px';
+    input.style.width = '68px';
+    input.style.fontSize = '12px';
+    input.style.padding = '2px 4px';
+    input.style.zIndex = '20';
+    input.style.border = '1px solid #b7541f';
+    input.style.borderRadius = '3px';
+    wrap.appendChild(input);
+    input.focus();
+    input.select();
+    let done = false;
+    function commit(){
+      if(done) return; done = true;
+      const v = parseFloat(input.value);
+      input.remove();
+      if(isNaN(v) || v<=0) return;
+      document.getElementById('g-total-length').value = v;
+      onTotalLengthChange();
+    }
+    input.addEventListener('keydown', (e)=>{
+      if(e.key==='Enter'){ commit(); }
+      else if(e.key==='Escape'){ done=true; input.remove(); }
+    });
+    input.addEventListener('blur', commit);
+  }
+
   function onBeamMaterialChange(){
     document.getElementById('g-width-custom-wrap').classList.toggle('hide', document.getElementById('g-width').value!=='custom');
     document.getElementById('g-fb-custom-wrap').classList.toggle('hide', document.getElementById('g-fb').value!=='custom');
     document.getElementById('g-e-custom-wrap').classList.toggle('hide', document.getElementById('g-e').value!=='custom');
+  }
+
+  // ---- POINT LOADS (Glulam Sizing) ----
+  // location is stored/entered as ft from the LEFT end of the beam overall
+  // (i.e. from the tip of any start overhang), same reference as the diagram.
+  function onPointLoadCountChange(){
+    const n = parseInt(document.getElementById('g-pl-count').value) || 0;
+    const rowsEl = document.getElementById('g-pl-rows');
+    const note = document.getElementById('g-pl-note');
+    // preserve any values already entered when the count changes
+    const prevMag = [], prevLoc = [];
+    for(let i=0;i<4;i++){
+      const m = document.getElementById('g-pl-mag-'+i);
+      const l = document.getElementById('g-pl-loc-'+i);
+      prevMag.push(m ? m.value : '1000');
+      prevLoc.push(l ? l.value : '');
+    }
+    const {totalFt} = beamLayout();
+    let html = '';
+    for(let i=0;i<n;i++){
+      const defLoc = prevLoc[i] || (Math.round((totalFt * (i+1)/(n+1))*10)/10);
+      html += `<div class="grid" style="margin-top:6px;">
+        <div><label>Load ${i+1} magnitude (lb)</label><input id="g-pl-mag-${i}" type="number" inputmode="decimal" value="${prevMag[i]}" step="50" min="0" oninput="drawBeamDiagram()"></div>
+        <div><label>Load ${i+1} location (ft from left end)</label><input id="g-pl-loc-${i}" type="number" inputmode="decimal" value="${defLoc}" step="0.5" min="0" oninput="drawBeamDiagram()"></div>
+      </div>`;
+    }
+    rowsEl.innerHTML = html;
+    note.style.display = n>0 ? 'block' : 'none';
+    drawBeamDiagram();
+  }
+
+  function getPointLoads(){
+    const n = parseInt(document.getElementById('g-pl-count') ? document.getElementById('g-pl-count').value : 0) || 0;
+    const loads = [];
+    for(let i=0;i<n;i++){
+      const magEl = document.getElementById('g-pl-mag-'+i);
+      const locEl = document.getElementById('g-pl-loc-'+i);
+      if(!magEl || !locEl) continue;
+      const P = parseFloat(magEl.value);
+      const loc = parseFloat(locEl.value);
+      if(!isNaN(P) && P>0 && !isNaN(loc)) loads.push({P, loc});
+    }
+    return loads;
   }
 
   function spansFromSupports(){
@@ -1214,6 +1419,7 @@
   }
 
   function onBeamOverhangChange(){
+    enforceTotalLock([]);
     drawBeamDiagram();
   }
 
@@ -1233,18 +1439,29 @@
     return inches===0 ? `${ft}'` : `${ft}'-${inches}"`;
   }
 
+  // Cached layout from the most recent render, read by the delegated event
+  // handlers (set up once, not re-bound on every redraw) so dragging doesn't
+  // pay for a full DOM rebuild + listener re-attach on every mouse-move.
+  let beamRenderState = null;
+  let beamRafId = null;
+  function scheduleBeamRedraw(){
+    if(beamRafId!==null) return;
+    beamRafId = requestAnimationFrame(()=>{ beamRafId=null; drawBeamDiagram(); });
+  }
+
   function drawBeamDiagram(){
     const svg = document.getElementById('g-beam-svg');
     if(!svg) return;
     const readout = document.getElementById('g-span-readout');
     const {ohStart, ohEnd, supports, totalFt} = beamLayout();
-    if(totalFt<=0 || supports.length<2){ svg.innerHTML=''; return; }
+    if(totalFt<=0 || supports.length<2){ svg.innerHTML=''; beamRenderState=null; return; }
 
-    const W = 900, H = 220;
+    const W = 900, H = 236;
     const padL = 50, padR = 50;
     const usableW = W - padL - padR;
-    const beamY = 96, beamH = 34;
+    const beamY = 112, beamH = 34;
     const ftToX = (ft) => padL + ((ft + ohStart) / totalFt) * usableW;
+    beamRenderState = {padL, usableW, totalFt, ohStart, supports};
 
     let svgParts = [];
     svgParts.push(`
@@ -1302,6 +1519,20 @@
       svgParts.push(g);
     });
 
+    // point load markers (downward arrow + magnitude label above the beam)
+    const beamLeftFt = supports[0]-ohStart;
+    getPointLoads().forEach(pl=>{
+      const absFt = beamLeftFt + pl.loc;
+      if(absFt < beamLeftFt-0.01 || absFt > supports[supports.length-1]+ohEnd+0.01) return;
+      const x = ftToX(absFt);
+      const tipY = beamY - 2;
+      svgParts.push(`<g class="beam-pl-marker">
+        <line x1="${x}" y1="${tipY-26}" x2="${x}" y2="${tipY}" stroke="#c0392b" stroke-width="2"/>
+        <polygon points="${x-5},${tipY-8} ${x+5},${tipY-8} ${x},${tipY}" fill="#c0392b"/>
+        <text x="${x}" y="${tipY-30}" text-anchor="middle" font-size="11" font-family="var(--sans,sans-serif)" fill="#c0392b">${Math.round(pl.P)} lb</text>
+      </g>`);
+    });
+
     // dimension line + labels for each bay and overhang — each label is click-to-edit
     const dimY = beamY - 22;
     const segs = [];
@@ -1319,74 +1550,24 @@
       svgParts.push(`<text class="beam-dim-label" data-seg-idx="${si}" x="${mid}" y="${dimY-8}" text-anchor="middle" font-size="12" font-family="var(--sans,sans-serif)" fill="#2b6cb0" text-decoration="underline" style="cursor:text;">${fmtFt(seg.b-seg.a)}${seg.oh?' (O.H.)':''}</text>`);
     });
 
+    // overall-length dimension, drawn as its own row above the bay/overhang dims
+    const dimY0 = dimY - 24;
+    const xTotalA = ftToX(supports[0]-ohStart), xTotalB = ftToX(supports[supports.length-1]+ohEnd);
+    svgParts.push(`<line x1="${xTotalA}" y1="${dimY0}" x2="${xTotalB}" y2="${dimY0}" stroke="#5a5648" stroke-width="1"/>`);
+    svgParts.push(`<line x1="${xTotalA}" y1="${dimY0-5}" x2="${xTotalA}" y2="${dimY0+5}" stroke="#5a5648" stroke-width="1"/>`);
+    svgParts.push(`<line x1="${xTotalB}" y1="${dimY0-5}" x2="${xTotalB}" y2="${dimY0+5}" stroke="#5a5648" stroke-width="1"/>`);
+    const midTotal = (xTotalA+xTotalB)/2;
+    svgParts.push(`<rect class="beam-dim-hit" data-total="1" x="${midTotal-40}" y="${dimY0-20}" width="80" height="16" fill="transparent"/>`);
+    svgParts.push(`<text class="beam-dim-label beam-total-label" data-total="1" x="${midTotal}" y="${dimY0-8}" text-anchor="middle" font-size="12" font-weight="600" font-family="var(--sans,sans-serif)" fill="${beamLockedTotal!==null?'#b7541f':'#2b6cb0'}" text-decoration="underline" style="cursor:text;">${fmtFt(totalFt)} total${beamLockedTotal!==null?' 🔒':''}</text>`);
+
     svg.innerHTML = svgParts.join('');
-
-    // interactions
-    const beamBody = svg.querySelector('.beam-body');
-    if(beamBody){
-      beamBody.addEventListener('click', (ev)=>{
-        const pt = svgPoint(svg, ev);
-        const ft = ((pt.x - padL)/usableW)*totalFt - ohStart;
-        // insert new support at nearest half-foot, between existing bounds, not on top of an existing one
-        let newFt = Math.round(ft*2)/2;
-        newFt = Math.min(Math.max(newFt, supports[0]+0.5), supports[supports.length-1]-0.5);
-        if(supports.some(s=>Math.abs(s-newFt)<0.25)) return;
-        beamSupports = [...supports, newFt];
-        beamSupportTypes.splice(beamSupports.length-1, 0, 'post');
-        syncSpanFieldFromSupports();
-        drawBeamDiagram();
-      });
-    }
-    svg.querySelectorAll('.beam-support-grp').forEach(grp=>{
-      const idx = +grp.dataset.idx;
-      grp.addEventListener('dblclick', (ev)=>{
-        ev.stopPropagation();
-        if(supports.length<=2) return; // 2 minimum
-        beamSupports = supports.filter((_,i)=>i!==idx);
-        beamSupportTypes = beamSupportTypes.filter((_,i)=>i!==idx);
-        syncSpanFieldFromSupports();
-        drawBeamDiagram();
-      });
-      grp.addEventListener('pointerdown', (ev)=>{
-        if(ev.target.classList.contains('beam-support-label')) return;
-        ev.stopPropagation();
-        beamDragIdx = idx;
-        grp.classList.add('dragging');
-      });
-    });
-    svg.querySelectorAll('.beam-support-label').forEach(lbl=>{
-      lbl.addEventListener('click', (ev)=>{
-        ev.stopPropagation();
-        const idx = +lbl.dataset.idx;
-        beamSupportTypes[idx] = (beamSupportTypes[idx]==='wall') ? 'post' : 'wall';
-        drawBeamDiagram();
-      });
-    });
-    svg.addEventListener('pointermove', (ev)=>{
-      if(beamDragIdx===null) return;
-      const pt = svgPoint(svg, ev);
-      let ft = ((pt.x - padL)/usableW)*totalFt - ohStart;
-      ft = Math.round(ft*2)/2;
-      const s = [...supports];
-      const lo = (beamDragIdx===0) ? -1e9 : s[beamDragIdx-1]+0.5;
-      const hi = (beamDragIdx===s.length-1) ? 1e9 : s[beamDragIdx+1]-0.5;
-      ft = Math.min(Math.max(ft, lo), hi);
-      s[beamDragIdx] = ft;
-      beamSupports = s;
-      syncSpanFieldFromSupports();
-      drawBeamDiagram();
-    });
-    window.addEventListener('pointerup', ()=>{ beamDragIdx=null; }, {once:false});
-
-    svg.querySelectorAll('.beam-dim-hit, .beam-dim-label').forEach(el=>{
-      el.addEventListener('click', (ev)=>{
-        ev.stopPropagation();
-        const si = +el.dataset.segIdx;
-        const seg = currentBeamSegs[si];
-        const textEl = svg.querySelector(`.beam-dim-label[data-seg-idx="${si}"]`);
-        if(seg && textEl) editBeamSegment(seg, textEl);
-      });
-    });
+    // No per-element listeners are attached here on purpose — see
+    // initBeamDiagramInteractions() below, which binds a handful of delegated
+    // listeners ONCE on the svg element itself. Re-binding N listeners on every
+    // redraw (which used to happen here, every single drag frame) is what was
+    // bogging the page down while dragging; delegated listeners survive the
+    // innerHTML rebuild for free since they live on the container, not the
+    // children being replaced.
 
     if(readout){
       const spanList = spansFromSupports();
@@ -1394,6 +1575,8 @@
     }
     const countField = document.getElementById('g-support-count');
     if(countField && document.activeElement!==countField) countField.value = supports.length;
+    const lenField = document.getElementById('g-total-length');
+    if(lenField && document.activeElement!==lenField) lenField.value = (Math.round(totalFt*100)/100);
   }
 
   function svgPoint(svg, evt){
@@ -1403,6 +1586,106 @@
     if(!ctm) return {x:0,y:0};
     const loc = pt.matrixTransform(ctm.inverse());
     return {x:loc.x, y:loc.y};
+  }
+
+  // Bound ONCE (not on every redraw). Everything below reads the cached
+  // beamRenderState from the most recent drawBeamDiagram() call instead of
+  // recomputing/closing over per-render locals, and drag moves are coalesced
+  // to one redraw per animation frame via scheduleBeamRedraw() so a fast mouse
+  // doesn't queue up dozens of full SVG rebuilds per second.
+  function initBeamDiagramInteractions(){
+    const svg = document.getElementById('g-beam-svg');
+    if(!svg || svg.dataset.boundInteractions) return;
+    svg.dataset.boundInteractions = '1';
+
+    svg.addEventListener('click', (ev)=>{
+      if(!beamRenderState) return;
+      const totalLbl = ev.target.closest('[data-total="1"]');
+      if(totalLbl){
+        const textEl = svg.querySelector('.beam-total-label');
+        if(textEl) editBeamTotal(textEl);
+        return;
+      }
+      const dimEl = ev.target.closest('[data-seg-idx]');
+      if(dimEl){
+        const si = +dimEl.dataset.segIdx;
+        const seg = currentBeamSegs[si];
+        const textEl = svg.querySelector(`.beam-dim-label[data-seg-idx="${si}"]`);
+        if(seg && textEl) editBeamSegment(seg, textEl);
+        return;
+      }
+      const lbl = ev.target.closest('.beam-support-label');
+      if(lbl){
+        const idx = +lbl.dataset.idx;
+        beamSupportTypes[idx] = (beamSupportTypes[idx]==='wall') ? 'post' : 'wall';
+        drawBeamDiagram();
+        return;
+      }
+      if(ev.target.closest('.beam-body')){
+        const {padL, usableW, totalFt, ohStart, supports} = beamRenderState;
+        const pt = svgPoint(svg, ev);
+        const ft = ((pt.x - padL)/usableW)*totalFt - ohStart;
+        let newFt = Math.round(ft*2)/2;
+        newFt = Math.min(Math.max(newFt, supports[0]+0.5), supports[supports.length-1]-0.5);
+        if(supports.some(s=>Math.abs(s-newFt)<0.25)) return;
+        beamSupports = [...supports, newFt];
+        beamSupportTypes.splice(beamSupports.length-1, 0, 'post');
+        syncSpanFieldFromSupports();
+        drawBeamDiagram();
+      }
+    });
+
+    svg.addEventListener('dblclick', (ev)=>{
+      const grp = ev.target.closest('.beam-support-grp');
+      if(!grp || !beamRenderState) return;
+      ev.stopPropagation();
+      const idx = +grp.dataset.idx;
+      const supports = beamRenderState.supports;
+      if(supports.length<=2) return; // 2 minimum
+      beamSupports = supports.filter((_,i)=>i!==idx);
+      beamSupportTypes = beamSupportTypes.filter((_,i)=>i!==idx);
+      enforceTotalLock([]);
+      syncSpanFieldFromSupports();
+      drawBeamDiagram();
+    });
+
+    svg.addEventListener('pointerdown', (ev)=>{
+      if(ev.target.closest('.beam-support-label')) return;
+      const grp = ev.target.closest('.beam-support-grp');
+      if(!grp) return;
+      ev.stopPropagation();
+      beamDragIdx = +grp.dataset.idx;
+    });
+
+    svg.addEventListener('pointermove', (ev)=>{
+      if(beamDragIdx===null || !beamRenderState) return;
+      const {padL, usableW, totalFt, ohStart, supports} = beamRenderState;
+      const pt = svgPoint(svg, ev);
+      let ft = ((pt.x - padL)/usableW)*totalFt - ohStart;
+      ft = Math.round(ft*2)/2;
+      const s = [...supports];
+      const lo = (beamDragIdx===0) ? -1e9 : s[beamDragIdx-1]+0.5;
+      const hi = (beamDragIdx===s.length-1) ? 1e9 : s[beamDragIdx+1]-0.5;
+      ft = Math.min(Math.max(ft, lo), hi);
+      s[beamDragIdx] = ft;
+      if(beamLockedTotal!==null && (beamDragIdx===0 || beamDragIdx===s.length-1)){
+        // Dragging an end support while locked: hold the overall length by
+        // moving ONLY the opposite end — every interior support stays put.
+        const ohS = Math.max(0, parseFloat(document.getElementById('g-oh-start').value) || 0);
+        const ohE = Math.max(0, parseFloat(document.getElementById('g-oh-end').value) || 0);
+        const targetRun = beamLockedTotal - ohS - ohE;
+        if(targetRun>0){
+          if(beamDragIdx===0) s[s.length-1] = +(s[0]+targetRun).toFixed(2);
+          else s[0] = +(s[s.length-1]-targetRun).toFixed(2);
+        }
+      }
+      beamSupports = s;
+      syncSpanFieldFromSupports();
+      scheduleBeamRedraw();
+    });
+    window.addEventListener('pointerup', ()=>{
+      if(beamDragIdx!==null){ beamDragIdx=null; drawBeamDiagram(); }
+    }, {once:false});
   }
 
   const widths = [3.125, 5.125, 5.5, 6.75, 7.5, 8.75, 9.5];
@@ -1446,6 +1729,10 @@
 
     const w = (dl+ll)*trib;
     const wIn = w/12;
+    const pointLoads = getPointLoads();
+    let plCursor = ohStart;
+    const bayRanges = spans.map(span => { const r = {start:plCursor, end:plCursor+span, span}; plCursor += span; return r; });
+    const hasPL = pointLoads.length>0;
 
     // Multiple posts = multiple bays. Each bay is checked as its OWN
     // simple span (same tributary width throughout) and the worst bay
@@ -1453,14 +1740,27 @@
     // conservative simplification, not a true continuous-beam analysis —
     // a real continuous beam typically sees LOWER moments over an interior
     // support than an equivalent simple span, so this errs safe, not
-    // unsafe, at the cost of some extra material on interior bays.
+    // unsafe, at the cost of some extra material on interior bays. Point
+    // loads are superposed onto whichever bay they physically fall in,
+    // using standard simple-span formulas (M = Pab/L at the load; deflection
+    // required-I evaluated at the load point) — each treated independently
+    // and summed, which is a conservative stack-up rather than an exact
+    // combined-load deflection curve.
     let worst = null;
-    for(const span of spans){
+    for(const bay of bayRanges){
+      const span = bay.span;
       const spanIn = span*12;
-      const M = w*span*span/8;
-      const Sreq = (M*12)/fb;
+      let M = w*span*span/8;
       const deflLimit = spanIn/defl;
-      const Ireq = (5*wIn*Math.pow(spanIn,4)) / (384*E*deflLimit);
+      let Ireq = (5*wIn*Math.pow(spanIn,4)) / (384*E*deflLimit);
+      pointLoads.forEach(pl=>{
+        if(pl.loc < bay.start-0.001 || pl.loc > bay.end+0.001 || span<=0) return;
+        const a = pl.loc-bay.start, b = bay.end-pl.loc;
+        M += pl.P*a*b/span;
+        const aIn=a*12, bIn=b*12;
+        Ireq += (pl.P*aIn*aIn*bIn*bIn) / (3*E*spanIn*deflLimit);
+      });
+      const Sreq = (M*12)/fb;
       if(!worst){ worst = {span, M, Sreq, Ireq}; }
       else{
         if(Sreq>worst.Sreq) { worst.Sreq = Sreq; worst.SreqSpan = span; }
@@ -1469,19 +1769,31 @@
     }
     // Overhangs: each end checked as its own cantilever, M = w*a^2/2 at the
     // support, deflection at the tip = w*a^4/(8*E*I) (governed by deflLimit
-    // measured against the overhang length itself).
-    function checkOverhang(a){
+    // measured against the overhang length itself). A point load landing in
+    // the overhang adds M = P*x at the support (x = distance from support to
+    // the load) and a matching tip-deflection requirement.
+    function checkOverhang(a, regionStart, regionEnd, fromSupportSide){
       if(a<=0) return;
       const aIn = a*12;
-      const M = w*a*a/2;
-      const Sreq2 = (M*12)/fb;
+      let M = w*a*a/2;
       const deflLimit2 = aIn/defl;
-      const Ireq2 = (wIn*Math.pow(aIn,4)) / (8*E*deflLimit2);
+      let Ireq2 = (wIn*Math.pow(aIn,4)) / (8*E*deflLimit2);
+      pointLoads.forEach(pl=>{
+        if(pl.loc < regionStart-0.001 || pl.loc > regionEnd+0.001) return;
+        // x = distance from the support to the load, measured into the overhang
+        const x = (fromSupportSide==='start') ? (regionEnd-pl.loc) : (pl.loc-regionStart);
+        if(x<0) return;
+        M += pl.P*x;
+        const xIn = x*12;
+        Ireq2 += (pl.P*Math.pow(xIn,3)) / (3*E*deflLimit2);
+      });
+      const Sreq2 = (M*12)/fb;
       if(Sreq2>worst.Sreq){ worst.Sreq = Sreq2; worst.SreqSpan = a; worst.SreqOH = true; }
       if(Ireq2>worst.Ireq){ worst.Ireq = Ireq2; worst.IreqSpan = a; worst.IreqOH = true; }
     }
-    checkOverhang(ohStart);
-    checkOverhang(ohEnd);
+    const lastBayEnd = bayRanges.length ? bayRanges[bayRanges.length-1].end : ohStart;
+    checkOverhang(ohStart, 0, ohStart, 'start');
+    checkOverhang(ohEnd, lastBayEnd, lastBayEnd+ohEnd, 'end');
 
     const Sreq = worst.Sreq, Ireq = worst.Ireq;
     const govSpanS = worst.SreqSpan || worst.span;
@@ -1496,11 +1808,12 @@
     const govFt = Math.max(govSpanS,govSpanI);
     const govIsOH = (govSpanS===govFt && worst.SreqOH) || (govSpanI===govFt && worst.IreqOH);
     const bayNote = (spans.length>1 || ohStart>0 || ohEnd>0) ? ` &nbsp; (${spans.length} bay${spans.length>1?'s':''}: ${spans.join("', ")}'${ohStart>0?`, start O.H. ${ohStart}'`:''}${ohEnd>0?`, end O.H. ${ohEnd}'`:''} — governing ${govIsOH?'overhang':'bay'} ${govFt}')` : '';
+    const plNote = hasPL ? ` &nbsp; +${pointLoads.length} point load${pointLoads.length>1?'s':''} (${pointLoads.map(p=>`${Math.round(p.P)} lb @ ${p.loc}'`).join(', ')})` : '';
     if(fit){
       box.classList.remove('warn');
       const dFrac = (fit.d % 1 === 0.5) ? (Math.floor(fit.d)+'-1/2') : fit.d;
       box.innerHTML = `<div class="headline">Suggested: ${wFrac}" x ${dFrac}"</div>
-        w = ${w.toFixed(0)} plf${bayNote}<br>
+        w = ${w.toFixed(0)} plf${bayNote}${plNote}<br>
         Sx required = ${Sreq.toFixed(1)} in3 -> provided ${fit.Sx.toFixed(1)} in3<br>
         I required (defl) = ${Ireq.toFixed(0)} in4 -> provided ${fit.I.toFixed(0)} in4<br>
         Governs: ${fit.Sx/Sreq < fit.I/Ireq ? 'bending' : 'deflection'}`;
@@ -4882,7 +5195,7 @@
   })();
 
   // Initialize the Glulam beam & supports diagram from whatever is in the span field on load.
-  try{ onBeamSpanTextChange(); onBeamMaterialChange(); }catch(e){ console.warn('beam diagram init failed', e); }
+  try{ initBeamDiagramInteractions(); onBeamSpanTextChange(); onBeamMaterialChange(); onPointLoadCountChange(); }catch(e){ console.warn('beam diagram init failed', e); }
 
 </script>
 </body>
