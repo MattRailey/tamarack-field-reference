@@ -565,10 +565,16 @@
       <!-- FOOTING SIZING -->
       <section class="panel" id="footing">
         <h2>Footing sizing (soil bearing)</h2>
-        <p class="sub">Square spread footing, sized so the point load spreads to a bearing pressure at or under the soil's allowable value. Preliminary check only.</p>
+        <p class="sub">Sized so the load spreads to a bearing pressure at or under the soil's allowable value. Preliminary check only.</p>
         <div class="card">
           <div class="grid">
-            <div><label>Point load on footing (lb)</label><input id="f-load" type="number" inputmode="decimal" value="4000" step="100"></div>
+            <div><label>Footing type</label>
+              <select id="f-type" onchange="applyFootingType()">
+                <option value="isolated" selected>Isolated (square, point load — post/column footing)</option>
+                <option value="continuous">Continuous (strip, load per linear foot — wall footing)</option>
+              </select>
+            </div>
+            <div><label id="f-load-label">Point load on footing (lb)</label><input id="f-load" type="number" inputmode="decimal" value="4000" step="100"></div>
             <div><label>Allowable soil bearing pressure</label>
               <select id="f-soil" onchange="applyFootingSoilPreset()">
                 <option value="1500" selected>1,500 psf — presumptive default (unclassified/unverified soil, many jurisdictions)</option>
@@ -578,7 +584,7 @@
               </select>
             </div>
             <div><label>Custom bearing pressure (psf) — only if "custom" above</label><input id="f-soil-custom" type="number" inputmode="decimal" value="1500" step="50"></div>
-            <div><label>Minimum footing size (in) — code minimums, frost, etc.</label><input id="f-min" type="number" inputmode="decimal" value="18" step="1"></div>
+            <div><label id="f-min-label">Minimum footing size (in) — code minimums, frost, etc.</label><input id="f-min" type="number" inputmode="decimal" value="18" step="1"></div>
           </div>
           <button class="run" onclick="calcFooting()">Size footing</button>
           <div class="result" id="f-result"></div>
@@ -929,10 +935,23 @@
   }
   applyFootingSoilPreset();
 
+  function applyFootingType(){
+    const isContinuous = document.getElementById('f-type').value === 'continuous';
+    document.getElementById('f-load-label').textContent = isContinuous
+      ? 'Wall load (plf, per linear foot)' : 'Point load on footing (lb)';
+    document.getElementById('f-load').value = isContinuous ? 800 : 4000;
+    document.getElementById('f-min-label').textContent = isContinuous
+      ? 'Minimum footing width (in) — code minimums, frost, etc.'
+      : 'Minimum footing size (in) — code minimums, frost, etc.';
+    document.getElementById('f-min').value = isContinuous ? 12 : 18;
+    document.getElementById('f-result').style.display = 'none';
+  }
+
   // Standard practical footing sizes (in) to round up to, rather than
   // handing back an odd number like 27" that nobody forms up that way.
   const FOOTING_STD_SIZES = [12,16,18,20,24,30,36,42,48,54,60,66,72,84,96];
   function calcFooting(){
+    const isContinuous = document.getElementById('f-type').value === 'continuous';
     const load = parseFloat(document.getElementById('f-load').value);
     const soilSel = document.getElementById('f-soil').value;
     const q = soilSel==='custom' ? parseFloat(document.getElementById('f-soil-custom').value) : parseFloat(soilSel);
@@ -943,6 +962,23 @@
     if(!load || !q || load<=0 || q<=0){
       box.classList.add('warn');
       box.innerHTML = `<div class="headline">Enter a load and a bearing pressure greater than zero.</div>`;
+      return;
+    }
+
+    if(isContinuous){
+      // Strip footing: check per linear foot of wall, so "area" is just
+      // width x 1'-0" and load is already plf — no squaring involved.
+      const widthReqFt = load / q; // ft, per running foot of wall
+      const widthReqIn = widthReqFt * 12;
+      const widthUsedIn = Math.max(minIn, FOOTING_STD_SIZES.find(s => s >= widthReqIn) || Math.ceil(widthReqIn/6)*6);
+      const widthUsedFt = widthUsedIn/12;
+      const qActual = load/widthUsedFt;
+
+      box.classList.remove('warn');
+      box.innerHTML = `<div class="headline">Suggested: ${widthUsedIn}" wide continuous footing</div>
+        Width required = ${widthReqIn.toFixed(1)}" per running foot of wall &nbsp; -&gt; &nbsp; provided ${widthUsedIn}"<br>
+        Actual bearing pressure at this width = ${qActual.toFixed(0)} psf (allowable ${q.toFixed(0)} psf)<br>
+        ${minIn>widthReqIn ? 'Governed by your minimum footing width input, not by bearing.' : 'Governed by bearing pressure.'}`;
       return;
     }
 
