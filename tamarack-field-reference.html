@@ -36,7 +36,7 @@
   }
   header h1{ font-family:var(--sans); font-size:1.2rem; font-weight:700; margin:0; color:var(--navy); }
   header .meta{ font-family:var(--sans); font-size:.72rem; color:var(--steel); text-align:right; line-height:1.5; }
-  .layout{ display:flex; max-width:1180px; margin:0 auto; }
+  .layout{ display:flex; max-width:1520px; margin:0 auto; }
   /* PDF Compare needs real width for the sheets — go edge to edge on that tab. */
   body.wide-mode .layout{ max-width:none; }
   body.wide-mode main{ padding-right:24px; }
@@ -48,7 +48,7 @@
   nav button:hover{ background:var(--navy-light); color:#fff; }
   nav button.active{ border-left-color:var(--blueprint); color:#fff; font-weight:600; background:var(--navy-light); }
   nav .idx{ display:none; }
-  main{ flex:1; padding:22px 26px 90px; min-width:0; }
+  main{ flex:1; padding:22px 32px 90px; min-width:0; }
   .panel{ display:none; }
   .panel.active{ display:block; }
   h2{ font-family:var(--sans); font-size:1.15rem; font-weight:700; margin:0 0 4px; color:var(--ink); }
@@ -74,7 +74,7 @@
   .result.warn{ border-left-color:var(--rust); }
   .result .headline{ font-family:var(--sans); font-weight:700; font-size:1rem; color:var(--ink); margin-bottom:8px; }
   .flag{ font-family:var(--sans); font-size:.76rem; color:var(--rust); margin-top:20px; border-top:1px dashed var(--line); padding-top:10px; }
-  .table-wrap{ overflow-x:auto; -webkit-overflow-scrolling:touch; }
+  .table-wrap{ overflow-x:auto; overflow-y:hidden; touch-action:pan-x pan-y; }
   table{ width:100%; border-collapse:collapse; font-family:var(--sans); font-size:.85rem; min-width:420px; }
   th, td{ text-align:left; padding:9px 10px; border-bottom:1px solid var(--line); white-space:nowrap; }
   th{ background:#fafbfc; font-family:var(--sans); font-weight:700; color:var(--steel); font-size:.72rem; text-transform:uppercase; letter-spacing:.03em; }
@@ -161,24 +161,57 @@
     .rebar-grid{ max-height:280px; grid-template-columns:repeat(auto-fill,minmax(120px,1fr)); }
   }
 
+  /* ---- Mobile bottom nav (matches the Time Tracker app's pattern) ---- */
+  .mobile-topbar{ display:none; }
+  .mobile-more-sheet{ display:none; }
+
   @media (max-width: 760px){
     .layout{ display:block; }
-    nav{
-      width:100%; padding:8px 6px; position:sticky; top:0; z-index:10;
-      display:flex; overflow-x:auto; -webkit-overflow-scrolling:touch; gap:2px;
+    nav:not(.mobile-topbar){ display:none; }
+    header{
+      position:sticky; top:0; z-index:45; padding:calc(env(safe-area-inset-top) + 12px) 16px 10px;
     }
-    nav button{
-      flex:0 0 auto; border-left:none; border-bottom:3px solid transparent; margin-bottom:0;
-      padding:10px 12px; min-height:44px; white-space:nowrap; font-size:.85rem;
-    }
-    nav button.active{ border-bottom-color:var(--blueprint); background:var(--navy-light); }
-    main{ padding:16px 14px 40px; }
-    header{ padding:calc(env(safe-area-inset-top) + 14px) 16px 12px; }
-    header h1{ font-size:1.1rem; }
+    header h1{ font-size:1.05rem; }
+    header .meta{ font-size:.66rem; }
+    main{ padding:16px 14px calc(86px + env(safe-area-inset-bottom,0px)); }
     .grid{ grid-template-columns:1fr; }
     button.run{ width:100%; margin:4px 0; }
     .grid2{ grid-template-columns:1fr; }
     .side-by-side{ flex-direction:column; }
+
+    table{ width:auto; min-width:480px; }
+
+    .mobile-topbar{
+      display:flex; position:fixed; left:0; right:0; bottom:0; z-index:50; width:100%;
+      background:var(--navy); border-top:1px solid var(--navy-light);
+      padding-bottom:calc(6px + env(safe-area-inset-bottom,0px));
+      box-shadow:0 -2px 10px rgba(0,0,0,.18);
+    }
+    .mobile-topbar button{
+      flex:1 1 0; min-width:0; background:none; border:none; color:#aab2c8; cursor:pointer;
+      display:flex; flex-direction:column; align-items:center; justify-content:center; gap:2px;
+      padding:8px 2px 6px; min-height:56px; border-top:2px solid transparent; font-family:var(--sans);
+    }
+    .mobile-topbar button span{ display:block; font-size:.62rem; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:100%; }
+    .mobile-topbar button svg{ width:20px; height:20px; fill:none; stroke:currentColor; stroke-width:1.8; }
+    .mobile-topbar button.active{ color:#fff; border-top-color:var(--blueprint); background:var(--navy-light); }
+    .mobile-topbar button.more-btn.open{ color:#fff; background:var(--navy-light); }
+
+    .mobile-more-sheet{ position:fixed; inset:0; z-index:55; }
+    .mobile-more-sheet.open{ display:block; }
+    .mobile-more-backdrop{ position:absolute; inset:0; background:rgba(15,20,32,.5); }
+    .mobile-more-panel{
+      position:absolute; left:0; right:0; bottom:calc(70px + env(safe-area-inset-bottom,0px));
+      background:#fff; border-radius:14px 14px 0 0; box-shadow:0 -6px 24px rgba(0,0,0,.25);
+      padding:8px 8px calc(10px + env(safe-area-inset-bottom,0px)); max-height:60vh; overflow-y:auto;
+    }
+    .mobile-more-panel button{
+      width:100%; background:none; border:none; color:var(--ink); text-align:left; cursor:pointer;
+      display:flex; align-items:center; gap:12px; padding:14px 12px; font-family:var(--sans); font-size:.92rem;
+      border-radius:8px;
+    }
+    .mobile-more-panel button.active{ background:#eaf1f8; color:var(--blueprint-light); font-weight:600; }
+    .mobile-more-panel button svg{ width:19px; height:19px; flex-shrink:0; fill:none; stroke:currentColor; stroke-width:1.8; }
   }
 </style>
 </head>
@@ -198,8 +231,27 @@
       <button data-panel="code"><span class="idx">05</span>Code Reference</button>
       <button data-panel="pdfcompare"><span class="idx">06</span>PDF Compare</button>
       <button data-panel="rebar"><span class="idx">07</span>Rebar Shapes</button>
-      <button data-panel="tutorial"><span class="idx">08</span>Tutorial</button>
+      <button data-panel="footing"><span class="idx">08</span>Footing Sizing</button>
+      <button data-panel="tutorial"><span class="idx">09</span>Tutorial</button>
     </nav>
+
+    <nav class="mobile-topbar" id="mobileTopbar">
+      <button class="primary active" data-panel="glulam"><svg viewBox="0 0 24 24"><rect x="3" y="10" width="18" height="4"/><line x1="7" y1="14" x2="7" y2="19"/><line x1="17" y1="14" x2="17" y2="19"/></svg><span>Glulam</span></button>
+      <button class="primary" data-panel="joist"><svg viewBox="0 0 24 24"><line x1="4" y1="6" x2="4" y2="18"/><line x1="9" y1="6" x2="9" y2="18"/><line x1="14" y1="6" x2="14" y2="18"/><line x1="19" y1="6" x2="19" y2="18"/></svg><span>Joist</span></button>
+      <button class="primary" data-panel="spans"><svg viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="1"/><line x1="4" y1="10" x2="20" y2="10"/><line x1="10" y1="10" x2="10" y2="20"/></svg><span>Sections</span></button>
+      <button class="primary" data-panel="site"><svg viewBox="0 0 24 24"><path d="M12 2c-4 4-7 8-7 12a7 7 0 0 0 14 0c0-4-3-8-7-12z"/></svg><span>Site</span></button>
+      <button class="primary" data-panel="code"><svg viewBox="0 0 24 24"><path d="M4 4h16v16H4z"/><line x1="8" y1="9" x2="16" y2="9"/><line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="12" y2="17"/></svg><span>Code</span></button>
+      <button class="more-btn" id="mobileMoreBtn" aria-haspopup="true" aria-expanded="false"><svg viewBox="0 0 24 24"><circle cx="5" cy="12" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="19" cy="12" r="1.5"/></svg><span>More</span></button>
+    </nav>
+    <div class="mobile-more-sheet" id="mobileMoreSheet">
+      <div class="mobile-more-backdrop" id="mobileMoreBackdrop"></div>
+      <div class="mobile-more-panel">
+        <button data-panel="pdfcompare"><svg viewBox="0 0 24 24"><rect x="4" y="3" width="16" height="18" rx="1"/><line x1="8" y1="8" x2="16" y2="8"/><line x1="8" y1="12" x2="16" y2="12"/><line x1="8" y1="16" x2="12" y2="16"/></svg>PDF Compare</button>
+        <button data-panel="rebar"><svg viewBox="0 0 24 24"><path d="M5 5v10a4 4 0 0 0 4 4h10"/></svg>Rebar Shapes</button>
+        <button data-panel="footing"><svg viewBox="0 0 24 24"><path d="M4 20h16"/><rect x="6" y="14" width="12" height="6"/><rect x="9" y="4" width="6" height="10"/></svg>Footing Sizing</button>
+        <button data-panel="tutorial"><svg viewBox="0 0 24 24"><path d="M4 19V5a2 2 0 0 1 2-2h11l3 3v13a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2z"/><line x1="8" y1="8" x2="14" y2="8"/><line x1="8" y1="12" x2="14" y2="12"/></svg>Tutorial</button>
+      </div>
+    </div>
 
     <main>
 
@@ -231,7 +283,7 @@
                 <option value="9.5">9-1/2" (Southern Pine series)</option>
               </select>
             </div>
-            <div><label>Span (ft)</label><input id="g-span" type="number" inputmode="decimal" value="20" step="0.5"></div>
+            <div><label>Bay span(s) (ft) &mdash; comma-separate for multiple posts, e.g. "6,6"</label><input id="g-span" type="text" inputmode="decimal" value="20"></div>
             <div><label>Spacing / tributary distance (ft)</label><input id="g-trib" type="number" inputmode="decimal" value="12" step="0.5"></div>
             <div><label>Dead load (psf)</label><input id="g-dl" type="number" inputmode="decimal" value="15" step="1"></div>
             <div><label>Live load / snow (psf)</label><input id="g-ll" type="number" inputmode="decimal" value="35" step="1"></div>
@@ -258,13 +310,13 @@
           <div class="result" id="g-result"></div>
           <div id="g-source" style="font-family:var(--sans); font-size:.76rem; color:var(--steel); margin-top:10px;"></div>
         </div>
-        <p class="flag">Assumes simple span, uniform load. Width is fixed by your selection above — the calculator solves only for the required depth at that width; it will not swap you to a different width to save material. Default is 5-1/2", Tamarack's typical beam width. Note two separate glulam width families exist: 5-1/2"/7-1/2"/9-1/2" are the Southern Pine series, manufactured net-width to match dimension lumber (flush with a 2x6/2x8/2x10 wall or post); 3-1/8"/5-1/8"/6-3/4"/8-3/4" are the Western species (Douglas Fir) series, which do NOT match dimension lumber widths. Confirm which series your supplier stocks before specifying. Verify bearing, lateral-torsional buckling (CL), and connection design separately.</p>
+        <p class="flag">Assumes uniform load. Enter more than one span (comma-separated, e.g. "6,6" for a beam on 3 evenly-spaced posts) and each bay is checked as its own simple span, with the worst bay sizing the whole beam — that's conservative versus a true continuous-beam analysis (a real continuous beam usually sees lower moment over an interior support), not unconservative, but it will occasionally call for more beam than a continuous-beam calc strictly requires. Width is fixed by your selection above — the calculator solves only for the required depth at that width; it will not swap you to a different width to save material. Default is 5-1/2", Tamarack's typical beam width. Note two separate glulam width families exist: 5-1/2"/7-1/2"/9-1/2" are the Southern Pine series, manufactured net-width to match dimension lumber (flush with a 2x6/2x8/2x10 wall or post); 3-1/8"/5-1/8"/6-3/4"/8-3/4" are the Western species (Douglas Fir) series, which do NOT match dimension lumber widths. Confirm which series your supplier stocks before specifying. Verify bearing, lateral-torsional buckling (CL), and connection design separately.</p>
       </section>
 
       <!-- JOIST -->
       <section class="panel" id="joist">
         <h2>Sawn lumber joist spans</h2>
-        <p class="sub">Douglas Fir-Larch, 40 psf live load, 10 psf dead load, L/360 — representative values for quick field checks.</p>
+        <p class="sub">Douglas Fir-Larch, calculated from the load and deflection limit you enter below — not a fixed table.</p>
         <div class="card">
           <div class="grid">
             <div><label>Grade</label>
@@ -274,10 +326,27 @@
                 <option value="2">No. 2</option>
               </select>
             </div>
+            <div><label>Typical load case</label>
+              <select id="j-preset" onchange="applyJoistPreset()">
+                <option value="">— manual entry —</option>
+                <option value="10,40" selected>Residential floor (DL 10 / LL 40)</option>
+                <option value="15,50">Light commercial floor (DL 15 / LL 50)</option>
+                <option value="10,60">Deck (DL 10 / LL 60)</option>
+              </select>
+            </div>
+            <div><label>Dead load (psf)</label><input id="j-dl" type="number" inputmode="decimal" value="10" step="1" oninput="renderJoist()"></div>
+            <div><label>Live load (psf)</label><input id="j-ll" type="number" inputmode="decimal" value="40" step="1" oninput="renderJoist()"></div>
+            <div><label>Deflection limit (live load)</label>
+              <select id="j-defl" onchange="renderJoist()">
+                <option value="360" selected>L/360</option>
+                <option value="480">L/480 (stiffer floor)</option>
+                <option value="240">L/240</option>
+              </select>
+            </div>
           </div>
           <div class="table-wrap"><table id="j-table"></table></div>
         </div>
-        <p class="flag">Sample reference values — confirm against the current adopted IRC/AWC span tables and Oregon amendments before use in a drawing set.</p>
+        <p class="flag">Calculated from standard NDS-style Fb/E design values for DF-L (with size factor CF and a 1.15 repetitive-member factor, since these tables assume joists spaced ≤24" o.c.), checking bending and live-load deflection only — shear and bearing at supports are not checked here, same as the Glulam tab. These will not exactly match a specific published AWC/IRC span table (which may use slightly different reference values), so still confirm against the current adopted IRC/AWC span tables and Oregon amendments before use in a drawing set. Also remember: if your load case isn't a plain floor (a deck at 60 psf, for instance), you must change the Dead/Live load fields above — they do not update automatically from context.</p>
       </section>
 
       <!-- SECTION PROPERTIES -->
@@ -493,16 +562,40 @@
         </div>
       </section>
 
+      <!-- FOOTING SIZING -->
+      <section class="panel" id="footing">
+        <h2>Footing sizing (soil bearing)</h2>
+        <p class="sub">Square spread footing, sized so the point load spreads to a bearing pressure at or under the soil's allowable value. Preliminary check only.</p>
+        <div class="card">
+          <div class="grid">
+            <div><label>Point load on footing (lb)</label><input id="f-load" type="number" inputmode="decimal" value="4000" step="100"></div>
+            <div><label>Allowable soil bearing pressure</label>
+              <select id="f-soil" onchange="applyFootingSoilPreset()">
+                <option value="1500" selected>1,500 psf — presumptive default (unclassified/unverified soil, many jurisdictions)</option>
+                <option value="2000">2,000 psf — sandy gravel / gravel (IRC Table R401.4.1 typical)</option>
+                <option value="3000">3,000 psf — sedimentary/crystalline bedrock or dense compacted fill</option>
+                <option value="custom">— custom —</option>
+              </select>
+            </div>
+            <div><label>Custom bearing pressure (psf) — only if "custom" above</label><input id="f-soil-custom" type="number" inputmode="decimal" value="1500" step="50"></div>
+            <div><label>Minimum footing size (in) — code minimums, frost, etc.</label><input id="f-min" type="number" inputmode="decimal" value="18" step="1"></div>
+          </div>
+          <button class="run" onclick="calcFooting()">Size footing</button>
+          <div class="result" id="f-result"></div>
+        </div>
+        <p class="flag">This sizes the footing for vertical bearing ONLY — it does not check frost depth/embedment, uplift, lateral/seismic loads, eccentricity, overturning, or footing thickness/reinforcing for punching shear or one-way shear. The "allowable soil bearing pressure" options above are common presumptive/default values used when no geotechnical report exists (per typical IRC Table R401.4.1-style defaults) — an actual soils report for the site always governs over these. Confirm frost depth and minimum footing requirements against the locally adopted code (La Grande / Union County, OR typically requires footings below the frost line and a minimum size regardless of what this calculation returns) before use in a drawing set.</p>
+      </section>
+
       <!-- TUTORIAL -->
       <section class="panel" id="tutorial">
         <h2>Tutorial — sizing a simple deck</h2>
-        <p class="sub">A worked example walking Glulam Sizing, Joist Spans, and Section Properties together on one real deck, so you can confirm the tool's numbers match a hand check.</p>
+        <p class="sub">A worked example walking Glulam Sizing, Joist Spans, Section Properties, and Footing Sizing together on one real deck, so you can confirm the tool's numbers match a hand check.</p>
 
-        <p class="flag">There is no footing/bearing calculator in this tool yet — the only mention of "bearing" anywhere is a caveat line at the bottom of the Glulam panel. If you want an actual soil-bearing/footing-size tab, that would need to be built separately.</p>
+        <p class="flag">This tab is the tutorial itself — it's not going anywhere. There's a separate <b>Footing Sizing</b> tab now too (soil bearing / square footing only). There is still no automatic hookup between the Glulam tab's beam reactions and the Footing tab's load input — you carry that number over by hand, shown below.</p>
 
         <div class="card">
           <h3 style="margin-top:0;">The example project</h3>
-          <p>A simple ground-level deck, 12 ft wide (along the house) by 10 ft deep: a ledger bolted to the house on one side, a beam on posts at the outer edge, and joists spanning between them.</p>
+          <p>A simple ground-level deck, 12 ft wide (along the house) by 10 ft deep: a ledger bolted to the house on one side, a beam on <b>3 posts</b> at the outer edge (2 end posts + 1 mid post, so the beam is really two 6-ft bays, not one 12-ft span), and joists spanning between the ledger and the beam.</p>
           <div style="background:#fff;border:1px solid var(--line);border-radius:8px;padding:14px;">
             <svg viewBox="0 0 720 420" xmlns="http://www.w3.org/2000/svg" style="max-width:100%;height:auto;display:block;margin:0 auto;">
               <rect x="60" y="40" width="600" height="24" fill="#12213a"/>
@@ -516,18 +609,19 @@
               </g>
               <text x="200" y="205" font-size="13" fill="#2f6fed" font-family="sans-serif" font-weight="600">2x8 joists @ 16" o.c.</text>
               <text x="200" y="222" font-size="13" fill="#2f6fed" font-family="sans-serif">span = 10'-0" (ledger to beam)</text>
-              <rect x="60" y="340" width="600" height="16" fill="#2f6fed"/>
-              <text x="360" y="378" text-anchor="middle" font-size="14" fill="#2f6fed" font-family="sans-serif" font-weight="600">5-1/2" x 9" glulam beam — span = 12'-0"</text>
+              <rect x="60" y="340" width="270" height="16" fill="#2f6fed"/>
+              <rect x="360" y="340" width="270" height="16" fill="#2f6fed"/>
+              <text x="360" y="378" text-anchor="middle" font-size="14" fill="#2f6fed" font-family="sans-serif" font-weight="600">5-1/2" x 6" glulam beam — TWO 6'-0" bays (not one 12' span)</text>
               <rect x="82" y="356" width="16" height="34" fill="#12213a"/>
               <rect x="352" y="356" width="16" height="34" fill="#12213a"/>
               <rect x="622" y="356" width="16" height="34" fill="#12213a"/>
-              <text x="90" y="404" text-anchor="middle" font-size="12" fill="#12213a" font-family="sans-serif">post</text>
-              <text x="360" y="404" text-anchor="middle" font-size="12" fill="#12213a" font-family="sans-serif">post</text>
-              <text x="630" y="404" text-anchor="middle" font-size="12" fill="#12213a" font-family="sans-serif">post</text>
+              <text x="90" y="404" text-anchor="middle" font-size="12" fill="#12213a" font-family="sans-serif">end post</text>
+              <text x="360" y="404" text-anchor="middle" font-size="12" fill="#12213a" font-family="sans-serif">mid post</text>
+              <text x="630" y="404" text-anchor="middle" font-size="12" fill="#12213a" font-family="sans-serif">end post</text>
               <rect x="60" y="235" width="600" height="105" fill="#2f6fed" opacity="0.08"/>
               <text x="662" y="290" font-size="12" fill="#2f6fed" font-family="sans-serif" writing-mode="vertical-rl">beam tributary width &#8776; 5'-0"</text>
               <line x1="60" y1="16" x2="660" y2="16" stroke="#5b6b82" stroke-width="1"/>
-              <text x="360" y="12" text-anchor="middle" font-size="12" fill="#5b6b82" font-family="sans-serif">12'-0" wide</text>
+              <text x="360" y="12" text-anchor="middle" font-size="12" fill="#5b6b82" font-family="sans-serif">12'-0" wide (6' + 6' bays)</text>
               <line x1="30" y1="64" x2="30" y2="340" stroke="#5b6b82" stroke-width="1"/>
               <text x="26" y="205" text-anchor="middle" font-size="12" fill="#5b6b82" font-family="sans-serif" transform="rotate(-90 26 205)">10'-0" deep</text>
             </svg>
@@ -536,35 +630,44 @@
         </div>
 
         <div class="card">
-          <h3 style="margin-top:0;">1 &middot; Glulam Sizing &mdash; the beam</h3>
-          <p>Enter: preset <b>Deck (DL 10 / LL 60)</b> &middot; width <b>5-1/2"</b> &middot; span <b>12 ft</b> &middot; tributary <b>5 ft</b> (half the 10-ft joist span &mdash; the field people most often get wrong) &middot; Fb 2400 &middot; E 1.8 &middot; L/360.</p>
+          <h3 style="margin-top:0;">1 &middot; Glulam Sizing &mdash; the beam (a mid-post changes the answer a lot)</h3>
+          <p>Enter: preset <b>Deck (DL 10 / LL 60)</b> &middot; width <b>5-1/2"</b> &middot; <b>Bay span(s): "6,6"</b> (this is the field to watch &mdash; NOT "12", since the mid post breaks the beam into two 6-ft spans) &middot; tributary <b>5 ft</b> &middot; Fb 2400 &middot; E 1.8 &middot; L/360.</p>
           <p style="font-family:var(--sans);font-size:.85rem;color:var(--steel);">
-            w = (10+60) &times; 5 = 350 plf &nbsp;&middot;&nbsp; M = 350 &times; 12&sup2;/8 = 6,300 ft-lb &nbsp;&middot;&nbsp; Sx req = 6,300&times;12/2400 = 31.5 in&sup3; &nbsp;&middot;&nbsp; I req (5wL&#8308;/384E&Delta;) = 226.8 in&#8308;
+            w = (10+60) &times; 5 = 350 plf per bay &nbsp;&middot;&nbsp; each 6-ft bay: M = 350 &times; 6&sup2;/8 = 1,575 ft-lb &nbsp;&middot;&nbsp; Sx req = 1,575&times;12/2400 = 7.9 in&sup3; &nbsp;&middot;&nbsp; I req = 28.4 in&#8308;
           </p>
-          <div class="result">Tool's answer: <b>5-1/2" x 9"</b> (Sx provided 74.3 in&sup3;, I provided 334 in&#8308;) &mdash; governed by deflection, not bending. Hand-checked outside the tool and it matches exactly.</div>
-          <p class="flag">The tool checks L/360 deflection against the <i>combined</i> dead+live load, not live load alone &mdash; slightly conservative (safe direction), but it's why the depth can come out a notch heavier than a calc that splits DL/LL deflection separately.</p>
+          <div class="result">Tool's answer for "6,6": <b>5-1/2" x 6"</b> &mdash; a much smaller beam than the 5-1/2" x 9" a (wrong) single 12-ft span would call for. Treating the mid post as if it weren't there is the single easiest way to over-order material on a deck this size &mdash; or, read backwards, entering "6,6" instead of "12" is the check that catches it.</p>
+          <p class="flag">Each bay is checked as its own simple span (the tool's multi-span input takes the worst bay) &mdash; that's conservative versus true continuous-beam behavior, not unconservative. Also: the L/360 deflection check uses combined dead+live load, not live load alone, which is slightly conservative in the same safe direction.</p>
         </div>
 
         <div class="card">
           <h3 style="margin-top:0;">2 &middot; Joist Spans &mdash; the joists</h3>
-          <p>This tab is a fixed 40 psf live / 10 psf dead / L/360 table for sawn DF-L &mdash; it has no input for load and does not know this is a deck at 60 psf.</p>
-          <p class="flag">For our 10-ft joist span, No. 1 2x8 @ 16" o.c. shows 11'-9" allowable &mdash; looks like plenty of margin. But that's the 40-psf number. A real 60-psf deck table pulls that span in to roughly 9'-6"&ndash;10' at 16" o.c., not 11'-9". Don't read this tab's span as deck-rated &mdash; tighten to 12" o.c., step up to 2x10, or verify the actual 60-psf case against AWC's span calculator or the adopted IRC deck span table before finalizing.</p>
+          <p>Set: Grade <b>No. 1</b> &middot; preset <b>Deck (DL 10 / LL 60)</b> &middot; deflection <b>L/360</b>. For a 10-ft joist span, No. 1 2x8 @ 16" o.c. now shows about <b>11'-5"</b> allowable under the deck's 60 psf live load &mdash; still enough for our 10-ft span, but noticeably less than the roughly 11'-9" you'd see left over on the residential-floor (40 psf) preset. Switch the preset back to Residential Floor and watch the same row grow &mdash; that's the whole point of these being inputs now instead of a fixed table.</p>
+          <p class="flag">These spans come from standard NDS-style Fb/E values with a repetitive-member factor, checking bending and live-load deflection only (no shear, no bearing) &mdash; they'll be close to, but won't exactly reproduce, a specific published AWC/IRC table. Still confirm against the adopted code table before it goes on a drawing set.</p>
         </div>
 
         <div class="card">
           <h3 style="margin-top:0;">3 &middot; Section Properties &mdash; the cross-check</h3>
           <p>No inputs here &mdash; just Sx and I generated from geometry, so you can verify what Glulam Sizing handed you:</p>
-          <p style="font-family:var(--sans);font-size:.85rem;color:var(--steel);">Sx = b&middot;d&sup2;/6 = 5.5&times;9&sup2;/6 = 74.25 in&sup3; &nbsp;&middot;&nbsp; I = b&middot;d&sup3;/12 = 5.5&times;9&sup3;/12 = 334.1 in&#8308;</p>
-          <p>Filter Width to 5-1/2" and find the 9" row &mdash; it should read Sx 74.3, I 334, matching the Glulam tool's "provided" numbers exactly. If those two tabs ever disagree, that's a real bug worth reporting.</p>
+          <p style="font-family:var(--sans);font-size:.85rem;color:var(--steel);">Sx = b&middot;d&sup2;/6 = 5.5&times;6&sup2;/6 = 33.0 in&sup3; &nbsp;&middot;&nbsp; I = b&middot;d&sup3;/12 = 5.5&times;6&sup3;/12 = 99.0 in&#8308;</p>
+          <p>Filter Width to 5-1/2" and find the 6" row &mdash; it should read Sx 33.0, I 99, matching the Glulam tool's "provided" numbers for the "6,6" case exactly. If those two tabs ever disagree, that's a real bug worth reporting.</p>
+        </div>
+
+        <div class="card">
+          <h3 style="margin-top:0;">4 &middot; Footing Sizing &mdash; the posts</h3>
+          <p>Carry the beam's post reactions over by hand (this tool doesn't do it for you): with w = 350 plf and 6-ft bays on each side of the mid post, the <b>end posts</b> each pick up roughly <span class="mono">350&times;6/2 = 1,050 lb</span>, and the <b>mid post</b> picks up both adjacent half-bays: <span class="mono">350&times;6/2 + 350&times;6/2 = 2,100 lb</span>.</p>
+          <p>Enter: load <b>2,100 lb</b> (the mid post, worst case) &middot; soil bearing <b>1,500 psf (presumptive default)</b> &middot; minimum footing <b>18"</b>.</p>
+          <div class="result">Required area = 2,100 / 1,500 = 1.4 ft&sup2; &rarr; a bare-minimum side of about 14.2". The 18" minimum you entered governs instead, so the tool suggests an <b>18" x 18"</b> footing &mdash; actual bearing pressure at that size works out to well under the 1,500 psf allowable. That's normal for small deck-post loads: code minimums, not bearing capacity, usually control the footing size.</p>
+          <p class="flag">Always confirm frost depth and the locally adopted minimum footing size/embedment for La Grande / Union County &mdash; this calculation only checks bearing pressure, nothing else.</p>
         </div>
 
         <div class="card">
           <h3 style="margin-top:0;">Using this as your own check, going forward</h3>
           <ol style="padding-left:20px;">
+            <li>Sketch the framing first and count the actual supports &mdash; a mid post means two bays, not one span. This is the mistake that costs the most material if missed.</li>
             <li>Work out w, M, and Sx required by hand for your actual span/tributary/load before opening the tool.</li>
             <li>Confirm the tool's "required" lines match your hand calc almost exactly.</li>
             <li>Cross-check the "provided" Sx/I against Section Properties for that width/depth.</li>
-            <li>If the load isn't the standard 40/10 psf floor case, treat the Joist Spans tab as "in the right neighborhood" only &mdash; verify against AWC's Span Calculator or the adopted code table.</li>
+            <li>Hand-carry the beam's post reactions into the Footing tab &mdash; there's no automatic link between the two tabs.</li>
             <li>Still run anything going on a drawing set past a stamped calc or the EOR &mdash; this tool is a preliminary field check, not a substitute.</li>
           </ol>
         </div>
@@ -577,14 +680,77 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <script>
   function showPanel(name){
-    document.querySelectorAll('nav button').forEach(b=>b.classList.toggle('active', b.dataset.panel===name));
+    document.querySelectorAll('nav button[data-panel]').forEach(b=>b.classList.toggle('active', b.dataset.panel===name));
+    document.querySelectorAll('.mobile-more-panel button[data-panel]').forEach(b=>b.classList.toggle('active', b.dataset.panel===name));
     document.querySelectorAll('.panel').forEach(p=>p.classList.toggle('active', p.id===name));
     document.body.classList.toggle('wide-mode', name === 'pdfcompare');
+    const moreBtn = document.getElementById('mobileMoreBtn');
+    if(moreBtn){
+      const inMoreSheet = ['pdfcompare','rebar','footing','tutorial'].includes(name);
+      moreBtn.classList.toggle('active', inMoreSheet);
+    }
+    closeMobileMoreSheet();
     window.scrollTo(0,0);
   }
-  document.querySelectorAll('nav button').forEach(btn=>{
+  document.querySelectorAll('nav button[data-panel]').forEach(btn=>{
     btn.addEventListener('click', ()=> showPanel(btn.dataset.panel));
   });
+  document.querySelectorAll('.mobile-more-panel button[data-panel]').forEach(btn=>{
+    btn.addEventListener('click', ()=> showPanel(btn.dataset.panel));
+  });
+
+  function openMobileMoreSheet(){
+    const sheet = document.getElementById('mobileMoreSheet');
+    const btn = document.getElementById('mobileMoreBtn');
+    if(sheet) sheet.classList.add('open');
+    if(btn){ btn.classList.add('open'); btn.setAttribute('aria-expanded','true'); }
+  }
+  function closeMobileMoreSheet(){
+    const sheet = document.getElementById('mobileMoreSheet');
+    const btn = document.getElementById('mobileMoreBtn');
+    if(sheet) sheet.classList.remove('open');
+    if(btn){ btn.classList.remove('open'); btn.setAttribute('aria-expanded','false'); }
+  }
+  (function initMobileMoreSheet(){
+    const moreBtn = document.getElementById('mobileMoreBtn');
+    const backdrop = document.getElementById('mobileMoreBackdrop');
+    const sheet = document.getElementById('mobileMoreSheet');
+    if(!moreBtn) return;
+    moreBtn.addEventListener('click', ()=>{
+      if(sheet && sheet.classList.contains('open')) closeMobileMoreSheet();
+      else openMobileMoreSheet();
+    });
+    if(backdrop) backdrop.addEventListener('click', closeMobileMoreSheet);
+  })();
+
+  // Direction-lock touch handling for horizontally-scrollable tables, so a
+  // vertical drag that starts inside one falls through to page scroll
+  // instead of getting captured by the table's own scrollbox (iOS Safari
+  // quirk with overflow-x:auto boxes).
+  function enableTableWrapDirectionalTouch(wrap){
+    if(wrap.dataset.dirTouchBound) return;
+    wrap.dataset.dirTouchBound = '1';
+    let startX=0, startY=0, decided=false;
+    wrap.addEventListener('touchstart', (e)=>{
+      if(e.touches.length!==1) return;
+      startX=e.touches[0].clientX; startY=e.touches[0].clientY; decided=false;
+      wrap.style.overflowX='auto';
+    }, {passive:true});
+    wrap.addEventListener('touchmove', (e)=>{
+      if(decided || e.touches.length!==1) return;
+      const dx=e.touches[0].clientX-startX, dy=e.touches[0].clientY-startY;
+      if(Math.abs(dx)<6 && Math.abs(dy)<6) return;
+      decided=true;
+      if(Math.abs(dy)>Math.abs(dx)) wrap.style.overflowX='hidden';
+    }, {passive:true});
+    const restore=()=>{ wrap.style.overflowX='auto'; };
+    wrap.addEventListener('touchend', restore, {passive:true});
+    wrap.addEventListener('touchcancel', restore, {passive:true});
+  }
+  function bindAllTableWrapTouch(){
+    document.querySelectorAll('.table-wrap').forEach(enableTableWrapDirectionalTouch);
+  }
+  bindAllTableWrapTouch();
 
   function applyPreset(){
     const v = document.getElementById('g-preset').value;
@@ -611,7 +777,8 @@
 
   function calcGlulam(){
     const width = parseFloat(document.getElementById('g-width').value);
-    const span = parseFloat(document.getElementById('g-span').value);
+    const spanRaw = document.getElementById('g-span').value;
+    const spans = spanRaw.split(',').map(s=>parseFloat(s.trim())).filter(s=>!isNaN(s) && s>0);
     const trib = parseFloat(document.getElementById('g-trib').value);
     const dl = parseFloat(document.getElementById('g-dl').value);
     const ll = parseFloat(document.getElementById('g-ll').value);
@@ -619,54 +786,180 @@
     const E = parseFloat(document.getElementById('g-e').value) * 1e6;
     const defl = parseFloat(document.getElementById('g-defl').value);
 
+    const box = document.getElementById('g-result');
+    box.style.display = 'block';
+    if(spans.length===0){
+      box.classList.add('warn');
+      box.innerHTML = `<div class="headline">Enter at least one span.</div>`;
+      return;
+    }
+
     const w = (dl+ll)*trib;
     const wIn = w/12;
-    const spanIn = span*12;
-    const M = w*span*span/8;
-    const Sreq = (M*12)/fb;
-    const deflLimit = spanIn/defl;
-    const Ireq = (5*wIn*Math.pow(spanIn,4)) / (384*E*deflLimit);
+
+    // Multiple posts = multiple bays. Each bay is checked as its OWN
+    // simple span (same tributary width throughout) and the worst bay
+    // governs the single section used for the whole beam. This is a
+    // conservative simplification, not a true continuous-beam analysis —
+    // a real continuous beam typically sees LOWER moments over an interior
+    // support than an equivalent simple span, so this errs safe, not
+    // unsafe, at the cost of some extra material on interior bays.
+    let worst = null;
+    for(const span of spans){
+      const spanIn = span*12;
+      const M = w*span*span/8;
+      const Sreq = (M*12)/fb;
+      const deflLimit = spanIn/defl;
+      const Ireq = (5*wIn*Math.pow(spanIn,4)) / (384*E*deflLimit);
+      if(!worst){ worst = {span, M, Sreq, Ireq}; }
+      else{
+        if(Sreq>worst.Sreq) { worst.Sreq = Sreq; worst.SreqSpan = span; }
+        if(Ireq>worst.Ireq) { worst.Ireq = Ireq; worst.IreqSpan = span; }
+      }
+    }
+    const Sreq = worst.Sreq, Ireq = worst.Ireq;
+    const govSpanS = worst.SreqSpan || worst.span;
+    const govSpanI = worst.IreqSpan || worst.span;
 
     // Fixed width — only the depth is solved for, since width is picked to match
     // the wall/post it lands on, not to minimize material.
     const sizes = depthsForWidth(width);
     const fit = sizes.find(s => s.Sx >= Sreq && s.I >= Ireq);
 
-    const box = document.getElementById('g-result');
-    box.style.display = 'block';
     const wFrac = (width % 1 === 0.5) ? (Math.floor(width)+'-1/2') : (width % 1 === 0.125 ? Math.floor(width)+'-1/8' : (width%1===0.75? Math.floor(width)+'-3/4' : width));
+    const bayNote = spans.length>1 ? ` &nbsp; (${spans.length} bays: ${spans.join("', ")}' — governing bay ${Math.max(govSpanS,govSpanI)}')` : '';
     if(fit){
       box.classList.remove('warn');
       const dFrac = (fit.d % 1 === 0.5) ? (Math.floor(fit.d)+'-1/2') : fit.d;
       box.innerHTML = `<div class="headline">Suggested: ${wFrac}" x ${dFrac}"</div>
-        w = ${w.toFixed(0)} plf &nbsp; M = ${M.toFixed(0)} ft-lb<br>
+        w = ${w.toFixed(0)} plf${bayNote}<br>
         Sx required = ${Sreq.toFixed(1)} in3 -> provided ${fit.Sx.toFixed(1)} in3<br>
         I required (defl) = ${Ireq.toFixed(0)} in4 -> provided ${fit.I.toFixed(0)} in4<br>
         Governs: ${fit.Sx/Sreq < fit.I/Ireq ? 'bending' : 'deflection'}`;
     } else {
       box.classList.add('warn');
       box.innerHTML = `<div class="headline">No depth up to 30" at ${wFrac}" width fits — needs a wider beam, a deeper custom glulam, or a different framing scheme.</div>
-        Sx required = ${Sreq.toFixed(1)} in3, I required = ${Ireq.toFixed(0)} in4 exceed what a 30"-deep ${wFrac}"-wide section provides.`;
+        Sx required = ${Sreq.toFixed(1)} in3, I required = ${Ireq.toFixed(0)} in4 exceed what a 30"-deep ${wFrac}"-wide section provides.${bayNote}`;
     }
   }
 
-  const joistData = {
-    ss:  {'2x8':[13.42,12.25,10.75], '2x10':[17.17,15.58,13.08], '2x12':[20.83,18.83,15.42]},
-    '1': {'2x8':[12.92,11.75,10.25], '2x10':[16.5,15.0,12.25],  '2x12':[20.08,17.83,14.58]},
-    '2': {'2x8':[12.58,11.42,9.92],  '2x10':[16.08,14.42,11.75],'2x12':[19.5,17.0,13.92]}
+  // Base (unadjusted) NDS-style reference design values for Douglas
+  // Fir-Larch, visually graded dimension lumber, 2"-4" thick / 5"+ wide.
+  // These are standard published values, not a specific mill's grade
+  // stamp data — fine for a preliminary field check, same spirit as the
+  // Glulam tab's Fb/E dropdowns.
+  const JOIST_DESIGN = {
+    ss:  {Fb:1500, E:1900000},
+    '1': {Fb:1000, E:1700000},
+    '2': {Fb:900,  E:1600000}
   };
-  function fmtSpan(v){ const ft = Math.floor(v); const inches = Math.round((v-ft)*12); return `${ft}'-${inches}"`; }
+  // Actual dressed dimensions + NDS size factor CF (applies to Fb only).
+  const JOIST_SIZES = {
+    '2x8':  {b:1.5, d:7.25,  CF:1.2},
+    '2x10': {b:1.5, d:9.25,  CF:1.1},
+    '2x12': {b:1.5, d:11.25, CF:1.0}
+  };
+  const JOIST_CR = 1.15; // repetitive-member factor (framing spaced <=24" o.c.)
+  const JOIST_CD = 1.0;  // load duration factor, normal/floor occupancy
+
+  function applyJoistPreset(){
+    const v = document.getElementById('j-preset').value;
+    if(!v) return;
+    const [dl, ll] = v.split(',');
+    document.getElementById('j-dl').value = dl;
+    document.getElementById('j-ll').value = ll;
+    renderJoist();
+  }
+
+  function fmtSpan(v){
+    let ft = Math.floor(v);
+    let inches = Math.round((v-ft)*12);
+    if(inches===12){ inches=0; ft+=1; }
+    return `${ft}'-${inches}"`;
+  }
+
+  // Allowable simple span (ft) for one joist size at one spacing, governed
+  // by whichever of bending or live-load deflection controls. Shear and
+  // bearing at supports are NOT checked (consistent with the Glulam tab).
+  function joistAllowableSpan(grade, sizeKey, spacingIn, dl, ll, deflRatio){
+    const dv = JOIST_DESIGN[grade];
+    const sz = JOIST_SIZES[sizeKey];
+    const FbAdj = dv.Fb * sz.CF * JOIST_CR * JOIST_CD;
+    const S = sz.b*sz.d*sz.d/6;
+    const I = sz.b*sz.d*sz.d*sz.d/12;
+    const trib = spacingIn/12; // ft of tributary width per joist
+    const wTotal = (dl+ll)*trib; // plf, for bending
+    const wLL = ll*trib; // plf, live load only, for deflection (standard L/360-type check)
+
+    const Mallow = FbAdj*S/12; // ft-lb
+    const Lb = Math.sqrt(8*Mallow/wTotal); // ft, bending-governed span
+
+    const wLLpli = wLL/12; // lb/in
+    const Lin = Math.cbrt((384*dv.E*I) / (5*wLLpli*deflRatio));
+    const Ld = Lin/12; // ft, deflection-governed span
+
+    return { span: Math.min(Lb,Ld), governs: Lb<Ld?'bending':'deflection' };
+  }
+
   function renderJoist(){
     const grade = document.getElementById('j-grade').value;
+    const dl = parseFloat(document.getElementById('j-dl').value) || 0;
+    const ll = parseFloat(document.getElementById('j-ll').value) || 0;
+    const deflRatio = parseFloat(document.getElementById('j-defl').value) || 360;
     const rows = ['2x8','2x10','2x12'];
+    const spacings = [12,16,24];
     let html = '<tr><th>Size</th><th>12" o.c.</th><th>16" o.c.</th><th>24" o.c.</th></tr>';
     for(const r of rows){
-      const d = joistData[grade][r];
-      html += `<tr><td>${r}</td><td>${fmtSpan(d[0])}</td><td>${fmtSpan(d[1])}</td><td>${fmtSpan(d[2])}</td></tr>`;
+      const cells = spacings.map(sp=>{
+        const res = joistAllowableSpan(grade, r, sp, dl, ll, deflRatio);
+        const title = res.governs==='bending' ? 'governed by bending' : 'governed by live-load deflection';
+        return `<td title="${title}">${fmtSpan(res.span)}</td>`;
+      }).join('');
+      html += `<tr><td>${r}</td>${cells}</tr>`;
     }
     document.getElementById('j-table').innerHTML = html;
   }
   renderJoist();
+
+  function applyFootingSoilPreset(){
+    const sel = document.getElementById('f-soil').value;
+    const customField = document.getElementById('f-soil-custom');
+    customField.disabled = (sel !== 'custom');
+    customField.style.opacity = (sel !== 'custom') ? .5 : 1;
+  }
+  applyFootingSoilPreset();
+
+  // Standard practical footing sizes (in) to round up to, rather than
+  // handing back an odd number like 27" that nobody forms up that way.
+  const FOOTING_STD_SIZES = [12,16,18,20,24,30,36,42,48,54,60,66,72,84,96];
+  function calcFooting(){
+    const load = parseFloat(document.getElementById('f-load').value);
+    const soilSel = document.getElementById('f-soil').value;
+    const q = soilSel==='custom' ? parseFloat(document.getElementById('f-soil-custom').value) : parseFloat(soilSel);
+    const minIn = parseFloat(document.getElementById('f-min').value) || 0;
+
+    const box = document.getElementById('f-result');
+    box.style.display = 'block';
+    if(!load || !q || load<=0 || q<=0){
+      box.classList.add('warn');
+      box.innerHTML = `<div class="headline">Enter a load and a bearing pressure greater than zero.</div>`;
+      return;
+    }
+
+    const areaReq = load / q; // ft^2
+    const sideReqFt = Math.sqrt(areaReq); // ft, exact minimum square side
+    const sideReqIn = sideReqFt * 12;
+    const sideUsedIn = Math.max(minIn, FOOTING_STD_SIZES.find(s => s >= sideReqIn) || Math.ceil(sideReqIn/6)*6);
+    const sideUsedFt = sideUsedIn/12;
+    const areaProvided = sideUsedFt*sideUsedFt;
+    const qActual = load/areaProvided;
+
+    box.classList.remove('warn');
+    box.innerHTML = `<div class="headline">Suggested: ${sideUsedIn}" x ${sideUsedIn}" square footing</div>
+      Area required = ${areaReq.toFixed(2)} ft&sup2; (side &ge; ${sideReqIn.toFixed(1)}") &nbsp; -&gt; &nbsp; provided ${areaProvided.toFixed(2)} ft&sup2;<br>
+      Actual bearing pressure at this size = ${qActual.toFixed(0)} psf (allowable ${q.toFixed(0)} psf)<br>
+      ${minIn>sideReqIn ? 'Governed by your minimum footing size input, not by bearing.' : 'Governed by bearing pressure.'}`;
+  }
 
   function renderSections(){
     const sel = document.getElementById('s-width') ? document.getElementById('s-width').value : 'all';
