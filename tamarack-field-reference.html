@@ -306,7 +306,7 @@
           <h3 style="margin-top:0;font-size:.95rem;">Beam &amp; supports</h3>
           <p class="note" style="margin-top:0;">Click the beam to add a post, drag a post to move it, double-click a post to remove it (2 minimum). Click a post's label to toggle Post/Wall. Set an overhang below for a beam that cantilevers past its end support.</p>
           <div class="beam-diagram-wrap">
-            <svg id="g-beam-svg" viewBox="0 0 900 270" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid meet"></svg>
+            <svg id="g-beam-svg" viewBox="0 0 900 286" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid meet"></svg>
           </div>
 
           <div class="note" style="margin:10px 0 2px;font-weight:600;">Shear, V (lb)</div>
@@ -386,6 +386,11 @@
                 <option value="custom">— custom Fb (sawn timber, PSL, LVL, etc.) —</option>
               </select>
             </div>
+            <div class="hide" id="g-species-wrap"><label>Species/grade &mdash; optional, fills in Fb &amp; E below</label>
+              <select id="g-species" onchange="onSpeciesChange()">
+                <option value="">— manual entry —</option>
+              </select>
+            </div>
             <div class="hide" id="g-fb-custom-wrap"><label>Custom Fb (psi)</label><input id="g-fb-custom" type="number" inputmode="decimal" value="2400" step="50" oninput="updateBeamAnalysis()"></div>
             <div><label>E (x10^6 psi)</label>
               <select id="g-e" onchange="onBeamMaterialChange()">
@@ -407,7 +412,7 @@
           <div class="result" id="g-result"></div>
           <div id="g-source" style="font-family:var(--sans); font-size:.76rem; color:var(--steel); margin-top:10px;"></div>
         </div>
-        <p class="flag">Assumes uniform load only (no point loads — use the Span Calculator tab for a point load case). Each bay, and each overhang, is checked as its own independent case (a bay as a simple span; an overhang as a cantilever, M=w&middot;a&sup2;/2 at the support) and the worst one sizes the whole beam — that's conservative versus a true continuous-beam analysis (a real continuous beam usually sees lower span moment near a cantilevered end), not unconservative, but it will occasionally call for more beam than a continuous-beam calc strictly requires. Post vs. Wall is a label only in the diagram — it doesn't change this calculation; a wall (continuous) support in reality shares load differently than a discrete post, which matters for a real bearing/hanger design even though it doesn't change the beam's own bending/deflection check. Width is fixed by your selection above (or your custom entry) — the calculator solves only for the required depth at that width; it will not swap you to a different width to save material. Default is 5-1/2", Tamarack's typical beam width. Note two separate glulam width families exist: 5-1/2"/7-1/2"/9-1/2" are the Southern Pine series, manufactured net-width to match dimension lumber (flush with a 2x6/2x8/2x10 wall or post); 3-1/8"/5-1/8"/6-3/4"/8-3/4" are the Western species (Douglas Fir) series, which do NOT match dimension lumber widths. A custom width/Fb/E lets you check a sawn timber, LVL, PSL, or a glulam width/grade not in the lists above — Sx/I are still generated from simple rectangular geometry (b&middot;d), so this isn't valid for a non-rectangular or built-up unequal-ply section. Confirm which series your supplier stocks before specifying. Verify bearing, lateral-torsional buckling (CL), and connection design separately.</p>
+        <p class="flag">Point loads above are optional and superposed onto whichever bay/overhang they fall in. Each bay, and each overhang, is checked as its own independent case (a bay as a simple span; an overhang as a cantilever, M=w&middot;a&sup2;/2 at the support) and the worst one sizes the whole beam — that's conservative versus a true continuous-beam analysis (a real continuous beam usually sees lower span moment near a cantilevered end), not unconservative, but it will occasionally call for more beam than a continuous-beam calc strictly requires. Post vs. Wall is a label only in the diagram — it doesn't change this calculation; a wall (continuous) support in reality shares load differently than a discrete post, which matters for a real bearing/hanger design even though it doesn't change the beam's own bending/deflection check. Width is fixed by your selection above (or your custom entry) — the calculator solves only for the required depth at that width; it will not swap you to a different width to save material. Default is 5-1/2", Tamarack's typical beam width. Note two separate glulam width families exist: 5-1/2"/7-1/2"/9-1/2" are the Southern Pine series, manufactured net-width to match dimension lumber (flush with a 2x6/2x8/2x10 wall or post); 3-1/8"/5-1/8"/6-3/4"/8-3/4" are the Western species (Douglas Fir) series, which do NOT match dimension lumber widths. A custom width/Fb/E lets you check a sawn timber, LVL, PSL, or a glulam width/grade not in the lists above — Sx/I are still generated from simple rectangular geometry (b&middot;d), so this isn't valid for a non-rectangular or built-up unequal-ply section. The species/grade picker for custom Fb just fills in typical dimension-lumber base values (No. 1/No. 2 unless noted) as a starting point — confirm the actual grade stamp and current NDS Supplement value for your specific size before specifying, since large-timber (beam &amp; stringer) reference values differ from dimension-lumber values. Confirm which series your supplier stocks before specifying. Verify bearing, lateral-torsional buckling (CL), and connection design separately. Support reactions shown below the beam are simple-span/cantilever reactions per this beam's own loads only — they don't include the beam's self-weight or anything stacking on top of that post elsewhere in the structure, so add those before sizing a footing.</p>
       </section>
 
       <!-- SPAN CALCULATOR -->
@@ -1360,9 +1365,49 @@
 
   function onBeamMaterialChange(){
     document.getElementById('g-width-custom-wrap').classList.toggle('hide', document.getElementById('g-width').value!=='custom');
-    document.getElementById('g-fb-custom-wrap').classList.toggle('hide', document.getElementById('g-fb').value!=='custom');
+    const fbCustom = document.getElementById('g-fb').value==='custom';
+    document.getElementById('g-fb-custom-wrap').classList.toggle('hide', !fbCustom);
+    document.getElementById('g-species-wrap').classList.toggle('hide', !fbCustom);
     document.getElementById('g-e-custom-wrap').classList.toggle('hide', document.getElementById('g-e').value!=='custom');
     if(typeof updateBeamAnalysis==='function') updateBeamAnalysis();
+  }
+
+  // Reference design values for common sawn-timber species/grades, so a
+  // "custom timber" pick can start from a real species instead of a blank
+  // Fb/E. These are typical DIMENSION-LUMBER base values (visually graded,
+  // No.1/No.2 unless noted) — a starting point, not a substitute for reading
+  // the actual grade stamp on the material and checking the current NDS
+  // Supplement for the exact size/grade/species combination you're using.
+  const TIMBER_SPECIES = {
+    'dfl-ss': {label:'Douglas Fir-Larch — Select Structural', Fb:1500, E:1.9e6},
+    'dfl-1':  {label:'Douglas Fir-Larch — No. 1',             Fb:1000, E:1.7e6},
+    'dfl-2':  {label:'Douglas Fir-Larch — No. 2',             Fb:900,  E:1.6e6},
+    'hf-1':   {label:'Hem-Fir — No. 1',                       Fb:1000, E:1.5e6},
+    'hf-2':   {label:'Hem-Fir — No. 2',                       Fb:850,  E:1.3e6},
+    'spf-1':  {label:'Spruce-Pine-Fir — No. 1/No. 2',         Fb:875,  E:1.4e6},
+    'syp-2':  {label:'Southern Pine — No. 2',                 Fb:1200, E:1.6e6},
+    'syp-1':  {label:'Southern Pine — No. 1',                 Fb:1500, E:1.7e6},
+    'wcedar-2': {label:'Western Cedars — No. 2',              Fb:725,  E:1.0e6},
+    'redwood-2': {label:'Redwood — No. 2',                    Fb:825,  E:1.1e6}
+  };
+  (function populateSpeciesSelect(){
+    const sel = document.getElementById('g-species');
+    if(!sel) return;
+    Object.keys(TIMBER_SPECIES).forEach(key=>{
+      const opt = document.createElement('option');
+      opt.value = key;
+      opt.textContent = TIMBER_SPECIES[key].label + ` — Fb ${TIMBER_SPECIES[key].Fb}`;
+      sel.appendChild(opt);
+    });
+  })();
+  function onSpeciesChange(){
+    const key = document.getElementById('g-species').value;
+    const sp = TIMBER_SPECIES[key];
+    if(sp){
+      document.getElementById('g-fb-custom').value = sp.Fb;
+      document.getElementById('g-e-custom').value = +(sp.E/1e6).toFixed(2);
+    }
+    updateBeamAnalysis();
   }
 
   // ---- POINT LOADS (Glulam Sizing) ----
@@ -1413,6 +1458,53 @@
   // same simplification calcGlulam() already uses — so V is discontinuous at
   // every support (a real jump equal to that bay's/overhang's own reaction)
   // and M returns to 0 at every pin support, by construction.
+  // Support reactions (post/wall loads), for carrying straight into the
+  // Footing/Bearing tab. Each bay and overhang is still its own independent
+  // simple span/cantilever (same simplification as the sizing check and the
+  // shear/moment diagrams), so an interior support's reaction is just the sum
+  // of what the two bays framing into it each put on it; an end support also
+  // picks up its overhang's reaction, if any.
+  function computeReactions(){
+    const {ohStart, ohEnd, supports, totalFt} = beamLayout();
+    if(totalFt<=0 || supports.length<2) return null;
+    const dl = parseFloat(document.getElementById('g-dl').value)||0;
+    const ll = parseFloat(document.getElementById('g-ll').value)||0;
+    const trib = parseFloat(document.getElementById('g-trib').value)||0;
+    const w = (dl+ll)*trib;
+    const pts = getPointLoads();
+    const spans = spansFromSupports();
+    let cursor = ohStart;
+    const bays = spans.map(sp=>{ const r={start:cursor, end:cursor+sp, span:sp}; cursor+=sp; return r; });
+    const bayReactions = bays.map(b=>{
+      const L = b.span;
+      if(L<=0) return {Rl:0, Rr:0};
+      let Rl = w*L/2, Rr = w*L/2;
+      pts.forEach(pl=>{
+        if(pl.loc>=b.start-1e-6 && pl.loc<=b.end+1e-6){
+          const a = pl.loc-b.start, bb = b.end-pl.loc;
+          Rl += pl.P*bb/L; Rr += pl.P*a/L;
+        }
+      });
+      return {Rl, Rr};
+    });
+    let ohStartR = 0, ohEndR = 0;
+    if(ohStart>0){
+      ohStartR = w*ohStart;
+      pts.forEach(pl=>{ if(pl.loc>=-1e-6 && pl.loc<=ohStart+1e-6) ohStartR += pl.P; });
+    }
+    const lastEndPos = bays.length ? bays[bays.length-1].end : ohStart;
+    if(ohEnd>0){
+      ohEndR = w*ohEnd;
+      pts.forEach(pl=>{ if(pl.loc>=lastEndPos-1e-6 && pl.loc<=totalFt+1e-6) ohEndR += pl.P; });
+    }
+    const n = supports.length;
+    const R = new Array(n).fill(0);
+    bayReactions.forEach((br,i)=>{ R[i]+=br.Rl; R[i+1]+=br.Rr; });
+    if(ohStart>0) R[0]+=ohStartR;
+    if(ohEnd>0) R[n-1]+=ohEndR;
+    return R.map((val,i)=>({idx:i, type: beamSupportTypes[i]||'post', R:val}));
+  }
+
   function computeShearMoment(){
     const {ohStart, ohEnd, supports, totalFt} = beamLayout();
     if(totalFt<=0 || supports.length<2) return null;
@@ -1611,7 +1703,7 @@
     const {ohStart, ohEnd, supports, totalFt} = beamLayout();
     if(totalFt<=0 || supports.length<2){ svg.innerHTML=''; beamRenderState=null; return; }
 
-    const W = 900, H = 270;
+    const W = 900, H = 286;
     const padL = 50, padR = 50;
     const usableW = W - padL - padR;
     const beamY = 146, beamH = 34;
@@ -1653,6 +1745,7 @@
     }
 
     // supports
+    const reactions = computeReactions();
     supports.forEach((sft, i)=>{
       const x = ftToX(sft);
       const type = beamSupportTypes[i] || 'post';
@@ -1670,6 +1763,9 @@
       }
       g += `<circle cx="${x}" cy="${beamY+beamH/2}" r="5" fill="#fff" stroke="#4d5561" stroke-width="1.5"/>`;
       g += `<text class="beam-support-label" data-idx="${i}" x="${x}" y="${topY+64}" text-anchor="middle" font-size="12" font-family="var(--sans,sans-serif)" fill="#4d5561">${type==='wall'?'Wall':'Post'} ${i+1}</text>`;
+      if(reactions && reactions[i]){
+        g += `<text x="${x}" y="${topY+80}" text-anchor="middle" font-size="12" font-weight="600" font-family="var(--sans,sans-serif)" fill="#8a5a1e">${fmtNumShort(reactions[i].R)} lb</text>`;
+      }
       g += `</g>`;
       svgParts.push(g);
     });
@@ -1966,6 +2062,8 @@
     const govIsOH = (govSpanS===govFt && worst.SreqOH) || (govSpanI===govFt && worst.IreqOH);
     const bayNote = (spans.length>1 || ohStart>0 || ohEnd>0) ? ` &nbsp; (${spans.length} bay${spans.length>1?'s':''}: ${spans.join("', ")}'${ohStart>0?`, start O.H. ${ohStart}'`:''}${ohEnd>0?`, end O.H. ${ohEnd}'`:''} — governing ${govIsOH?'overhang':'bay'} ${govFt}')` : '';
     const plNote = hasPL ? ` &nbsp; +${pointLoads.length} point load${pointLoads.length>1?'s':''} (${pointLoads.map(p=>`${Math.round(p.P)} lb @ ${p.loc}'`).join(', ')})` : '';
+    const reactions = computeReactions();
+    const reactionNote = reactions ? `<div style="margin-top:8px;">Support reactions (for the Footing/Bearing tab) — ${reactions.map(r=>`${r.type==='wall'?'Wall':'Post'} ${r.idx+1}: <b>${Math.round(r.R).toLocaleString()} lb</b>`).join(' &nbsp;|&nbsp; ')}</div>` : '';
     if(fit){
       box.classList.remove('warn');
       const dFrac = (fit.d % 1 === 0.5) ? (Math.floor(fit.d)+'-1/2') : fit.d;
@@ -1973,11 +2071,11 @@
         w = ${w.toFixed(0)} plf${bayNote}${plNote}<br>
         Sx required = ${Sreq.toFixed(1)} in3 -> provided ${fit.Sx.toFixed(1)} in3<br>
         I required (defl) = ${Ireq.toFixed(0)} in4 -> provided ${fit.I.toFixed(0)} in4<br>
-        Governs: ${fit.Sx/Sreq < fit.I/Ireq ? 'bending' : 'deflection'}`;
+        Governs: ${fit.Sx/Sreq < fit.I/Ireq ? 'bending' : 'deflection'}${reactionNote}`;
     } else {
       box.classList.add('warn');
       box.innerHTML = `<div class="headline">No depth up to 30" at ${wFrac}" width fits — needs a wider beam, a deeper custom glulam, or a different framing scheme.</div>
-        Sx required = ${Sreq.toFixed(1)} in3, I required = ${Ireq.toFixed(0)} in4 exceed what a 30"-deep ${wFrac}"-wide section provides.${bayNote}`;
+        Sx required = ${Sreq.toFixed(1)} in3, I required = ${Ireq.toFixed(0)} in4 exceed what a 30"-deep ${wFrac}"-wide section provides.${bayNote}${reactionNote}`;
     }
   }
 
