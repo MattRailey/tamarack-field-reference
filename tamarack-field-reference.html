@@ -306,8 +306,19 @@
           <h3 style="margin-top:0;font-size:.95rem;">Beam &amp; supports</h3>
           <p class="note" style="margin-top:0;">Click the beam to add a post, drag a post to move it, double-click a post to remove it (2 minimum). Click a post's label to toggle Post/Wall. Set an overhang below for a beam that cantilevers past its end support.</p>
           <div class="beam-diagram-wrap">
-            <svg id="g-beam-svg" viewBox="0 0 900 236" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid meet"></svg>
+            <svg id="g-beam-svg" viewBox="0 0 900 270" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid meet"></svg>
           </div>
+
+          <div class="note" style="margin:10px 0 2px;font-weight:600;">Shear, V (lb)</div>
+          <div class="beam-diagram-wrap">
+            <svg id="g-shear-svg" viewBox="0 0 900 140" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid meet"></svg>
+          </div>
+          <div class="note" style="margin:8px 0 2px;font-weight:600;">Moment, M (ft-lb)</div>
+          <div class="beam-diagram-wrap">
+            <svg id="g-moment-svg" viewBox="0 0 900 140" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid meet"></svg>
+          </div>
+          <p class="note" style="margin-top:2px;">Each bay and overhang is diagrammed as its own independent simple span / cantilever (matching the sizing check below) — shear jumps at each support the way it would for separate simple spans, rather than smoothing through like a true continuous beam.</p>
+
           <div class="grid" style="margin-top:10px;">
             <div><label>Total number of supports</label><input id="g-support-count" type="number" inputmode="numeric" value="2" step="1" min="2" onchange="onSupportCountChange()"></div>
             <div><label>Total beam length (ft) &mdash; controlling</label><input id="g-total-length" type="number" inputmode="decimal" step="0.5" min="0.5" onchange="onTotalLengthChange()"></div>
@@ -361,11 +372,11 @@
                 <option value="custom">— custom timber width —</option>
               </select>
             </div>
-            <div class="hide" id="g-width-custom-wrap"><label>Custom width (in)</label><input id="g-width-custom" type="number" inputmode="decimal" value="5.5" step="0.125"></div>
+            <div class="hide" id="g-width-custom-wrap"><label>Custom width (in)</label><input id="g-width-custom" type="number" inputmode="decimal" value="5.5" step="0.125" oninput="updateBeamAnalysis()"></div>
             <div><label>Bay span(s) (ft) &mdash; from the diagram above, or type directly (comma-separated)</label><input id="g-span" type="text" inputmode="decimal" value="20" oninput="onBeamSpanTextChange()"></div>
-            <div><label>Spacing / tributary distance (ft)</label><input id="g-trib" type="number" inputmode="decimal" value="12" step="0.5" oninput="drawBeamDiagram()"></div>
-            <div><label>Dead load (psf)</label><input id="g-dl" type="number" inputmode="decimal" value="15" step="1" oninput="drawBeamDiagram()"></div>
-            <div><label>Live load / snow (psf)</label><input id="g-ll" type="number" inputmode="decimal" value="35" step="1" oninput="drawBeamDiagram()"></div>
+            <div><label>Spacing / tributary distance (ft)</label><input id="g-trib" type="number" inputmode="decimal" value="12" step="0.5" oninput="updateBeamAnalysis()"></div>
+            <div><label>Dead load (psf)</label><input id="g-dl" type="number" inputmode="decimal" value="15" step="1" oninput="updateBeamAnalysis()"></div>
+            <div><label>Live load / snow (psf)</label><input id="g-ll" type="number" inputmode="decimal" value="35" step="1" oninput="updateBeamAnalysis()"></div>
             <div><label>Stress grade (Fb, psi)</label>
               <select id="g-fb" onchange="onBeamMaterialChange()">
                 <option value="1800">24F-V1 DF/DF — Fb 1800</option>
@@ -375,23 +386,24 @@
                 <option value="custom">— custom Fb (sawn timber, PSL, LVL, etc.) —</option>
               </select>
             </div>
-            <div class="hide" id="g-fb-custom-wrap"><label>Custom Fb (psi)</label><input id="g-fb-custom" type="number" inputmode="decimal" value="2400" step="50"></div>
+            <div class="hide" id="g-fb-custom-wrap"><label>Custom Fb (psi)</label><input id="g-fb-custom" type="number" inputmode="decimal" value="2400" step="50" oninput="updateBeamAnalysis()"></div>
             <div><label>E (x10^6 psi)</label>
               <select id="g-e" onchange="onBeamMaterialChange()">
                 <option value="1.7">1.7</option><option value="1.8" selected>1.8</option><option value="1.9">1.9</option>
                 <option value="custom">— custom E —</option>
               </select>
             </div>
-            <div class="hide" id="g-e-custom-wrap"><label>Custom E (x10^6 psi)</label><input id="g-e-custom" type="number" inputmode="decimal" value="1.8" step=".05"></div>
+            <div class="hide" id="g-e-custom-wrap"><label>Custom E (x10^6 psi)</label><input id="g-e-custom" type="number" inputmode="decimal" value="1.8" step=".05" oninput="updateBeamAnalysis()"></div>
             <div><label>Deflection limit</label>
-              <select id="g-defl">
+              <select id="g-defl" onchange="updateBeamAnalysis()">
                 <option value="240">L/240 (total)</option>
                 <option value="360" selected>L/360 (live)</option>
                 <option value="180">L/180 (roof, no ceiling)</option>
               </select>
             </div>
           </div>
-          <button class="run" onclick="calcGlulam()">Check section</button>
+          <button class="run" onclick="updateBeamAnalysis()">Recalculate</button>
+          <p class="note" style="margin-top:6px;">Everything above updates live as you type, drag, or edit a dimension — this button is just a manual refresh if you ever want one.</p>
           <div class="result" id="g-result"></div>
           <div id="g-source" style="font-family:var(--sans); font-size:.76rem; color:var(--steel); margin-top:10px;"></div>
         </div>
@@ -1109,6 +1121,7 @@
     const [dl, ll] = v.split(',');
     document.getElementById('g-dl').value = dl;
     document.getElementById('g-ll').value = ll;
+    updateBeamAnalysis();
   }
 
   // ---- BEAM & SUPPORTS DIAGRAM (Glulam Sizing) ----
@@ -1193,7 +1206,7 @@
     beamSupports = next;
     beamSupportTypes = next.map((_,i)=> beamSupportTypes[i] || 'post');
     syncSpanFieldFromSupports();
-    drawBeamDiagram();
+    updateBeamAnalysis();
   }
 
   // Total beam length as the controlling input: scale every bay span
@@ -1228,7 +1241,7 @@
     const lockCb = document.getElementById('g-lock-total');
     if(lockCb) lockCb.checked = true;
     syncSpanFieldFromSupports();
-    drawBeamDiagram();
+    updateBeamAnalysis();
   }
 
   function editBeamSegment(seg, textEl){
@@ -1292,7 +1305,7 @@
         }
         beamSupports = s;
         syncSpanFieldFromSupports();
-        drawBeamDiagram();
+        updateBeamAnalysis();
       }
     }
     input.addEventListener('keydown', (e)=>{
@@ -1349,6 +1362,7 @@
     document.getElementById('g-width-custom-wrap').classList.toggle('hide', document.getElementById('g-width').value!=='custom');
     document.getElementById('g-fb-custom-wrap').classList.toggle('hide', document.getElementById('g-fb').value!=='custom');
     document.getElementById('g-e-custom-wrap').classList.toggle('hide', document.getElementById('g-e').value!=='custom');
+    if(typeof updateBeamAnalysis==='function') updateBeamAnalysis();
   }
 
   // ---- POINT LOADS (Glulam Sizing) ----
@@ -1371,13 +1385,13 @@
     for(let i=0;i<n;i++){
       const defLoc = prevLoc[i] || (Math.round((totalFt * (i+1)/(n+1))*10)/10);
       html += `<div class="grid" style="margin-top:6px;">
-        <div><label>Load ${i+1} magnitude (lb)</label><input id="g-pl-mag-${i}" type="number" inputmode="decimal" value="${prevMag[i]}" step="50" min="0" oninput="drawBeamDiagram()"></div>
-        <div><label>Load ${i+1} location (ft from left end)</label><input id="g-pl-loc-${i}" type="number" inputmode="decimal" value="${defLoc}" step="0.5" min="0" oninput="drawBeamDiagram()"></div>
+        <div><label>Load ${i+1} magnitude (lb)</label><input id="g-pl-mag-${i}" type="number" inputmode="decimal" value="${prevMag[i]}" step="50" min="0" oninput="updateBeamAnalysis()"></div>
+        <div><label>Load ${i+1} location (ft from left end)</label><input id="g-pl-loc-${i}" type="number" inputmode="decimal" value="${defLoc}" step="0.5" min="0" oninput="updateBeamAnalysis()"></div>
       </div>`;
     }
     rowsEl.innerHTML = html;
     note.style.display = n>0 ? 'block' : 'none';
-    drawBeamDiagram();
+    updateBeamAnalysis();
   }
 
   function getPointLoads(){
@@ -1392,6 +1406,147 @@
       if(!isNaN(P) && P>0 && !isNaN(loc)) loads.push({P, loc});
     }
     return loads;
+  }
+
+  // ---- SHEAR & MOMENT DIAGRAMS ----
+  // Each bay/overhang is its own independent simple span or cantilever — the
+  // same simplification calcGlulam() already uses — so V is discontinuous at
+  // every support (a real jump equal to that bay's/overhang's own reaction)
+  // and M returns to 0 at every pin support, by construction.
+  function computeShearMoment(){
+    const {ohStart, ohEnd, supports, totalFt} = beamLayout();
+    if(totalFt<=0 || supports.length<2) return null;
+    const dl = parseFloat(document.getElementById('g-dl').value)||0;
+    const ll = parseFloat(document.getElementById('g-ll').value)||0;
+    const trib = parseFloat(document.getElementById('g-trib').value)||0;
+    const w = (dl+ll)*trib; // plf
+    const pts = getPointLoads(); // {P, loc} — loc = ft from the left tip of the beam
+    const spans = spansFromSupports();
+    let cursor = ohStart;
+    const bays = spans.map(sp=>{ const r={start:cursor, end:cursor+sp, span:sp}; cursor+=sp; return r; });
+    const lastEnd = bays.length ? bays[bays.length-1].end : ohStart;
+
+    function region(x){
+      if(ohStart>0 && x<ohStart-1e-6) return {type:'ohStart'};
+      if(ohEnd>0 && x>lastEnd+1e-6) return {type:'ohEnd'};
+      for(const b of bays) if(x>=b.start-1e-6 && x<=b.end+1e-6) return {type:'bay', bay:b};
+      return {type:'bay', bay:bays[bays.length-1] || {start:0,end:totalFt,span:totalFt}};
+    }
+    function evalAt(x){
+      const r = region(x);
+      if(r.type==='ohStart'){
+        const t = x; // distance from the free tip (global 0)
+        let V=0, M=0;
+        pts.forEach(pl=>{ if(pl.loc>=-1e-6 && pl.loc<=ohStart+1e-6 && pl.loc<=t+1e-6){ V-=pl.P; M-=pl.P*(t-pl.loc); } });
+        V -= w*t; M -= w*t*t/2;
+        return {V,M};
+      }
+      if(r.type==='ohEnd'){
+        const t = totalFt - x; // distance from the free tip (global totalFt)
+        let V=0, M=0;
+        pts.forEach(pl=>{ const d = totalFt-pl.loc; if(pl.loc>=lastEnd-1e-6 && d>=-1e-6 && d<=t+1e-6){ V-=pl.P; M-=pl.P*(t-d); } });
+        V -= w*t; M -= w*t*t/2;
+        return {V,M};
+      }
+      const b = r.bay, L = b.span;
+      if(L<=0) return {V:0,M:0};
+      let Rl = w*L/2, Rr = w*L/2;
+      pts.forEach(pl=>{
+        if(pl.loc>=b.start-1e-6 && pl.loc<=b.end+1e-6){
+          const a = pl.loc-b.start, bb = b.end-pl.loc;
+          Rl += pl.P*bb/L; Rr += pl.P*a/L;
+        }
+      });
+      const xl = x-b.start;
+      let V = Rl - w*xl;
+      let M = Rl*xl - w*xl*xl/2;
+      pts.forEach(pl=>{
+        if(pl.loc>=b.start-1e-6 && pl.loc<=b.end+1e-6){
+          const a = pl.loc-b.start;
+          if(a<=xl+1e-6){ V -= pl.P; M -= pl.P*(xl-a); }
+        }
+      });
+      return {V,M};
+    }
+
+    const boundaries = [0];
+    if(ohStart>0) boundaries.push(ohStart);
+    bays.forEach(b=> boundaries.push(b.end));
+    if(ohEnd>0) boundaries.push(totalFt);
+    const bset = [...new Set(boundaries.map(v=>+v.toFixed(4)))].sort((a,b)=>a-b);
+
+    const N = 140;
+    const xs=[], Vs=[], Ms=[];
+    for(let i=0;i<bset.length-1;i++){
+      const segA = bset[i], segB = bset[i+1];
+      const segLen = segB-segA;
+      if(segLen<=0) continue;
+      const segN = Math.max(2, Math.round(N*segLen/totalFt));
+      for(let k=0;k<=segN;k++){
+        const x = segA + segLen*k/segN;
+        // nudge samples infinitesimally inside their own segment so a shared
+        // support point reads THAT segment's value on each side of the jump
+        const xEval = (k===0 && i>0) ? x+1e-4 : (k===segN && i<bset.length-2) ? x-1e-4 : x;
+        const {V,M} = evalAt(Math.min(Math.max(xEval,0),totalFt));
+        xs.push(x); Vs.push(V); Ms.push(M);
+      }
+    }
+    return {xs, Vs, Ms, totalFt};
+  }
+
+  function fmtNumShort(v){
+    const av = Math.abs(v);
+    if(av>=1000) return (v/1000).toFixed(2).replace(/\.?0+$/,'')+'k';
+    return Math.round(v).toString();
+  }
+
+  function drawShearMomentDiagrams(){
+    const vSvg = document.getElementById('g-shear-svg');
+    const mSvg = document.getElementById('g-moment-svg');
+    if(!vSvg || !mSvg) return;
+    const data = computeShearMoment();
+    if(!data){ vSvg.innerHTML=''; mSvg.innerHTML=''; return; }
+    const {xs, Vs, Ms, totalFt} = data;
+    const padL = (beamRenderState && beamRenderState.padL) || 50;
+    const usableW = (beamRenderState && beamRenderState.usableW) || 800;
+    const ftToX = (ft)=> padL + (ft/totalFt)*usableW;
+
+    function renderChart(svg, ys, unit, color){
+      const W=900, H=140, midY=70;
+      const maxAbs = Math.max(1, ...ys.map(v=>Math.abs(v)));
+      const scale = (H/2-22)/maxAbs;
+      const yToPx = (v)=> midY - v*scale;
+      let d = `M ${ftToX(xs[0]).toFixed(1)} ${yToPx(ys[0]).toFixed(1)}`;
+      for(let i=1;i<xs.length;i++) d += ` L ${ftToX(xs[i]).toFixed(1)} ${yToPx(ys[i]).toFixed(1)}`;
+      const areaD = d + ` L ${ftToX(xs[xs.length-1]).toFixed(1)} ${midY} L ${ftToX(xs[0]).toFixed(1)} ${midY} Z`;
+      const parts = [];
+      parts.push(`<line x1="${padL-10}" y1="${midY}" x2="${W-padL+10}" y2="${midY}" stroke="#c7c2b4" stroke-width="1"/>`);
+      parts.push(`<path d="${areaD}" fill="${color}" opacity="0.15"/>`);
+      parts.push(`<path d="${d}" fill="none" stroke="${color}" stroke-width="1.75"/>`);
+      let maxV=-Infinity, maxI=0, minV=Infinity, minI=0;
+      ys.forEach((v,i)=>{ if(v>maxV){maxV=v;maxI=i;} if(v<minV){minV=v;minI=i;} });
+      if(Math.abs(maxV)>1e-6){
+        const ly = Math.max(12, yToPx(maxV)-6);
+        parts.push(`<text x="${ftToX(xs[maxI])}" y="${ly}" text-anchor="middle" font-size="10" font-family="var(--sans,sans-serif)" fill="${color}">${fmtNumShort(maxV)} ${unit}</text>`);
+      }
+      if(Math.abs(minV)>1e-6 && minI!==maxI){
+        const ly = Math.min(H-4, yToPx(minV)+14);
+        parts.push(`<text x="${ftToX(xs[minI])}" y="${ly}" text-anchor="middle" font-size="10" font-family="var(--sans,sans-serif)" fill="${color}">${fmtNumShort(minV)} ${unit}</text>`);
+      }
+      svg.innerHTML = parts.join('');
+    }
+    renderChart(vSvg, Vs, 'lb', '#2b6cb0');
+    renderChart(mSvg, Ms, 'ft-lb', '#b7541f');
+  }
+
+  // Single entry point for a live update: redraw the beam picture, the shear
+  // & moment diagrams, and re-run the section check — called on every
+  // relevant input change so nothing needs a "Check" click, and throttled to
+  // one call per animation frame during a drag so it stays smooth.
+  function updateBeamAnalysis(){
+    drawBeamDiagram();
+    drawShearMomentDiagrams();
+    calcGlulam();
   }
 
   function spansFromSupports(){
@@ -1415,12 +1570,12 @@
     // keep existing types where possible, default new ones to 'post'
     const newTypes = supports.map((_,i)=> beamSupportTypes[i] || 'post');
     beamSupportTypes = newTypes;
-    drawBeamDiagram();
+    updateBeamAnalysis();
   }
 
   function onBeamOverhangChange(){
     enforceTotalLock([]);
-    drawBeamDiagram();
+    updateBeamAnalysis();
   }
 
   function beamLayout(){
@@ -1446,7 +1601,7 @@
   let beamRafId = null;
   function scheduleBeamRedraw(){
     if(beamRafId!==null) return;
-    beamRafId = requestAnimationFrame(()=>{ beamRafId=null; drawBeamDiagram(); });
+    beamRafId = requestAnimationFrame(()=>{ beamRafId=null; updateBeamAnalysis(); });
   }
 
   function drawBeamDiagram(){
@@ -1456,10 +1611,10 @@
     const {ohStart, ohEnd, supports, totalFt} = beamLayout();
     if(totalFt<=0 || supports.length<2){ svg.innerHTML=''; beamRenderState=null; return; }
 
-    const W = 900, H = 236;
+    const W = 900, H = 270;
     const padL = 50, padR = 50;
     const usableW = W - padL - padR;
-    const beamY = 112, beamH = 34;
+    const beamY = 146, beamH = 34;
     const ftToX = (ft) => padL + ((ft + ohStart) / totalFt) * usableW;
     beamRenderState = {padL, usableW, totalFt, ohStart, supports};
 
@@ -1519,20 +1674,6 @@
       svgParts.push(g);
     });
 
-    // point load markers (downward arrow + magnitude label above the beam)
-    const beamLeftFt = supports[0]-ohStart;
-    getPointLoads().forEach(pl=>{
-      const absFt = beamLeftFt + pl.loc;
-      if(absFt < beamLeftFt-0.01 || absFt > supports[supports.length-1]+ohEnd+0.01) return;
-      const x = ftToX(absFt);
-      const tipY = beamY - 2;
-      svgParts.push(`<g class="beam-pl-marker">
-        <line x1="${x}" y1="${tipY-26}" x2="${x}" y2="${tipY}" stroke="#c0392b" stroke-width="2"/>
-        <polygon points="${x-5},${tipY-8} ${x+5},${tipY-8} ${x},${tipY}" fill="#c0392b"/>
-        <text x="${x}" y="${tipY-30}" text-anchor="middle" font-size="11" font-family="var(--sans,sans-serif)" fill="#c0392b">${Math.round(pl.P)} lb</text>
-      </g>`);
-    });
-
     // dimension line + labels for each bay and overhang — each label is click-to-edit
     const dimY = beamY - 22;
     const segs = [];
@@ -1559,6 +1700,22 @@
     const midTotal = (xTotalA+xTotalB)/2;
     svgParts.push(`<rect class="beam-dim-hit" data-total="1" x="${midTotal-40}" y="${dimY0-20}" width="80" height="16" fill="transparent"/>`);
     svgParts.push(`<text class="beam-dim-label beam-total-label" data-total="1" x="${midTotal}" y="${dimY0-8}" text-anchor="middle" font-size="12" font-weight="600" font-family="var(--sans,sans-serif)" fill="${beamLockedTotal!==null?'#b7541f':'#2b6cb0'}" text-decoration="underline" style="cursor:text;">${fmtFt(totalFt)} total${beamLockedTotal!==null?' 🔒':''}</text>`);
+
+    // point load markers — their own lane at the very top, well clear of both
+    // dimension rows below, so a load arrow never covers a dimension number.
+    const beamLeftFt = supports[0]-ohStart;
+    const plTipY = dimY0 - 24; // just above the total-length dim row's hit area
+    const plTopY = 18;
+    getPointLoads().forEach(pl=>{
+      const absFt = beamLeftFt + pl.loc;
+      if(absFt < beamLeftFt-0.01 || absFt > supports[supports.length-1]+ohEnd+0.01) return;
+      const x = ftToX(absFt);
+      svgParts.push(`<g class="beam-pl-marker">
+        <line x1="${x}" y1="${plTopY+16}" x2="${x}" y2="${plTipY}" stroke="#c0392b" stroke-width="2"/>
+        <polygon points="${x-5},${plTipY-8} ${x+5},${plTipY-8} ${x},${plTipY}" fill="#c0392b"/>
+        <text x="${x}" y="${plTopY+10}" text-anchor="middle" font-size="11" font-family="var(--sans,sans-serif)" fill="#c0392b">${Math.round(pl.P)} lb</text>
+      </g>`);
+    });
 
     svg.innerHTML = svgParts.join('');
     // No per-element listeners are attached here on purpose — see
@@ -1618,7 +1775,7 @@
       if(lbl){
         const idx = +lbl.dataset.idx;
         beamSupportTypes[idx] = (beamSupportTypes[idx]==='wall') ? 'post' : 'wall';
-        drawBeamDiagram();
+        updateBeamAnalysis();
         return;
       }
       if(ev.target.closest('.beam-body')){
@@ -1631,7 +1788,7 @@
         beamSupports = [...supports, newFt];
         beamSupportTypes.splice(beamSupports.length-1, 0, 'post');
         syncSpanFieldFromSupports();
-        drawBeamDiagram();
+        updateBeamAnalysis();
       }
     });
 
@@ -1646,7 +1803,7 @@
       beamSupportTypes = beamSupportTypes.filter((_,i)=>i!==idx);
       enforceTotalLock([]);
       syncSpanFieldFromSupports();
-      drawBeamDiagram();
+      updateBeamAnalysis();
     });
 
     svg.addEventListener('pointerdown', (ev)=>{
@@ -1684,7 +1841,7 @@
       scheduleBeamRedraw();
     });
     window.addEventListener('pointerup', ()=>{
-      if(beamDragIdx!==null){ beamDragIdx=null; drawBeamDiagram(); }
+      if(beamDragIdx!==null){ beamDragIdx=null; updateBeamAnalysis(); }
     }, {once:false});
   }
 
