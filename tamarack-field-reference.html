@@ -432,6 +432,7 @@
           <p class="note" style="margin-top:6px;">Everything above updates live as you type, drag, or edit a dimension — this button is just a manual refresh if you ever want one.</p>
           <div class="result" id="g-result"></div>
           <div id="g-source" style="font-family:var(--sans); font-size:.76rem; color:var(--steel); margin-top:10px;"></div>
+          <button class="run secondary" onclick="printGlulamSheet()" style="margin-top:10px;">Print / Save as PDF for building dept.</button>
         </div>
         <p class="flag">Point loads above are optional and superposed onto whichever bay/overhang they fall in. Each bay, and each overhang, is checked as its own independent case (a bay as a simple span; an overhang as a cantilever, M=w&middot;a&sup2;/2 at the support) and the worst one sizes the whole beam — that's conservative versus a true continuous-beam analysis (a real continuous beam usually sees lower span moment near a cantilevered end), not unconservative, but it will occasionally call for more beam than a continuous-beam calc strictly requires. Post vs. Wall is a label only in the diagram — it doesn't change this calculation; a wall (continuous) support in reality shares load differently than a discrete post, which matters for a real bearing/hanger design even though it doesn't change the beam's own bending/deflection check. Width is fixed by your selection above (or your custom entry) — the calculator solves only for the required depth at that width; it will not swap you to a different width to save material. Default is 5-1/2", Tamarack's typical beam width. Note two separate glulam width families exist: 5-1/2"/7-1/2"/9-1/2" are the Southern Pine series, manufactured net-width to match dimension lumber (flush with a 2x6/2x8/2x10 wall or post); 3-1/8"/5-1/8"/6-3/4"/8-3/4" are the Western species (Douglas Fir) series, which do NOT match dimension lumber widths. A custom width/Fb/E lets you check a sawn timber, LVL, PSL, or a glulam width/grade not in the lists above — Sx/I are still generated from simple rectangular geometry (b&middot;d), so this isn't valid for a non-rectangular or built-up unequal-ply section. The species/grade picker for custom Fb just fills in typical dimension-lumber base values (No. 1/No. 2 unless noted) as a starting point — confirm the actual grade stamp and current NDS Supplement value for your specific size before specifying, since large-timber (beam &amp; stringer) reference values differ from dimension-lumber values. Confirm which series your supplier stocks before specifying. Verify bearing, lateral-torsional buckling (CL), and connection design separately. Support reactions shown below the beam are simple-span/cantilever reactions per this beam's own loads only — they don't include the beam's self-weight or anything stacking on top of that post elsewhere in the structure, so add those before sizing a footing.</p>
       </section>
@@ -506,6 +507,7 @@
 
           <button class="run" onclick="calcSpan()">Check section</button>
           <div class="result" id="sp-result"></div>
+          <button class="run secondary" onclick="printSpanCalcSheet()" style="margin-top:10px;">Print / Save as PDF for building dept.</button>
         </div>
         <p class="flag">Assumes simple span, load at midspan for the point load, superposition of uniform + point load effects. Sawn lumber and LVL values are representative base design values (no CD/CM/CL/CF adjustment applied) — treat as a starting point, not a final design. I-joist depths are picked from generic representative capacities, not a specific product line.</p>
       </section>
@@ -561,6 +563,7 @@
             </div>
           </div>
           <div class="result" id="j-result"></div>
+          <button class="run secondary" onclick="printJoistSheet()" style="margin-top:10px;">Print / Save as PDF for building dept.</button>
         </div>
         <p class="flag">Calculated from standard NDS-style Fb/E design values for DF-L (with size factor CF and a 1.15 repetitive-member factor, since these span/size checks assume joists spaced &le;24" o.c.), checking bending and live-load deflection only — shear and bearing at supports are not checked here, same as the Beam Sizing tab. Each bay and overhang above is checked independently (bay = simple span, overhang = cantilever from its bearing), and one common size is suggested that satisfies all of them at once — the worst bay or overhang governs. These will not exactly match a specific published AWC/IRC span table (which may use slightly different reference values), so still confirm against the current adopted IRC/AWC span tables and Oregon amendments before use in a drawing set. Also remember: if your load case isn't a plain floor (a deck at 60 psf, for instance), you must change the Dead/Live load fields above — they do not update automatically from context. Sizes checked run 2x6 through 2x14; if nothing that size works, look at an LVL/I-joist on the LVL/I-Joist Calc tab instead.</p>
       </section>
@@ -619,6 +622,7 @@
           <button class="run" id="f-run-btn" onclick="runFooting()">Size footing</button>
           <div class="result" id="f-result"></div>
           <div id="f-source" style="font-family:var(--sans); font-size:.76rem; color:var(--steel); margin-top:10px;"></div>
+          <button class="run secondary" onclick="printFootingSheet()" style="margin-top:10px;">Print / Save as PDF for building dept.</button>
         </div>
         <p class="flag">Service-level (unfactored) loads only — this sizes/checks soil bearing pressure against an allowable value you provide, it does NOT check concrete design (one-way/punching shear, flexure, or reinforcing) or overturning/sliding. Footing self-weight and any soil surcharge above the footing are NOT added automatically — fold them into the load you enter if you want them reflected. Eccentricity is uniaxial (one direction at a time, computed by e=M/P) — a footing with real biaxial eccentricity needs a full two-way check, not this tool. When e exceeds the kern (L/6 or W/6), the soil is assumed to lift off part of the footing and pressure is redistributed as a triangular block over the remaining bearing length — a condition worth avoiding under sustained loads even if the sized/checked q<sub>max</sub> still passes; sizing mode rounds the solved dimension UP to the nearest inch, so the actual q<sub>max</sub> at that rounded size is always at or slightly under q<sub>a</sub>, never over. The allowable bearing value is whatever you type in q<sub>a</sub> — the Site Data (ZIP) tab can hand you a rough regional placeholder as a starting point, but always confirm the real number against the project's actual geotechnical report before finalizing a footing size.</p>
       </section>
@@ -1197,6 +1201,120 @@
   }
   function sendBtn(onclick, text, outline){
     return `<button type="button" onclick="${onclick}" style="font-size:.72rem;padding:2px 8px;margin-left:4px;border:1px solid ${outline||'var(--blueprint)'};border-radius:4px;background:#fff;color:${outline||'var(--blueprint)'};cursor:pointer;">${text} &rarr;</button>`;
+  }
+
+  // ---- PRINT / SAVE-AS-PDF CALC SHEET ----
+  // Builds a clean, letterhead-style summary of a tab's inputs, diagram, and
+  // result, then opens it in a new tab and triggers the browser's print
+  // dialog — "Save as PDF" there is the actual PDF export, since this is a
+  // static single-file page with no server-side PDF library. Meant for
+  // dropping into a building-department application alongside the drawing
+  // set, not as a substitute for the stamped calc these tools already say
+  // they aren't.
+  function collectPanelInputs(panel){
+    const rows = [];
+    const seen = new Set();
+    panel.querySelectorAll('.grid').forEach(grid=>{
+      if(grid.closest('.hide')) return;
+      grid.querySelectorAll(':scope > div').forEach(div=>{
+        if(div.classList.contains('hide')) return;
+        const label = div.querySelector('label');
+        const field = div.querySelector('input, select, textarea');
+        if(!label || !field || seen.has(field.id)) return;
+        if(field.closest('.hide')) return;
+        let val;
+        if(field.tagName==='SELECT') val = field.options[field.selectedIndex] ? field.options[field.selectedIndex].text : field.value;
+        else if(field.type==='checkbox') val = field.checked ? 'Yes' : 'No';
+        else val = field.value;
+        if(val===null || val==='') return;
+        seen.add(field.id);
+        rows.push({label: label.textContent.replace(/\s*&mdash;.*$/,'').trim(), value: String(val)});
+      });
+    });
+    return rows;
+  }
+  function generatePrintSheet(cfg){
+    const panel = document.getElementById(cfg.panelId);
+    if(!panel) return;
+    const inputRows = collectPanelInputs(panel);
+    let diagramsHtml = '';
+    (cfg.diagramIds||[]).forEach(id=>{
+      const svg = document.getElementById(id);
+      if(svg && svg.innerHTML.trim()){
+        diagramsHtml += `<div class="diagram-wrap">${svg.outerHTML}</div>`;
+      }
+    });
+    const resultEl = document.getElementById(cfg.resultId);
+    let resultHtml = resultEl ? resultEl.innerHTML : '<p>No result calculated yet.</p>';
+    resultHtml = resultHtml.replace(/<button[\s\S]*?<\/button>/g, '');
+    const flagEl = panel.querySelector('.flag');
+    const disclaimer = flagEl ? flagEl.innerHTML : 'Preliminary field check — not a substitute for a stamped calculation.';
+    const dateStr = new Date().toLocaleDateString('en-US', {year:'numeric', month:'long', day:'numeric'});
+
+    const win = window.open('', '_blank');
+    if(!win){ showLoadToast('Pop-up blocked — allow pop-ups for this page to print a calc sheet.'); return; }
+    win.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>${cfg.title} — Calculation Sheet</title>
+<style>
+  @page{ margin:0.65in; }
+  *{ box-sizing:border-box; }
+  body{ font-family:'Georgia','Times New Roman',serif; color:#1c2438; margin:0; padding:0 6px; }
+  .letterhead{ border-bottom:3px solid #1c2438; padding-bottom:12px; margin-bottom:18px; display:flex; justify-content:space-between; align-items:flex-end; }
+  .letterhead h1{ font-size:1.5rem; margin:0; font-family:Arial,Helvetica,sans-serif; letter-spacing:.2px; }
+  .letterhead .firm{ font-size:.85rem; color:#5b6b83; font-family:Arial,sans-serif; margin-top:2px; }
+  .meta{ font-size:.8rem; color:#5b6b83; text-align:right; font-family:Arial,sans-serif; line-height:1.5; }
+  h2.report-title{ font-family:Arial,sans-serif; font-size:1.1rem; margin:16px 0 10px; color:#1c2438; border-bottom:1px solid #c7c2b4; padding-bottom:4px; }
+  .section-label{ font-family:Arial,sans-serif; font-size:.72rem; text-transform:uppercase; letter-spacing:.06em; color:#5b6b83; margin:0 0 6px; }
+  table.inputs{ width:100%; border-collapse:collapse; font-family:Arial,sans-serif; font-size:.85rem; margin-bottom:16px; }
+  table.inputs td{ padding:4px 8px; border-bottom:1px solid #e4e0d4; }
+  table.inputs td.label{ color:#5b6b83; width:60%; }
+  table.inputs td.value{ font-weight:600; text-align:right; white-space:nowrap; }
+  .diagram-wrap{ text-align:center; margin:10px 0 16px; page-break-inside:avoid; }
+  .diagram-wrap svg{ max-width:100%; height:auto; border:1px solid #c7c2b4; border-radius:4px; background:#f4f2ec; }
+  .result-block{ font-family:Arial,sans-serif; font-size:.9rem; line-height:1.65; border:1px solid #c7c2b4; border-radius:6px; padding:14px 16px; background:#fafaf7; page-break-inside:avoid; margin-bottom:16px; }
+  .result-block .headline{ font-size:1.05rem; font-weight:700; margin-bottom:8px; }
+  .disclaimer{ margin-top:20px; padding-top:10px; border-top:1px dashed #c7c2b4; font-family:Arial,sans-serif; font-size:.72rem; color:#7a1f1f; line-height:1.5; }
+  .sig{ margin-top:44px; display:flex; gap:50px; font-family:Arial,sans-serif; font-size:.82rem; }
+  .sig div{ flex:1; border-top:1px solid #1c2438; padding-top:4px; color:#5b6b83; }
+  .toolbar{ text-align:center; margin:14px 0 22px; font-family:Arial,sans-serif; }
+  .toolbar button{ font-size:.9rem; padding:8px 20px; border-radius:6px; border:1px solid #1c2438; background:#1c2438; color:#fff; cursor:pointer; }
+  @media print{ .toolbar{ display:none; } }
+</style></head>
+<body>
+  <div class="toolbar no-print"><button onclick="window.print()">Print / Save as PDF</button></div>
+  <div class="letterhead">
+    <div>
+      <h1>Tamarack Drafting &amp; Design, LLC</h1>
+      <div class="firm">Structural drafting &amp; preliminary design calculations</div>
+    </div>
+    <div class="meta">Date: ${dateStr}<br>Prepared by: Matt Railey</div>
+  </div>
+  <h2 class="report-title">${cfg.title} — Calculation Summary</h2>
+  <p class="section-label">Inputs</p>
+  <table class="inputs">${inputRows.map(r=>`<tr><td class="label">${r.label}</td><td class="value">${r.value}</td></tr>`).join('')}</table>
+  ${diagramsHtml ? `<p class="section-label">Diagram</p>${diagramsHtml}` : ''}
+  <p class="section-label">Result</p>
+  <div class="result-block">${resultHtml}</div>
+  <div class="disclaimer">${disclaimer}</div>
+  <div class="sig">
+    <div>Prepared by</div>
+    <div>Date</div>
+  </div>
+</body></html>`);
+    win.document.close();
+    win.focus();
+  }
+  function printGlulamSheet(){
+    generatePrintSheet({panelId:'glulam', title:(document.getElementById('g-member-type') && document.getElementById('g-member-type').value==='sawn') ? 'Beam Sizing — Bundled Sawn Lumber' : 'Beam Sizing — Glulam', diagramIds:['g-beam-svg','g-shear-svg','g-moment-svg'], resultId:'g-result'});
+  }
+  function printSpanCalcSheet(){
+    generatePrintSheet({panelId:'spancalc', title:'LVL / I-Joist Calc', diagramIds:[], resultId:'sp-result'});
+  }
+  function printJoistSheet(){
+    generatePrintSheet({panelId:'joist', title:'Joist Spans', diagramIds:['j-beam-svg'], resultId:'j-result'});
+  }
+  function printFootingSheet(){
+    const mode = document.getElementById('f-mode-seg') ? document.getElementById('f-mode-seg').querySelector('.active').dataset.mode : 'size';
+    generatePrintSheet({panelId:'footing', title:'Footing / Bearing — '+(mode==='size'?'Size a Footing':'Check a Footing'), diagramIds:[], resultId:'f-result'});
   }
 
   function openMobileMoreSheet(){
@@ -2954,6 +3072,47 @@
     return segs;
   }
 
+  // ---- CODE COMPLIANCE CHECK: joist cantilever vs. IRC R507.6 ----
+  // "The maximum joist cantilever shall be limited to one-fourth of the
+  // joist span or the maximum cantilever length specified in Table R507.6,
+  // whichever is less." — IRC R507.6. This checks the 1/4-of-backspan half
+  // of that rule (computable straight from the diagram); Table R507.6 itself
+  // is species/size/spacing-specific and can be MORE restrictive than 1/4 —
+  // it isn't reproduced here, so a clean pass on this check is not a
+  // guarantee of code compliance, only a red flag when the simpler limit is
+  // already blown.
+  const CODE_RULES = {
+    joistCantilever: {
+      section: 'IRC R507.6',
+      quote: 'The maximum joist cantilever shall be limited to one-fourth of the joist span or the maximum cantilever length specified in Table R507.6, whichever is less.',
+      url: 'https://up.codes/s/deck-joists'
+    }
+  };
+  function checkJoistCodeCompliance(segs){
+    const bays = segs.filter(s=>s.type==='bay');
+    const flags = [];
+    segs.forEach(seg=>{
+      if(seg.type!=='overhang') return;
+      const adjBay = (seg.label==='start overhang') ? bays[0] : bays[bays.length-1];
+      if(!adjBay) return;
+      const maxAllowed = adjBay.length/4;
+      if(seg.length > maxAllowed + 1e-6){
+        flags.push({seg, adjBay, maxAllowed});
+      }
+    });
+    return flags;
+  }
+  function codeWarningHtml(flags, rule){
+    if(!flags || flags.length===0) return '';
+    return `<div style="margin-top:10px;padding:10px 12px;border:2px solid #c0392b;border-radius:6px;background:#fdecea;color:#7a1f1f;font-family:var(--sans,sans-serif);font-size:.85rem;">
+      <div style="font-weight:700;margin-bottom:4px;">&#9888; Code check — exceeds ${rule.section}</div>
+      ${flags.map(f=>`${f.seg.label[0].toUpperCase()+f.seg.label.slice(1)} is ${fmtSpan(f.seg.length)}, but the adjacent backspan (${fmtSpan(f.adjBay.length)}) allows at most ${fmtSpan(f.maxAllowed)} (1/4 of backspan).`).join('<br>')}
+      <div style="margin-top:6px;font-style:italic;">&ldquo;${rule.quote}&rdquo; &mdash; ${rule.section}</div>
+      <div style="margin-top:4px;"><a href="${rule.url}" target="_blank" rel="noopener" style="color:#7a1f1f;">View ${rule.section} &rarr;</a></div>
+      <div style="margin-top:4px;font-size:.76rem;">This only checks the 1/4-of-backspan half of the rule — Table R507.6 (species/size/spacing-specific) can be more restrictive and isn't reproduced here, so always confirm against the adopted code edition's table too.</div>
+    </div>`;
+  }
+
   function calcJoist(){
     const box = document.getElementById('j-result');
     if(!box) return;
@@ -3005,6 +3164,9 @@
       return `${lbl}: ${Math.round(r.Rplf)} plf (${Math.round(r.R)} lb/joist) ${btns}`;
     }).join('<br>')}<div class="note" style="margin-top:4px;">The plf figure is the running load into that wall's top plate; the per-joist lb figure is what one joist itself delivers to a beam below.</div></div>` : '';
 
+    const codeFlags = checkJoistCodeCompliance(segs);
+    const codeWarning = codeWarningHtml(codeFlags, CODE_RULES.joistCantilever);
+
     if(pick){
       const {key, worst} = pick;
       const governText = worst.governs==='bending' ? 'bending' : `live-load deflection (L/${deflRatio})`;
@@ -3014,7 +3176,7 @@
         Grade: ${JOIST_GRADE_LABEL[grade]||grade} DF-L &nbsp;|&nbsp; Total load: ${wTotal.toFixed(0)} plf<br>
         Governing element: ${worst.seg.label} — ${fmtSpan(worst.seg.length)} ${worst.seg.type==='bay'?'span':'cantilever'}, allowable ${fmtSpan(worst.allow)} (governed by ${governText})<br>
         Other bays/overhangs: ${segs.filter(s=>s!==worst.seg).map(s=>`${s.label} ${fmtSpan(s.length)}`).join(', ') || '—'}${reactionNote}<br>
-        <span style="color:#5b6b83">Next size down would not clear the governing bay/overhang above.</span>`;
+        <span style="color:#5b6b83">Next size down would not clear the governing bay/overhang above.</span>${codeWarning}`;
     }else{
       const worst14 = checkSize('2x14');
       box.className = 'result warn';
@@ -3022,7 +3184,7 @@
       box.innerHTML = `<div class="headline">No size up to 2x14 works</div>
         Grade: ${JOIST_GRADE_LABEL[grade]||grade} DF-L &nbsp;|&nbsp; Total load: ${wTotal.toFixed(0)} plf<br>
         Even a 2x14 @ ${spacing}" o.c. only reaches ${fmtSpan(worst14.allow)} as a ${worst14.seg.type==='bay'?'span':'cantilever'}, short of the ${worst14.seg.label} at ${fmtSpan(worst14.seg.length)}.${reactionNote}<br>
-        Try tighter spacing, a higher grade, moving that bearing, or check an LVL/I-joist on the LVL/I-Joist Calc tab.`;
+        Try tighter spacing, a higher grade, moving that bearing, or check an LVL/I-joist on the LVL/I-Joist Calc tab.${codeWarning}`;
     }
   }
 
