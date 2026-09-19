@@ -306,7 +306,7 @@
           <h3 style="margin-top:0;font-size:.95rem;">Beam &amp; supports</h3>
           <p class="note" style="margin-top:0;">Click the beam to add a support, drag a support to move it, double-click a support to remove it (2 minimum). Click a support's label to cycle Post/Wall/Beam (bearing on a beam or girder below). Set an overhang below for a beam that cantilevers past its end support.</p>
           <div class="beam-diagram-wrap">
-            <svg id="g-beam-svg" viewBox="0 0 900 286" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid meet"></svg>
+            <svg id="g-beam-svg" viewBox="0 0 900 300" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid meet"></svg>
           </div>
 
           <div class="note" style="margin:10px 0 2px;font-weight:600;">Shear, V (lb)</div>
@@ -398,6 +398,7 @@
             <div><label>Spacing / tributary distance (ft)</label><input id="g-trib" type="number" inputmode="decimal" value="12" step="0.5" oninput="updateBeamAnalysis()"></div>
             <div><label>Dead load (psf)</label><input id="g-dl" type="number" inputmode="decimal" value="15" step="1" oninput="updateBeamAnalysis()"></div>
             <div><label>Live load / snow (psf)</label><input id="g-ll" type="number" inputmode="decimal" value="35" step="1" oninput="updateBeamAnalysis()"></div>
+            <div style="align-self:end;"><label class="check" style="display:flex;align-items:center;gap:6px;margin-bottom:8px;"><input type="checkbox" id="g-trib-apply" checked onchange="updateBeamAnalysis()" style="width:auto;margin:0;"> Apply tributary load above to this beam</label></div>
             <div id="g-fb-wrap"><label>Stress grade (Fb, psi)</label>
               <select id="g-fb" onchange="onBeamMaterialChange()">
                 <option value="1800">24F-V1 DF/DF — Fb 1800</option>
@@ -1167,22 +1168,27 @@
   // lands on — location isn't known automatically (that's wherever the joist
   // actually frames into the beam), so it's left for you to set.
   function sendJoistReactionToGlulam(idx){
-    const reactions = computeJoistReactions();
-    if(!reactions || !reactions[idx]) return;
-    const r = reactions[idx];
-    const countEl = document.getElementById('g-pl-count');
-    let n = parseInt(countEl.value) || 0;
-    if(n>=4){ showLoadToast('Glulam already has 4 point loads (its max) — clear one first, then send this one.'); return; }
-    n += 1;
+    // A beam's own "Dead/Live x tributary width" fields recompute exactly the
+    // same load a joist reaction represents — so sending the COMPUTED plf
+    // value over and adding it on top always double-counts those same
+    // joists. Instead, this copies the SETUP (this bearing's tributary width
+    // + the joist load case) onto the beam's own fields, so the beam's
+    // existing w = (dl+ll)*trib formula produces the number once.
+    const tribFt = computeJoistTributaryFt();
+    if(!tribFt || tribFt[idx]===undefined) return;
+    const type = jSupportTypes[idx] || 'wall';
+    const dl = parseFloat(document.getElementById('j-dl').value)||0;
+    const ll = parseFloat(document.getElementById('j-ll').value)||0;
+    const t = Math.round(tribFt[idx]*100)/100;
     showPanel('glulam');
-    countEl.value = n;
-    onPointLoadCountChange();
-    const magEl = document.getElementById('g-pl-mag-'+(n-1));
-    const locEl = document.getElementById('g-pl-loc-'+(n-1));
-    if(magEl) magEl.value = Math.round(r.R);
+    document.getElementById('g-trib').value = t;
+    document.getElementById('g-dl').value = dl;
+    document.getElementById('g-ll').value = ll;
+    const applyEl = document.getElementById('g-trib-apply');
+    if(applyEl) applyEl.checked = true;
     if(typeof updateBeamAnalysis==='function') updateBeamAnalysis();
-    flashField(locEl || magEl);
-    showLoadToast(`Sent ${Math.round(r.R).toLocaleString()} lb (${r.type==='wall'?'Wall':'Beam'} ${idx+1} from Joist) to Glulam as point load #${n} — set where it falls along the beam.`);
+    flashField(document.getElementById('g-trib'));
+    showLoadToast(`Copied tributary width (${t}') and load case (DL ${dl} psf / LL ${ll} psf) from ${type==='wall'?'Wall':'Beam'} ${idx+1} on Joist Spans to Beam Sizing — same joists, computed once.`);
   }
   function sendJoistReactionToFooting(idx){
     const reactions = computeJoistReactions();
@@ -1727,7 +1733,9 @@
     const dl = parseFloat(document.getElementById('g-dl').value)||0;
     const ll = parseFloat(document.getElementById('g-ll').value)||0;
     const trib = parseFloat(document.getElementById('g-trib').value)||0;
-    const w = (dl+ll)*trib;
+    const tribApplyEl = document.getElementById('g-trib-apply');
+    const tribApply = tribApplyEl ? tribApplyEl.checked : true;
+    const w = tribApply ? (dl+ll)*trib : 0;
     const pts = getPointLoads();
     const spans = spansFromSupports();
     let cursor = ohStart;
@@ -1768,7 +1776,9 @@
     const dl = parseFloat(document.getElementById('g-dl').value)||0;
     const ll = parseFloat(document.getElementById('g-ll').value)||0;
     const trib = parseFloat(document.getElementById('g-trib').value)||0;
-    const w = (dl+ll)*trib; // plf
+    const tribApplyEl = document.getElementById('g-trib-apply');
+    const tribApply = tribApplyEl ? tribApplyEl.checked : true;
+    const w = tribApply ? (dl+ll)*trib : 0; // plf
     const pts = getPointLoads(); // {P, loc} — loc = ft from the left tip of the beam
     const spans = spansFromSupports();
     let cursor = ohStart;
@@ -1960,12 +1970,23 @@
     const {ohStart, ohEnd, supports, totalFt} = beamLayout();
     if(totalFt<=0 || supports.length<2){ svg.innerHTML=''; beamRenderState=null; return; }
 
-    const W = 900, H = 286;
+    const W = 900, H = 300;
     const padL = 50, padR = 50;
     const usableW = W - padL - padR;
-    const beamY = 146, beamH = 34;
+    const beamY = 171, beamH = 34;
     const ftToX = (ft) => padL + ((ft + ohStart) / totalFt) * usableW;
     beamRenderState = {padL, usableW, totalFt, ohStart, supports};
+    // Vertical lanes, top to bottom: point loads, then the tributary-load
+    // band (Dead+Live x tributary width), then the two dimension rows, then
+    // the beam itself — each with its own clearance so an arrow or label
+    // never lands on top of a dimension line.
+    const dimY = beamY - 22;        // bay/overhang dimension row
+    const dimY0 = dimY - 24;        // overall-length dimension row
+    const tribHeadY = dimY0 - 16;   // tributary-load band
+    const tribTailY = tribHeadY - 20;
+    const tribLabelY = tribTailY - 8;
+    const plTipY = tribLabelY - 16; // point-load arrow tips (topmost)
+    const plTopY = 18;              // point-load arrow tails / labels
 
     let svgParts = [];
     svgParts.push(`
@@ -2001,6 +2022,46 @@
       svgParts.push(`<rect x="${xa}" y="${beamY}" width="${xb-xa}" height="${beamH}" fill="#fff" opacity="0.18"/>`);
     }
 
+    // Generic distributed-load band renderer — a horizontal tail line, a row
+    // of down-arrows to a head line just above the next element, and a label
+    // above the tail. Used for both the tributary-load band and the
+    // joist-load band below it so the two read as the same kind of thing.
+    function drawUdlBand(tailY, headY, labelY, magnitude, label, color, dashed){
+      const parts = [];
+      const dash = dashed ? ' stroke-dasharray="4,3"' : '';
+      parts.push(`<line x1="${xLeft}" y1="${tailY}" x2="${xRight}" y2="${tailY}" stroke="${color}" stroke-width="1.5"${dash}/>`);
+      const arrowCount = Math.max(3, Math.round((xRight-xLeft)/48));
+      for(let i=0;i<=arrowCount;i++){
+        const x = xLeft + (xRight-xLeft)*(i/arrowCount);
+        parts.push(`<line x1="${x}" y1="${tailY}" x2="${x}" y2="${headY-6}" stroke="${color}" stroke-width="1.5"${dash}/>`);
+        parts.push(`<polygon points="${x-4},${headY-6} ${x+4},${headY-6} ${x},${headY}" fill="${color}" ${dashed?'opacity="0.55"':''}/>`);
+      }
+      parts.push(`<text x="${(xLeft+xRight)/2}" y="${labelY}" text-anchor="middle" font-size="12" font-weight="600" font-family="var(--sans,sans-serif)" fill="${color}">${label}</text>`);
+      return parts.join('');
+    }
+
+    // tributary load — Dead+Live x tributary width, this beam's own
+    // distributed load. A small clickable tick mark sits off to the right so
+    // you can flip it on/off without erasing the Dead/Live/tributary values
+    // (e.g. to isolate a point-load-only check).
+    const tribApplyNow = document.getElementById('g-trib-apply') ? document.getElementById('g-trib-apply').checked : true;
+    const trib = parseFloat(document.getElementById('g-trib').value) || 0;
+    const tribWNominalDraw = (parseFloat(document.getElementById('g-dl').value)||0) + (parseFloat(document.getElementById('g-ll').value)||0);
+    const tribWDraw = tribWNominalDraw * trib;
+    if(tribWDraw > 0){
+      const tribColor = tribApplyNow ? '#2b6cb0' : '#9aa5b1';
+      const tribLabel = tribApplyNow
+        ? `${Math.round(tribWDraw)} plf tributary load (Dead+Live &times; ${trib}' trib)`
+        : `${Math.round(tribWDraw)} plf tributary load — OFF (not applied)`;
+      svgParts.push(`<g class="beam-trib-marker">${drawUdlBand(tribTailY, tribHeadY, tribLabelY, tribWDraw, tribLabel, tribColor, !tribApplyNow)}</g>`);
+      // tick-mark toggle, off to the side of the band
+      const tickX = xRight + 16, tickY = (tribTailY+tribHeadY)/2;
+      svgParts.push(`<g class="beam-trib-tick" data-idx="0" style="cursor:pointer;">
+        <rect x="${tickX-7}" y="${tickY-7}" width="14" height="14" rx="2" fill="#fff" stroke="${tribColor}" stroke-width="1.5"/>
+        ${tribApplyNow ? `<path d="M ${tickX-4} ${tickY} L ${tickX-1} ${tickY+3.5} L ${tickX+4.5} ${tickY-4}" stroke="${tribColor}" stroke-width="2" fill="none"/>` : ''}
+      </g>`);
+    }
+
     // supports
     const reactions = computeReactions();
     supports.forEach((sft, i)=>{
@@ -2033,7 +2094,6 @@
     });
 
     // dimension line + labels for each bay and overhang — each label is click-to-edit
-    const dimY = beamY - 22;
     const segs = [];
     if(ohStart>0) segs.push({a: supports[0]-ohStart, b: supports[0], oh:'start'});
     for(let i=1;i<supports.length;i++) segs.push({a: supports[i-1], b: supports[i], oh:false, idx:i});
@@ -2050,7 +2110,6 @@
     });
 
     // overall-length dimension, drawn as its own row above the bay/overhang dims
-    const dimY0 = dimY - 24;
     const xTotalA = ftToX(supports[0]-ohStart), xTotalB = ftToX(supports[supports.length-1]+ohEnd);
     svgParts.push(`<line x1="${xTotalA}" y1="${dimY0}" x2="${xTotalB}" y2="${dimY0}" stroke="#5a5648" stroke-width="1"/>`);
     svgParts.push(`<line x1="${xTotalA}" y1="${dimY0-5}" x2="${xTotalA}" y2="${dimY0+5}" stroke="#5a5648" stroke-width="1"/>`);
@@ -2062,8 +2121,6 @@
     // point load markers — their own lane at the very top, well clear of both
     // dimension rows below, so a load arrow never covers a dimension number.
     const beamLeftFt = supports[0]-ohStart;
-    const plTipY = dimY0 - 24; // just above the total-length dim row's hit area
-    const plTopY = 18;
     getPointLoads().forEach(pl=>{
       const absFt = beamLeftFt + pl.loc;
       if(absFt < beamLeftFt-0.01 || absFt > supports[supports.length-1]+ohEnd+0.01) return;
@@ -2115,6 +2172,12 @@
 
     svg.addEventListener('click', (ev)=>{
       if(!beamRenderState) return;
+      const tribTick = ev.target.closest('.beam-trib-tick');
+      if(tribTick){
+        const cb = document.getElementById('g-trib-apply');
+        if(cb){ cb.checked = !cb.checked; updateBeamAnalysis(); }
+        return;
+      }
       const totalLbl = ev.target.closest('[data-total="1"]');
       if(totalLbl){
         const textEl = svg.querySelector('.beam-total-label');
@@ -2249,6 +2312,8 @@
     const trib = parseFloat(document.getElementById('g-trib').value);
     const dl = parseFloat(document.getElementById('g-dl').value);
     const ll = parseFloat(document.getElementById('g-ll').value);
+    const tribApplyEl = document.getElementById('g-trib-apply');
+    const tribApply = tribApplyEl ? tribApplyEl.checked : true;
     const defl = parseFloat(document.getElementById('g-defl').value);
     const ohStart = Math.max(0, parseFloat(document.getElementById('g-oh-start').value) || 0);
     const ohEnd   = Math.max(0, parseFloat(document.getElementById('g-oh-end').value) || 0);
@@ -2261,8 +2326,9 @@
       return;
     }
 
-    const w = (dl+ll)*trib;
+    const w = tribApply ? (dl+ll)*trib : 0;
     const wIn = w/12;
+    const loadBreakdown = tribApply ? '' : ' &nbsp;(tributary load OFF)';
     const pointLoads = getPointLoads();
     let plCursor = ohStart;
     const bayRanges = spans.map(span => { const r = {start:plCursor, end:plCursor+span, span}; plCursor += span; return r; });
@@ -2359,7 +2425,7 @@
         box.classList.remove('warn');
         const dFrac = (fit.d % 1 === 0.5) ? (Math.floor(fit.d)+'-1/2') : fit.d;
         box.innerHTML = `<div class="headline">Suggested: (${sawnPlies}) ${fit.key} — ${fit.b}" x ${dFrac}" bundled</div>
-          Grade: ${JOIST_GRADE_LABEL[gradeKey]||gradeKey} DF-L &nbsp; w = ${w.toFixed(0)} plf${bayNote}${plNote}<br>
+          Grade: ${JOIST_GRADE_LABEL[gradeKey]||gradeKey} DF-L &nbsp; w = ${w.toFixed(0)} plf${loadBreakdown}${bayNote}${plNote}<br>
           Moment required = ${Mreq.toFixed(0)} ft-lb -> allowable ${fit.Mallow.toFixed(0)} ft-lb<br>
           I required (defl) = ${Ireq.toFixed(0)} in4 -> provided ${fit.I.toFixed(0)} in4<br>
           Governs: ${fit.Mallow/Mreq < fit.I/Ireq ? 'bending' : 'deflection'}${reactionNote}`;
@@ -2378,7 +2444,7 @@
         box.classList.remove('warn');
         const dFrac = (fit.d % 1 === 0.5) ? (Math.floor(fit.d)+'-1/2') : fit.d;
         box.innerHTML = `<div class="headline">Suggested: ${wFrac}" x ${dFrac}"</div>
-          w = ${w.toFixed(0)} plf${bayNote}${plNote}<br>
+          w = ${w.toFixed(0)} plf${loadBreakdown}${bayNote}${plNote}<br>
           Sx required = ${Sreq.toFixed(1)} in3 -> provided ${fit.Sx.toFixed(1)} in3<br>
           I required (defl) = ${Ireq.toFixed(0)} in4 -> provided ${fit.I.toFixed(0)} in4<br>
           Governs: ${fit.Sx/Sreq < fit.I/Ireq ? 'bending' : 'deflection'}${reactionNote}`;
@@ -2594,6 +2660,34 @@
     // more directly usable than a per-joist point load when sizing the
     // wall's top plate/header or the beam it's bearing on.
     return R.map((val,i)=>({idx:i, type: jSupportTypes[i]||'wall', R:val, Rplf: val/trib}));
+  }
+
+  // Tributary width (ft) landing on each bearing — same geometry as
+  // computeJoistReactions (half of each adjoining bay's span, plus a full
+  // overhang at an end bearing) but load-independent: this is what a beam
+  // underneath should use as ITS OWN tributary width, since "Dead/Live x
+  // tributary width" on that beam recomputes the identical load a sent
+  // reaction would represent. Used by "Send to Glulam" to copy the setup
+  // (tributary width + load case) instead of a computed plf value, so the
+  // beam's own w = (dl+ll)*trib formula produces the number once rather than
+  // adding a second, duplicate load line item on top of it.
+  function computeJoistTributaryFt(){
+    const {ohStart, ohEnd, supports, totalFt} = jLayout();
+    if(totalFt<=0 || supports.length<2) return null;
+    const spans = jSpansFromSupports();
+    let cursor = ohStart;
+    const bays = spans.map(sp=>{ const r={start:cursor, end:cursor+sp, span:sp}; cursor+=sp; return r; });
+    const bayTrib = bays.map(b=>{
+      const L = b.span;
+      if(L<=0) return {Tl:0, Tr:0};
+      return {Tl: L/2, Tr: L/2};
+    });
+    const n = supports.length;
+    const T = new Array(n).fill(0);
+    bayTrib.forEach((bt,i)=>{ T[i]+=bt.Tl; T[i+1]+=bt.Tr; });
+    if(ohStart>0) T[0] += ohStart;
+    if(ohEnd>0) T[n-1] += ohEnd;
+    return T;
   }
 
   function onJoistLockToggle(){
