@@ -1431,10 +1431,22 @@
   try{ dcQueue = JSON.parse(localStorage.getItem('dcQueue')||'[]'); }catch(e){ dcQueue = []; }
 
   const DC_FS_KEY = 'dcExportDir';
-  const DC_EXPORT_FILENAME = 'detail-catalog-manual.json'; // this browser's own hand-entered entries only
+  // Everything this BROWSER owns end-to-end (never touched by any pyRevit
+  // script) lives together in one file — hand-added entries AND which
+  // ids are marked "Generic" — instead of the two separate small files
+  // this used to be split across (detail-catalog-manual.json and
+  // detail-catalog-generic.json, pre-2026-09-22). Matt's own "that's a
+  // lot of JSON files" call: anything only one side ever reads or writes
+  // is safe to combine, since there's no risk of two different scripts'
+  // writes colliding on it — that risk is exactly why detail-catalog-
+  // export.json (Python writes, browser reads), -pull.json (browser
+  // writes, Python reads/trims), and -excluded.json (browser writes,
+  // Python reads) each stay their own separate file on purpose.
+  const DC_EXPORT_FILENAME = 'detail-catalog-mine.json';
   const DC_LIBRARY_FILENAME = 'detail-catalog-export.json'; // written by Sync Detail Library / Build Detail Database — read-only from here
   const DC_PULL_FILENAME = 'detail-catalog-pull.json'; // written here, consumed+trimmed by import_queued_details_script.py
   const DC_LOCALSTORAGE_KEY = 'dcCatalogUserEntries';
+  const DC_GENERIC_LOCALSTORAGE_KEY = 'dcCatalogGenericIds';
 
   // User-managed entries (added/edited/deleted right in this tab) — kept
   // separate from DC_SAMPLE so the samples are never accidentally edited or
@@ -1458,11 +1470,7 @@
   // searchable/filterable once "Show generic" is checked) — purely a
   // browser-side display flag, kept separate from Revit's own database so
   // it survives every re-sync (which fully replaces dcLibraryEntries).
-  // Persisted the same two ways as dcUserEntries: localStorage always,
-  // and the linked folder's JSON when one is set up, so it follows Matt
-  // across devices.
-  const DC_GENERIC_LOCALSTORAGE_KEY = 'dcCatalogGenericIds';
-  const DC_GENERIC_FILENAME = 'detail-catalog-generic.json';
+  // Saved into the SAME file as dcUserEntries (see DC_EXPORT_FILENAME above).
   let dcGenericIds = new Set();
   try{ dcGenericIds = new Set(JSON.parse(localStorage.getItem(DC_GENERIC_LOCALSTORAGE_KEY)||'[]')); }catch(e){ dcGenericIds = new Set(); }
 
@@ -2044,7 +2052,7 @@
     if(!handle){ if(typeof showLoadToast === 'function') showLoadToast('Link a catalog folder first.'); return; }
     await dcTryLoadLibraryFromHandle(handle);
     await dcTryLoadPullFromHandle(handle);
-    await dcTryLoadGenericFromHandle(handle);
+    await dcTryLoadFromHandle(handle); // picks up mine.json too, in case another device changed a manual entry or a Generic flag
     await dcTryLoadExcludedFromHandle(handle);
     dcRebuildData();
     dcPopulateFilters();
@@ -2105,7 +2113,7 @@
     if(editingLibraryEntry){
       // Nothing here to add to dcUserEntries — just update the Generic flag.
       if(isGeneric) dcGenericIds.add(dcEditingId); else dcGenericIds.delete(dcEditingId);
-      dcPersistGeneric();
+      dcPersist();
       dcRender();
       dcCloseEditor();
       return;
@@ -2129,7 +2137,6 @@
       dcUserEntries.push(entry);
     }
     if(isGeneric) dcGenericIds.add(entry.id); else dcGenericIds.delete(entry.id);
-    dcPersistGeneric();
     dcRebuildData();
     dcPersist();
     dcPopulateFilters();
@@ -2145,12 +2152,11 @@
       dcExcludedIds.add(dcModalId);
       dcGenericIds.delete(dcModalId); // no point tracking generic-ness for something now excluded
       dcPersistExcluded();
-      dcPersistGeneric();
+      dcPersist(); // saves the dcGenericIds change above (mine.json)
     } else {
       dcUserEntries = dcUserEntries.filter(x=>x.id!==dcModalId);
       dcGenericIds.delete(dcModalId);
       dcPersist();
-      dcPersistGeneric();
     }
     dcRebuildData();
     dcPopulateFilters();
@@ -2196,10 +2202,9 @@
       await dcTryLoadFromHandle(handle);
       await dcTryLoadLibraryFromHandle(handle);
       await dcTryLoadPullFromHandle(handle);
-      await dcTryLoadGenericFromHandle(handle);
       await dcTryLoadExcludedFromHandle(handle);
       dcRebuildData();
-      statusEl.textContent = `Linked to "${handle.name}" — reads ${DC_LIBRARY_FILENAME} for the library, saves your own entries to ${DC_EXPORT_FILENAME}, and sends placement requests via ${DC_PULL_FILENAME}, all synced wherever that folder syncs.`;
+      statusEl.textContent = `Linked to "${handle.name}" — reads ${DC_LIBRARY_FILENAME} for the library, saves your own entries and Generic flags to ${DC_EXPORT_FILENAME}, and sends placement requests via ${DC_PULL_FILENAME}, all synced wherever that folder syncs.`;
       dcPopulateFilters();
       dcRender();
       dcRenderPullQueue();
@@ -2213,52 +2218,40 @@
       if(Array.isArray(data.entries)){
         dcUserEntries = data.entries;
         localStorage.setItem(DC_LOCALSTORAGE_KEY, JSON.stringify(dcUserEntries));
-        dcRebuildData();
       }
+      if(Array.isArray(data.genericIds)){
+        dcGenericIds = new Set(data.genericIds);
+        localStorage.setItem(DC_GENERIC_LOCALSTORAGE_KEY, JSON.stringify([...dcGenericIds]));
+      }
+      dcRebuildData();
     }catch(e){ /* no existing file in that folder yet — fine, we'll create one on first save */ }
   }
   async function dcPersist(){
+    // Hand-added entries AND which ids are marked Generic are the only
+    // two things this browser owns end-to-end, so one write covers both
+    // (see DC_EXPORT_FILENAME's comment above for why they're combined).
     localStorage.setItem(DC_LOCALSTORAGE_KEY, JSON.stringify(dcUserEntries));
+    localStorage.setItem(DC_GENERIC_LOCALSTORAGE_KEY, JSON.stringify([...dcGenericIds]));
     const handle = await dcGetExportDirHandle(false);
     if(!handle) return; // no folder linked (or permission lapsed) — localStorage is still saved above
     try{
       const fileHandle = await handle.getFileHandle(DC_EXPORT_FILENAME, {create:true});
       const writable = await fileHandle.createWritable();
-      await writable.write(JSON.stringify({entries: dcUserEntries, savedAt: new Date().toISOString()}, null, 2));
+      await writable.write(JSON.stringify({entries: dcUserEntries, genericIds: [...dcGenericIds], savedAt: new Date().toISOString()}, null, 2));
       await writable.close();
     }catch(ex){
       console.warn('Detail Catalog: could not write to linked folder', ex);
     }
   }
-  // Generic ids and excluded (deleted) ids each get their own tiny JSON
-  // file, same read/persist shape as dcUserEntries above — kept as plain
-  // {"<id>": true, ...} maps (not arrays) since detail_catalog_core.py's
-  // load_json_map/save_json_map on the Revit side already speak that
-  // shape for categories.json/sources.json, so the excluded-ids file
-  // reads directly with no format translation needed there.
-  async function dcTryLoadGenericFromHandle(handle){
-    try{
-      const fileHandle = await handle.getFileHandle(DC_GENERIC_FILENAME, {create:false});
-      const file = await fileHandle.getFile();
-      const data = JSON.parse(await file.text());
-      if(data && typeof data === 'object'){
-        dcGenericIds = new Set(Object.keys(data));
-        localStorage.setItem(DC_GENERIC_LOCALSTORAGE_KEY, JSON.stringify([...dcGenericIds]));
-      }
-    }catch(e){ /* nothing marked generic yet from another device */ }
-  }
-  async function dcPersistGeneric(){
-    localStorage.setItem(DC_GENERIC_LOCALSTORAGE_KEY, JSON.stringify([...dcGenericIds]));
-    const handle = await dcGetExportDirHandle(false);
-    if(!handle) return;
-    try{
-      const fileHandle = await handle.getFileHandle(DC_GENERIC_FILENAME, {create:true});
-      const writable = await fileHandle.createWritable();
-      const obj = {}; dcGenericIds.forEach(id=>obj[id]=true);
-      await writable.write(JSON.stringify(obj, null, 2));
-      await writable.close();
-    }catch(ex){ console.warn('Detail Catalog: could not write generic-ids file', ex); }
-  }
+  // Excluded (deleted) ids get their own tiny JSON file, same read/
+  // persist shape as dcPersist above but kept SEPARATE on purpose — this
+  // one crosses the Python/browser boundary (browser writes it, Sync
+  // Detail Library / Build Detail Database read it on the Revit side),
+  // so it can never safely share a file with something only the browser
+  // touches. Kept as a plain {"<id>": true, ...} map (not an array)
+  // since detail_catalog_core.py's load_json_map/save_json_map on the
+  // Revit side already speak that shape, so it reads directly there with
+  // no format translation needed.
   async function dcTryLoadExcludedFromHandle(handle){
     try{
       const fileHandle = await handle.getFileHandle(DC_EXCLUDED_FILENAME, {create:false});
@@ -2299,7 +2292,6 @@
         await dcTryLoadFromHandle(handle);
         await dcTryLoadLibraryFromHandle(handle);
         await dcTryLoadPullFromHandle(handle);
-        await dcTryLoadGenericFromHandle(handle);
         await dcTryLoadExcludedFromHandle(handle);
         dcRebuildData();
         dcPopulateFilters();
