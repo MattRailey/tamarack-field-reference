@@ -1709,7 +1709,14 @@
            [ no thumbnail on this entry yet — edit it and upload one ]
          </div>`;
     dcUpdateQueueBtn();
-    const isReadOnly = d.project==='Sample Set' || d.fromLibrary;
+    // Only the built-in placeholder rows are truly read-only. A synced
+    // (fromLibrary) entry gets Edit/Delete too - Edit only lets you flip
+    // its Generic flag (its Revit-sourced fields stay Revit's), and Delete
+    // routes it into the exclude list (dcExcludedIds) rather than trying to
+    // remove Revit data - see dcSaveEditor/dcDeleteFromModal. Hiding both
+    // buttons for every fromLibrary entry was a bug: it hid Delete on the
+    // exact entries it was built for.
+    const isReadOnly = d.project==='Sample Set';
     const editBtn = document.querySelector('#dc-modal-backdrop button[onclick^="dcOpenEditor"]');
     const delBtn = document.querySelector('#dc-modal-backdrop button[onclick^="dcDeleteFromModal"]');
     if(editBtn) editBtn.style.display = isReadOnly ? 'none' : 'inline-block';
