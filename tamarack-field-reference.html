@@ -84,6 +84,59 @@
   .result.warn{ border-left-color:var(--rust); }
   .result .headline{ font-family:var(--sans); font-weight:700; font-size:1rem; color:var(--ink); margin-bottom:8px; }
   .flag{ font-family:var(--sans); font-size:.76rem; color:var(--rust); margin-top:20px; border-top:1px dashed var(--line); padding-top:10px; }
+  .flag-link{ font-family:var(--sans); font-size:.78rem; color:var(--steel); margin-top:20px; border-top:1px dashed var(--line); padding-top:10px; }
+  .flag-link a{ color:var(--blueprint-light); text-decoration:none; font-weight:600; }
+  .flag-link a:hover{ text-decoration:underline; }
+  /* Notes tab */
+  .note-block{ background:#fff; border:1px solid var(--line); border-radius:8px; padding:14px 16px; margin-bottom:14px; transition:box-shadow .3s, border-color .3s; scroll-margin-top:14px; }
+  .note-block h3{ margin:0 0 8px; font-size:.95rem; color:var(--navy); }
+  .note-block p{ margin:0; font-size:.83rem; color:var(--ink); line-height:1.55; }
+  .note-flash{ border-color:var(--blueprint); box-shadow:0 0 0 3px rgba(47,124,246,.18); }
+  /* Detail Catalog tab */
+  .dc-filters{ display:grid; grid-template-columns:repeat(auto-fit,minmax(160px,1fr)); gap:10px; margin-bottom:14px; }
+  .dc-filters input[type=text]{ grid-column:1/-1; }
+  .dc-tags{ display:flex; flex-wrap:wrap; gap:6px; margin-top:6px; }
+  .dc-tag{ font-size:.72rem; padding:3px 9px; border-radius:999px; background:var(--paper); border:1px solid var(--line); color:var(--steel); cursor:pointer; user-select:none; }
+  .dc-tag.active{ background:var(--blueprint); border-color:var(--blueprint); color:#fff; }
+  .dc-grid{ display:grid; grid-template-columns:repeat(auto-fill,minmax(220px,1fr)); gap:12px; }
+  .dc-card{ background:#fff; border:1px solid var(--line); border-radius:8px; padding:12px; cursor:pointer; transition:border-color .15s, box-shadow .15s; }
+  .dc-card:hover{ border-color:var(--blueprint); box-shadow:0 1px 4px rgba(20,20,40,.08); }
+  .dc-card h4{ margin:0 0 4px; font-size:.86rem; color:var(--navy); }
+  .dc-card .dc-meta{ font-size:.72rem; color:var(--steel); margin-bottom:6px; }
+  .dc-card .dc-chips{ display:flex; flex-wrap:wrap; gap:4px; }
+  .dc-chip{ font-size:.66rem; padding:2px 7px; border-radius:999px; background:var(--paper); color:var(--steel); }
+  .dc-empty{ color:var(--steel); font-size:.85rem; padding:30px 0; text-align:center; }
+  .dc-modal-backdrop{ position:fixed; inset:0; background:rgba(20,24,40,.6); display:none; align-items:center; justify-content:center; z-index:200; padding:20px; }
+  .dc-modal-backdrop.open{ display:flex; }
+  .dc-modal{ background:#fff; border-radius:10px; max-width:760px; width:100%; max-height:88vh; overflow:auto; padding:20px; }
+  .dc-modal .dc-modal-close{ float:right; background:none; border:none; font-size:1.3rem; color:var(--steel); cursor:pointer; line-height:1; }
+  .dc-modal-preview{ background:var(--paper); border:1px solid var(--line); border-radius:8px; min-height:260px; display:flex; align-items:center; justify-content:center; margin:12px 0; overflow:auto; }
+  .dc-modal-nav{
+    position:fixed; top:50%; transform:translateY(-50%); z-index:201;
+    background:rgba(255,255,255,.92); border:1px solid var(--line); color:var(--ink);
+    width:44px; height:44px; border-radius:50%; font-size:1.6rem; line-height:1; cursor:pointer;
+    display:none; align-items:center; justify-content:center; box-shadow:0 1px 6px rgba(0,0,0,.2);
+  }
+  .dc-modal-backdrop.open .dc-modal-nav{ display:flex; }
+  .dc-modal-nav:disabled{ opacity:.35; cursor:default; }
+  .dc-modal-nav-prev{ left:14px; }
+  .dc-modal-nav-next{ right:14px; }
+  @media (max-width:760px){
+    .dc-modal-nav{ width:38px; height:38px; font-size:1.35rem; }
+    .dc-modal-nav-prev{ left:4px; }
+    .dc-modal-nav-next{ right:4px; }
+  }
+  .dc-queue{ position:sticky; bottom:0; background:#fff; border-top:1px solid var(--line); margin-top:16px; padding:12px 16px; border-radius:8px 8px 0 0; box-shadow:0 -2px 8px rgba(20,20,40,.06); }
+  .dc-queue-list{ display:flex; flex-wrap:wrap; gap:6px; margin:8px 0; }
+  .dc-queue-item{ font-size:.72rem; padding:4px 8px; border-radius:6px; background:var(--paper); border:1px solid var(--line); display:flex; align-items:center; gap:6px; }
+  .dc-queue-item button{ background:none; border:none; color:var(--rust); cursor:pointer; font-size:.85rem; padding:0; line-height:1; }
+  .dc-cart-list{ display:flex; flex-direction:column; gap:6px; margin:8px 0; }
+  .dc-cart-row{ display:flex; align-items:center; gap:8px; padding:6px 8px; border-radius:6px; background:var(--paper); border:1px solid var(--line); flex-wrap:wrap; }
+  .dc-cart-row .dc-cart-name{ font-size:.78rem; flex:1 1 180px; min-width:0; }
+  .dc-cart-row .dc-cart-name .dc-cart-cat{ display:inline-block; font-size:.66rem; color:#fff; background:var(--blueprint); border-radius:999px; padding:1px 7px; margin-right:6px; }
+  .dc-cart-row select.dc-cart-sheet{ flex:1 1 200px; min-width:140px; min-height:32px; padding:4px 6px; font-size:.76rem; }
+  .dc-cart-row select.dc-cart-sheet.dc-cart-sheet-empty{ border-color:var(--rust); }
+  .dc-cart-row button{ background:none; border:none; color:var(--rust); cursor:pointer; font-size:1rem; padding:0 4px; line-height:1; }
   .hide{ display:none !important; }
   .seg{ display:flex; gap:0; border:1px solid var(--line); border-radius:6px; overflow:hidden; margin-bottom:14px; }
   .seg button{ flex:1; background:#fff; color:var(--steel); border:none; padding:9px 10px; font-family:var(--sans); font-size:.82rem; font-weight:600; cursor:pointer; min-height:40px; border-radius:0; }
@@ -249,6 +302,17 @@
     .mobile-more-panel button.active{ background:#eaf1f8; color:var(--blueprint-light); font-weight:600; }
     .mobile-more-panel button svg{ width:19px; height:19px; flex-shrink:0; fill:none; stroke:currentColor; stroke-width:1.8; }
   }
+
+  /* Print / Save-as-PDF calc sheet overlay — an in-page iframe rather than
+     window.open(), so it isn't subject to pop-up blocking (see
+     generatePrintSheet()). Covers the viewport while open; a floating close
+     button (outside the iframe, so it stays clickable) dismisses it. */
+  #print-sheet-frame{ display:none; position:fixed; inset:0; width:100%; height:100%; border:none; z-index:9000; background:#fff; }
+  #print-sheet-close{
+    display:none; position:fixed; top:calc(env(safe-area-inset-top,0px) + 10px); right:10px; z-index:9001;
+    background:#1c2438; color:#fff; border:none; border-radius:6px; padding:9px 16px;
+    font-family:var(--sans); font-size:.85rem; font-weight:600; cursor:pointer; box-shadow:0 2px 8px rgba(0,0,0,.25);
+  }
 </style>
 </head>
 <body>
@@ -271,7 +335,9 @@
       <button data-panel="pdfcompare"><span class="idx">09</span>PDF Compare</button>
       <button data-panel="sheetindex"><span class="idx">10</span>Sheet Index</button>
       <button data-panel="rebar"><span class="idx">11</span>Rebar Shapes</button>
-      <button data-panel="tutorial"><span class="idx">12</span>Tutorial</button>
+      <button data-panel="detailcatalog"><span class="idx">12</span>Detail Catalog</button>
+      <button data-panel="tutorial"><span class="idx">13</span>Tutorial</button>
+      <button data-panel="notes"><span class="idx">14</span>Notes</button>
     </nav>
 
     <nav class="mobile-topbar" id="mobileTopbar">
@@ -291,7 +357,9 @@
         <button data-panel="pdfcompare"><svg viewBox="0 0 24 24"><rect x="4" y="3" width="16" height="18" rx="1"/><line x1="8" y1="8" x2="16" y2="8"/><line x1="8" y1="12" x2="16" y2="12"/><line x1="8" y1="16" x2="12" y2="16"/></svg>PDF Compare</button>
         <button data-panel="sheetindex"><svg viewBox="0 0 24 24"><path d="M4 4h16v16H4z"/><line x1="4" y1="9" x2="20" y2="9"/></svg>Sheet Index</button>
         <button data-panel="rebar"><svg viewBox="0 0 24 24"><path d="M5 5v10a4 4 0 0 0 4 4h10"/></svg>Rebar Shapes</button>
+        <button data-panel="detailcatalog"><svg viewBox="0 0 24 24"><rect x="4" y="4" width="7" height="7"/><rect x="13" y="4" width="7" height="7"/><rect x="4" y="13" width="7" height="7"/><rect x="13" y="13" width="7" height="7"/></svg>Detail Catalog</button>
         <button data-panel="tutorial"><svg viewBox="0 0 24 24"><path d="M4 19V5a2 2 0 0 1 2-2h11l3 3v13a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2z"/><line x1="8" y1="8" x2="14" y2="8"/><line x1="8" y1="12" x2="14" y2="12"/></svg>Tutorial</button>
+        <button data-panel="notes"><svg viewBox="0 0 24 24"><path d="M4 4h16v16H4z"/><line x1="8" y1="9" x2="16" y2="9"/><line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="12" y2="17"/></svg>Notes</button>
       </div>
     </div>
 
@@ -435,7 +503,7 @@
           <div id="g-source" style="font-family:var(--sans); font-size:.76rem; color:var(--steel); margin-top:10px;"></div>
           <button class="run secondary" onclick="printGlulamSheet()" style="margin-top:10px;">Print / Save as PDF for building dept.</button>
         </div>
-        <p class="flag">Point loads above are optional and superposed onto whichever bay/overhang they fall in. Each bay, and each overhang, is checked as its own independent case (a bay as a simple span; an overhang as a cantilever, M=w&middot;a&sup2;/2 at the support) and the worst one sizes the whole beam — that's conservative versus a true continuous-beam analysis (a real continuous beam usually sees lower span moment near a cantilevered end), not unconservative, but it will occasionally call for more beam than a continuous-beam calc strictly requires. Post vs. Wall is a label only in the diagram — it doesn't change this calculation; a wall (continuous) support in reality shares load differently than a discrete post, which matters for a real bearing/hanger design even though it doesn't change the beam's own bending/deflection check. Width is fixed by your selection above (or your custom entry) — the calculator solves only for the required depth at that width; it will not swap you to a different width to save material. Default is 5-1/2", Tamarack's typical beam width. Note two separate glulam width families exist: 5-1/2"/7-1/2"/9-1/2" are the Southern Pine series, manufactured net-width to match dimension lumber (flush with a 2x6/2x8/2x10 wall or post); 3-1/8"/5-1/8"/6-3/4"/8-3/4" are the Western species (Douglas Fir) series, which do NOT match dimension lumber widths. A custom width/Fb/E lets you check a sawn timber, LVL, PSL, or a glulam width/grade not in the lists above — Sx/I are still generated from simple rectangular geometry (b&middot;d), so this isn't valid for a non-rectangular or built-up unequal-ply section. The species/grade picker for custom Fb just fills in typical dimension-lumber base values (No. 1/No. 2 unless noted) as a starting point — confirm the actual grade stamp and current NDS Supplement value for your specific size before specifying, since large-timber (beam &amp; stringer) reference values differ from dimension-lumber values. Confirm which series your supplier stocks before specifying. Verify bearing, lateral-torsional buckling (CL), and connection design separately. Support reactions shown below the beam are simple-span/cantilever reactions per this beam's own loads only — they don't include the beam's self-weight or anything stacking on top of that post elsewhere in the structure, so add those before sizing a footing.</p>
+        <p class="flag-link">&#9432; <a href="#" onclick="goToNote('glulam');return false;">See Notes &rarr; Beam Sizing</a> for point-load handling, width/species defaults, and reaction caveats.</p>
       </section>
 
       <!-- SPAN CALCULATOR -->
@@ -510,7 +578,7 @@
           <div class="result" id="sp-result"></div>
           <button class="run secondary" onclick="printSpanCalcSheet()" style="margin-top:10px;">Print / Save as PDF for building dept.</button>
         </div>
-        <p class="flag">Assumes simple span, load at midspan for the point load, superposition of uniform + point load effects. Sawn lumber and LVL values are representative base design values (no CD/CM/CL/CF adjustment applied) — treat as a starting point, not a final design. I-joist depths are picked from generic representative capacities, not a specific product line.</p>
+        <p class="flag-link">&#9432; <a href="#" onclick="goToNote('spancalc');return false;">See Notes &rarr; LVL/I-Joist Calc</a> for load assumptions and value sourcing.</p>
       </section>
 
       <!-- JOIST -->
@@ -566,7 +634,7 @@
           <div class="result" id="j-result"></div>
           <button class="run secondary" onclick="printJoistSheet()" style="margin-top:10px;">Print / Save as PDF for building dept.</button>
         </div>
-        <p class="flag">Calculated from standard NDS-style Fb/E design values for DF-L (with size factor CF and a 1.15 repetitive-member factor, since these span/size checks assume joists spaced &le;24" o.c.), checking bending and live-load deflection only — shear and bearing at supports are not checked here, same as the Beam Sizing tab. Each bay and overhang above is checked independently (bay = simple span, overhang = cantilever from its bearing), and one common size is suggested that satisfies all of them at once — the worst bay or overhang governs. These will not exactly match a specific published AWC/IRC span table (which may use slightly different reference values), so still confirm against the current adopted IRC/AWC span tables and Oregon amendments before use in a drawing set. Also remember: if your load case isn't a plain floor (a deck at 60 psf, for instance), you must change the Dead/Live load fields above — they do not update automatically from context. Sizes checked run 2x6 through 2x14; if nothing that size works, look at an LVL/I-joist on the LVL/I-Joist Calc tab instead.</p>
+        <p class="flag-link">&#9432; <a href="#" onclick="goToNote('joist');return false;">See Notes &rarr; Joist Spans</a> for the calculation basis and table-matching caveats.</p>
       </section>
 
       <!-- SECTION PROPERTIES -->
@@ -625,7 +693,7 @@
           <div id="f-source" style="font-family:var(--sans); font-size:.76rem; color:var(--steel); margin-top:10px;"></div>
           <button class="run secondary" onclick="printFootingSheet()" style="margin-top:10px;">Print / Save as PDF for building dept.</button>
         </div>
-        <p class="flag">Service-level (unfactored) loads only — this sizes/checks soil bearing pressure against an allowable value you provide, it does NOT check concrete design (one-way/punching shear, flexure, or reinforcing) or overturning/sliding. Footing self-weight and any soil surcharge above the footing are NOT added automatically — fold them into the load you enter if you want them reflected. Eccentricity is uniaxial (one direction at a time, computed by e=M/P) — a footing with real biaxial eccentricity needs a full two-way check, not this tool. When e exceeds the kern (L/6 or W/6), the soil is assumed to lift off part of the footing and pressure is redistributed as a triangular block over the remaining bearing length — a condition worth avoiding under sustained loads even if the sized/checked q<sub>max</sub> still passes; sizing mode rounds the solved dimension UP to the nearest inch, so the actual q<sub>max</sub> at that rounded size is always at or slightly under q<sub>a</sub>, never over. The allowable bearing value is whatever you type in q<sub>a</sub> — the Site Data (ZIP) tab can hand you a rough regional placeholder as a starting point, but always confirm the real number against the project's actual geotechnical report before finalizing a footing size.</p>
+        <p class="flag-link">&#9432; <a href="#" onclick="goToNote('footing');return false;">See Notes &rarr; Footing / Bearing</a> for eccentricity, self-weight, and soil-pressure caveats.</p>
       </section>
 
       <section class="panel" id="spans">
@@ -662,7 +730,7 @@
           <button class="run" onclick="lookupZip()">Look up</button>
           <div class="result" id="z-result"></div>
         </div>
-        <p class="flag">Values are coarse 3-digit-ZIP regional estimates, not a site-specific hazard report. Ground snow load in the Cascades/Rockies foothills and the eastern Idaho/Yellowstone corridor is strongly elevation- and fault-proximity-dependent — always confirm snow against the state/county-adopted snow load map (SEAO for Oregon; local jurisdiction maps for WA and ID) and confirm wind/seismic against the ASCE 7 Hazard Tool (asce7hazardtool.online) before finalizing a design. Coverage: Oregon (970–979), Washington (980–986, 988–994), and Idaho (832–838) 3-digit ZIP prefixes. Elevations are regional-default (largest city/town in that prefix) — always enter the actual site elevation above when you know it, since it drives the snow load estimate directly.</p>
+        <p class="flag-link">&#9432; <a href="#" onclick="goToNote('site');return false;">See Notes &rarr; Site Data (ZIP)</a> for coverage and accuracy caveats.</p>
       </section>
 
 
@@ -782,7 +850,7 @@
           </div>
         </div>
 
-        <p class="flag">This traces load paths GEOMETRICALLY — matching analytical member endpoints against each other within a small tolerance — because the current Revit Structural Analytical Model API doesn't expose a direct "what supports this" query (confirmed against Autodesk's own API docs/forums, not assumed). It will read ordinary end-to-end framing correctly but can miss or misjudge unusual conditions: offset connections, transfer members, anything not geometrically coincident at a shared point. Tributary area is a simple nearest-neighbor half-distance estimate per column (like a quick hand sketch), not a true tributary-polygon solve — rougher on irregular or transfer framing, and NOT computed for walls (continuous footings show connectivity status only, no accumulated load). Required footing size uses simple average bearing (P/A, no eccentricity) — it does not read the actual size of the footing family already in your model, and does not check concrete design, overturning, or sliding. Confirm anything this flags against the actual model and a real structural analysis before relying on it.</p>
+        <p class="flag-link">&#9432; <a href="#" onclick="goToNote('loadpath');return false;">See Notes &rarr; Load Path</a> for how the geometric trace works and its limits.</p>
       </section>
 
       <!-- CODE -->
@@ -892,7 +960,7 @@
           <div class="row" style="margin-top:10px;">
             <button class="secondary" onclick="downloadCurrentPNG()">Download this view as PNG</button>
           </div>
-          <p class="flag">Pages align by the page NUMBERS you set above, not by title block or sheet number — if a sheet was inserted or removed mid-set, the two page numbers will drift out of alignment further into the set. Step pages independently on each side to re-sync. On render resolution: a literal 600 DPI render of a full 24"x36"+ sheet is roughly 20,000+ pixels wide — no browser canvas or in-browser pixel diff can hold or process that without crashing the tab. "Maximum" renders at 4000px, which is the highest width this tool can diff at interactively; on a 30"-wide sheet that's about 130 DPI on-screen, and combined with scroll-wheel zoom (up to 6x) gives you well beyond 600 DPI of effective magnification once you're zoomed into a detail — the rendered pixels are just being magnified further, same as zooming into any raster image. For true pixel-level, print-resolution inspection of one specific area, download the current view as PNG and open it in an image viewer at 100%.</p>
+          <p class="flag-link">&#9432; <a href="#" onclick="goToNote('pdfcompare');return false;">See Notes &rarr; PDF Compare</a> for page-alignment and resolution caveats.</p>
         </div>
 
         <div class="card">
@@ -948,7 +1016,7 @@
           </details>
         </div>
 
-        <p class="flag">Sheets that don't "Appear In Sheet List" (Matt's proxy for his "Unused" Sheet Collection convention — not confirmed to exactly match) are already excluded by the Revit export and never make it into this index. The export is read-only and never modifies your Revit files. Revision history and hidden items sync to Dropbox through the same connection the Time Tracker app uses — connect Dropbox there once, and this tab picks it up automatically on every device. Until you do, it's local to this browser only.</p>
+        <p class="flag-link">&#9432; <a href="#" onclick="goToNote('sheetindex');return false;">See Notes &rarr; Sheet Index</a> for exclusion rules and Dropbox sync behavior.</p>
       </section>
 
       <!-- REBAR SHAPES -->
@@ -997,7 +1065,7 @@
               </div>
               <div class="note" id="rb-warn" style="color:var(--rust);"></div>
             </div>
-            <p class="flag">Bend geometry follows ACI 318 Ch. 25 minimum bend diameters (6db for #3&ndash;#8, 8db for #9&ndash;#11, 4db for stirrup/tie bends #3&ndash;#5) and standard hook extensions &mdash; a reasonable field default, not a substitute for checking against the CRSI Manual of Standard Practice or the project's own bar list requirements before fabrication.</p>
+            <p class="flag-link">&#9432; <a href="#" onclick="goToNote('rebar');return false;">See Notes &rarr; Rebar Shapes</a> for the bend-diameter code basis.</p>
           </div>
         </div>
       </section>
@@ -1087,6 +1155,199 @@
         </div>
       </section>
 
+      <!-- DETAIL CATALOG -->
+      <section class="panel" id="detailcatalog">
+        <h2>Detail Catalog</h2>
+        <p class="sub">Search details, legends, and note bundles straight from your <b>Details Library.rvt</b> file — "Sync Detail Library" in pyRevit keeps it current by scanning your projects for sheet-placed details and legend views automatically, and "Save Notes Bundle" adds a set of selected text notes under a title you give it. This tab reads the database those scripts write, and you can still add/edit/delete your own entries right here for anything not in Revit. Find the one you want, filter by sheet type (Foundation/Floor/Roof/PEMB/Legend/General Notes) or by element/material/connection if it helps &mdash; click a card to open it full-size, then use &larr;/&rarr; or the on-screen arrows to step through whatever's currently filtered without closing back out to the grid. Drag its marker onto the sheet you want it on, or add it to the cart for several at once: set the project once in the cart panel and each item defaults to a sheet matching its own sheet type (a Foundation detail to a foundation sheet, Roof to a roof sheet, and so on) &mdash; edit any item's sheet by hand if the guess isn't right. "Import Queued Details" in that project places everything &mdash; pulling details out of Revit is always automatic, no Insert Views from File needed.</p>
+
+        <div class="card">
+          <div class="row" style="align-items:center; gap:14px;">
+            <span id="dc-status" class="note" style="margin:0;"></span>
+            <button class="run secondary" onclick="dcChooseExportFolder()">Link catalog folder&hellip;</button>
+            <button class="run secondary" onclick="dcRecheckLibrary()">Re-check now</button>
+          </div>
+          <p class="note" id="dc-export-status" style="margin-top:6px;">Not linked to a folder yet — link the same Dropbox-synced folder "Build Detail Database" exports into, so this tab can read the database and send placement requests back to "Import Queued Details."</p>
+        </div>
+
+        <div class="card">
+          <div class="dc-filters">
+            <input type="text" id="dc-search" placeholder="Search name, tag, view name&hellip;" oninput="dcRender()">
+            <select id="dc-category" onchange="dcRender()">
+              <option value="">Sheet type &mdash; any</option>
+            </select>
+            <select id="dc-element" onchange="dcRender()">
+              <option value="">Element &mdash; any</option>
+            </select>
+            <select id="dc-material" onchange="dcRender()">
+              <option value="">Material &mdash; any</option>
+            </select>
+            <select id="dc-connection" onchange="dcRender()">
+              <option value="">Connection &mdash; any</option>
+            </select>
+          </div>
+          <div class="dc-tags" id="dc-tagbar"></div>
+          <button class="run" onclick="dcOpenEditor(null)" style="margin-top:10px;">+ Add detail&hellip;</button>
+        </div>
+
+        <div id="dc-empty-notice" class="card" style="display:none;">
+          <p class="sub" style="margin:0;">Nothing in the catalog yet. Run <b>Sync Detail Library</b> in Revit (see Notes &rarr; Detail Catalog below) and link this catalog's folder above to pull details in automatically, or click "+ Add detail" to enter one by hand &mdash; the sample entries below show the shape of it.</p>
+        </div>
+
+        <div class="dc-grid" id="dc-grid"></div>
+
+        <div class="dc-queue" id="dc-queue" style="display:none;">
+          <strong style="font-size:.85rem;">Cart (<span id="dc-queue-count">0</span>)</strong>
+          <p class="sub" style="margin:4px 0;">Collect details here while you browse. Set the project once below and each item defaults to a sheet that matches its own sheet type (a Foundation detail to a foundation sheet, Roof to a roof sheet, and so on) — change any of them, then check out to send everything at once.</p>
+          <div class="grid" style="margin-bottom:8px;">
+            <div><label>Project (as shown in Sheet Index)</label><input type="text" id="dc-cart-project-inline" list="dc-cart-project-inline-list" oninput="dcSetCartProject(this.value)" placeholder="e.g. Smith Residence"><datalist id="dc-cart-project-inline-list"></datalist></div>
+          </div>
+          <div class="dc-queue-list" id="dc-queue-list"></div>
+          <button class="run" onclick="dcOpenCartCheckout()">Send cart to Revit&hellip;</button>
+          <button class="run secondary" onclick="dcClearQueue()" style="margin-left:8px;">Clear cart</button>
+        </div>
+
+        <div class="dc-queue" id="dc-pullqueue" style="display:none;">
+          <strong style="font-size:.85rem;">Sent to Revit (<span id="dc-pull-count">0</span>)</strong>
+          <p class="sub" style="margin:4px 0;">Waiting for "Import Queued Details" to run in that project. It removes each one from this list as it's placed — a small manual nudge into final position afterward is normal, same as placing any view by hand.</p>
+          <div class="dc-queue-list" id="dc-pull-list"></div>
+        </div>
+
+        <p class="flag-link">&#9432; <a href="#" onclick="goToNote('detailcatalog');return false;">See Notes &rarr; Detail Catalog</a> for how the library file, catalog sync, and view names fit together.</p>
+      </section>
+
+      <div class="dc-modal-backdrop" id="dc-modal-backdrop" onclick="if(event.target===this)dcCloseModal()">
+        <button class="dc-modal-nav dc-modal-nav-prev" onclick="dcModalNav(-1)" aria-label="Previous detail" title="Previous (←)">&#8249;</button>
+        <button class="dc-modal-nav dc-modal-nav-next" onclick="dcModalNav(1)" aria-label="Next detail" title="Next (→)">&#8250;</button>
+        <div class="dc-modal">
+          <button class="dc-modal-close" onclick="dcCloseModal()">&times;</button>
+          <h3 id="dc-modal-title" style="margin:0 0 4px;"></h3>
+          <div class="dc-meta" id="dc-modal-position" style="margin-bottom:2px;"></div>
+          <div class="dc-meta" id="dc-modal-meta"></div>
+          <div class="dc-modal-preview" id="dc-modal-preview"></div>
+          <div id="dc-modal-desc" class="sub" style="margin:0 0 12px;"></div>
+          <button class="run" onclick="dcOpenPlace(dcModalId)">Place on sheet&hellip;</button>
+          <button class="run secondary" id="dc-modal-queue-btn" onclick="dcToggleQueueFromModal()">Add to cart</button>
+          <button class="run secondary" onclick="dcOpenEditor(dcModalId)">Edit&hellip;</button>
+          <button class="run secondary" onclick="dcDeleteFromModal()" style="color:var(--rust);border-color:var(--rust);">Delete</button>
+        </div>
+      </div>
+
+      <div class="dc-modal-backdrop" id="dc-place-backdrop" onclick="if(event.target===this)dcClosePlace()">
+        <div class="dc-modal">
+          <button class="dc-modal-close" onclick="dcClosePlace()">&times;</button>
+          <h3 style="margin:0 0 4px;">Place on a sheet</h3>
+          <p class="sub" id="dc-place-detail-name" style="margin:0 0 10px;"></p>
+          <div class="grid">
+            <div><label>Project (as shown in Sheet Index)</label><input type="text" id="dc-place-project" list="dc-place-project-list" oninput="dcPlacePopulateSheets()" placeholder="e.g. Smith Residence"><datalist id="dc-place-project-list"></datalist></div>
+            <div><label>Sheet number</label><input type="text" id="dc-place-sheet" list="dc-place-sheet-list" placeholder="e.g. S2.1"><datalist id="dc-place-sheet-list"></datalist></div>
+          </div>
+          <p class="note" style="margin:10px 0 4px;">Click or drag on the sheet below for roughly where it should land. Revit centers the detail there when it's imported — expect to nudge it into final position afterward, same as placing any view by hand.</p>
+          <div id="dc-place-rect" style="position:relative;width:100%;aspect-ratio:1.5/1;background:#fff;border:2px solid var(--line);border-radius:4px;margin-top:6px;cursor:crosshair;overflow:hidden;touch-action:none;">
+            <div id="dc-place-marker" style="position:absolute;width:18px;height:18px;margin:-9px 0 0 -9px;border-radius:50%;background:var(--rust);border:2px solid #fff;box-shadow:0 0 0 1px var(--rust);display:none;pointer-events:none;"></div>
+          </div>
+          <div class="row" style="margin-top:14px;">
+            <button class="run" onclick="dcConfirmPlace()">Send to Revit</button>
+            <button class="run secondary" onclick="dcClosePlace()">Cancel</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="dc-modal-backdrop" id="dc-cart-backdrop" onclick="if(event.target===this)dcCloseCartCheckout()">
+        <div class="dc-modal">
+          <button class="dc-modal-close" onclick="dcCloseCartCheckout()">&times;</button>
+          <h3 style="margin:0 0 4px;">Send cart to Revit</h3>
+          <p class="sub" id="dc-cart-count-label" style="margin:0 0 10px;"></p>
+          <p class="note" id="dc-cart-missing-note" style="margin:10px 0 4px;display:none;color:var(--rust);"></p>
+          <p class="note" style="margin:10px 0 4px;">Each item goes onto the sheet shown for it in the cart, auto-arranged in a grid with any other items headed to that same sheet — same as placing each one by hand and dropped roughly on top of each other, Revit centers each viewport where it lands. Expect to spread them into final position afterward, same as any manual placement.</p>
+          <div class="row" style="margin-top:14px;">
+            <button class="run" onclick="dcConfirmCartCheckout()">Send all to Revit</button>
+            <button class="run secondary" onclick="dcCloseCartCheckout()">Cancel</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="dc-modal-backdrop" id="dc-editor-backdrop" onclick="if(event.target===this)dcCloseEditor()">
+        <div class="dc-modal">
+          <button class="dc-modal-close" onclick="dcCloseEditor()">&times;</button>
+          <h3 id="dc-editor-title" style="margin:0 0 12px;">Add detail</h3>
+          <div class="grid">
+            <div><label>Name</label><input type="text" id="dc-e-name" placeholder="e.g. HSS Column on Isolated Footing"></div>
+            <div><label>View name in Details Library.rvt (exact)</label><input type="text" id="dc-e-view" placeholder="e.g. D-Col-HSS-Bearing-Isolated Footing"></div>
+            <div><label>Element</label><input type="text" id="dc-e-element" list="dc-e-element-list" placeholder="e.g. Column"><datalist id="dc-e-element-list"></datalist></div>
+            <div><label>Material</label><input type="text" id="dc-e-material" list="dc-e-material-list" placeholder="e.g. Steel/HSS"><datalist id="dc-e-material-list"></datalist></div>
+            <div><label>Connection</label><input type="text" id="dc-e-connection" list="dc-e-connection-list" placeholder="e.g. Bearing plate + anchor rods"><datalist id="dc-e-connection-list"></datalist></div>
+            <div><label>Tags (comma-separated)</label><input type="text" id="dc-e-tags" placeholder="footing, base plate, anchor bolt"></div>
+          </div>
+          <label>Description</label>
+          <textarea id="dc-e-desc" rows="2" style="width:100%;padding:9px 10px;border:1px solid var(--line);border-radius:6px;font-family:var(--sans);font-size:.9rem;"></textarea>
+          <div style="margin-top:10px;">
+            <label>Thumbnail (PNG/JPG, from Revit's Export Image or a screenshot)</label>
+            <input type="file" id="dc-e-thumb-file" accept="image/*" onchange="dcHandleThumbFile(event)">
+            <div id="dc-e-thumb-preview" style="margin-top:8px;"></div>
+          </div>
+          <div class="row" style="margin-top:14px;">
+            <button class="run" onclick="dcSaveEditor()">Save</button>
+            <button class="run secondary" onclick="dcCloseEditor()">Cancel</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- NOTES -->
+      <section class="panel" id="notes">
+        <h2>Notes</h2>
+        <p class="sub">All the caveats, assumptions, and code-basis notes from every tab, collected here. Each calculator links back to its own section with a "See Notes" link instead of carrying the full paragraph inline.</p>
+
+        <div class="note-block" id="note-glulam">
+          <h3>Beam Sizing</h3>
+          <p>Point loads above are optional and superposed onto whichever bay/overhang they fall in. Each bay, and each overhang, is checked as its own independent case (a bay as a simple span; an overhang as a cantilever, M=w&middot;a&sup2;/2 at the support) and the worst one sizes the whole beam — that's conservative versus a true continuous-beam analysis (a real continuous beam usually sees lower span moment near a cantilevered end), not unconservative, but it will occasionally call for more beam than a continuous-beam calc strictly requires. Post vs. Wall is a label only in the diagram — it doesn't change this calculation; a wall (continuous) support in reality shares load differently than a discrete post, which matters for a real bearing/hanger design even though it doesn't change the beam's own bending/deflection check. Width is fixed by your selection above (or your custom entry) — the calculator solves only for the required depth at that width; it will not swap you to a different width to save material. Default is 5-1/2", Tamarack's typical beam width. Note two separate glulam width families exist: 5-1/2"/7-1/2"/9-1/2" are the Southern Pine series, manufactured net-width to match dimension lumber (flush with a 2x6/2x8/2x10 wall or post); 3-1/8"/5-1/8"/6-3/4"/8-3/4" are the Western species (Douglas Fir) series, which do NOT match dimension lumber widths. A custom width/Fb/E lets you check a sawn timber, LVL, PSL, or a glulam width/grade not in the lists above — Sx/I are still generated from simple rectangular geometry (b&middot;d), so this isn't valid for a non-rectangular or built-up unequal-ply section. The species/grade picker for custom Fb just fills in typical dimension-lumber base values (No. 1/No. 2 unless noted) as a starting point — confirm the actual grade stamp and current NDS Supplement value for your specific size before specifying, since large-timber (beam &amp; stringer) reference values differ from dimension-lumber values. Confirm which series your supplier stocks before specifying. Verify bearing, lateral-torsional buckling (CL), and connection design separately. Support reactions shown below the beam are simple-span/cantilever reactions per this beam's own loads only — they don't include the beam's self-weight or anything stacking on top of that post elsewhere in the structure, so add those before sizing a footing.</p>
+        </div>
+
+        <div class="note-block" id="note-spancalc">
+          <h3>LVL / I-Joist Calc</h3>
+          <p>Assumes simple span, load at midspan for the point load, superposition of uniform + point load effects. Sawn lumber and LVL values are representative base design values (no CD/CM/CL/CF adjustment applied) — treat as a starting point, not a final design. I-joist depths are picked from generic representative capacities, not a specific product line.</p>
+        </div>
+
+        <div class="note-block" id="note-joist">
+          <h3>Joist Spans</h3>
+          <p>Calculated from standard NDS-style Fb/E design values for DF-L (with size factor CF and a 1.15 repetitive-member factor, since these span/size checks assume joists spaced &le;24" o.c.), checking bending and live-load deflection only — shear and bearing at supports are not checked here, same as the Beam Sizing tab. Each bay and overhang above is checked independently (bay = simple span, overhang = cantilever from its bearing), and one common size is suggested that satisfies all of them at once — the worst bay or overhang governs. These will not exactly match a specific published AWC/IRC span table (which may use slightly different reference values), so still confirm against the current adopted IRC/AWC span tables and Oregon amendments before use in a drawing set. Also remember: if your load case isn't a plain floor (a deck at 60 psf, for instance), you must change the Dead/Live load fields above — they do not update automatically from context. Sizes checked run 2x6 through 2x14; if nothing that size works, look at an LVL/I-joist on the LVL/I-Joist Calc tab instead.</p>
+        </div>
+
+        <div class="note-block" id="note-footing">
+          <h3>Footing / Bearing</h3>
+          <p>Service-level (unfactored) loads only — this sizes/checks soil bearing pressure against an allowable value you provide, it does NOT check concrete design (one-way/punching shear, flexure, or reinforcing) or overturning/sliding. Footing self-weight and any soil surcharge above the footing are NOT added automatically — fold them into the load you enter if you want them reflected. Eccentricity is uniaxial (one direction at a time, computed by e=M/P) — a footing with real biaxial eccentricity needs a full two-way check, not this tool. When e exceeds the kern (L/6 or W/6), the soil is assumed to lift off part of the footing and pressure is redistributed as a triangular block over the remaining bearing length — a condition worth avoiding under sustained loads even if the sized/checked q<sub>max</sub> still passes; sizing mode rounds the solved dimension UP to the nearest inch, so the actual q<sub>max</sub> at that rounded size is always at or slightly under q<sub>a</sub>, never over. The allowable bearing value is whatever you type in q<sub>a</sub> — the Site Data (ZIP) tab can hand you a rough regional placeholder as a starting point, but always confirm the real number against the project's actual geotechnical report before finalizing a footing size.</p>
+        </div>
+
+        <div class="note-block" id="note-site">
+          <h3>Site Data (ZIP)</h3>
+          <p>Values are coarse 3-digit-ZIP regional estimates, not a site-specific hazard report. Ground snow load in the Cascades/Rockies foothills and the eastern Idaho/Yellowstone corridor is strongly elevation- and fault-proximity-dependent — always confirm snow against the state/county-adopted snow load map (SEAO for Oregon; local jurisdiction maps for WA and ID) and confirm wind/seismic against the ASCE 7 Hazard Tool (asce7hazardtool.online) before finalizing a design. Coverage: Oregon (970–979), Washington (980–986, 988–994), and Idaho (832–838) 3-digit ZIP prefixes. Elevations are regional-default (largest city/town in that prefix) — always enter the actual site elevation above when you know it, since it drives the snow load estimate directly.</p>
+        </div>
+
+        <div class="note-block" id="note-loadpath">
+          <h3>Load Path</h3>
+          <p>This traces load paths GEOMETRICALLY — matching analytical member endpoints against each other within a small tolerance — because the current Revit Structural Analytical Model API doesn't expose a direct "what supports this" query (confirmed against Autodesk's own API docs/forums, not assumed). It will read ordinary end-to-end framing correctly but can miss or misjudge unusual conditions: offset connections, transfer members, anything not geometrically coincident at a shared point. Tributary area is a simple nearest-neighbor half-distance estimate per column (like a quick hand sketch), not a true tributary-polygon solve — rougher on irregular or transfer framing, and NOT computed for walls (continuous footings show connectivity status only, no accumulated load). Required footing size uses simple average bearing (P/A, no eccentricity) — it does not read the actual size of the footing family already in your model, and does not check concrete design, overturning, or sliding. Confirm anything this flags against the actual model and a real structural analysis before relying on it.</p>
+        </div>
+
+        <div class="note-block" id="note-pdfcompare">
+          <h3>PDF Compare</h3>
+          <p>Pages align by the page NUMBERS you set above, not by title block or sheet number — if a sheet was inserted or removed mid-set, the two page numbers will drift out of alignment further into the set. Step pages independently on each side to re-sync. On render resolution: a literal 600 DPI render of a full 24"x36"+ sheet is roughly 20,000+ pixels wide — no browser canvas or in-browser pixel diff can hold or process that without crashing the tab. "Maximum" renders at 4000px, which is the highest width this tool can diff at interactively; on a 30"-wide sheet that's about 130 DPI on-screen, and combined with scroll-wheel zoom (up to 6x) gives you well beyond 600 DPI of effective magnification once you're zoomed into a detail — the rendered pixels are just being magnified further, same as zooming into any raster image. For true pixel-level, print-resolution inspection of one specific area, download the current view as PNG and open it in an image viewer at 100%.</p>
+        </div>
+
+        <div class="note-block" id="note-sheetindex">
+          <h3>Sheet Index</h3>
+          <p>Sheets that don't "Appear In Sheet List" (Matt's proxy for his "Unused" Sheet Collection convention — not confirmed to exactly match) are already excluded by the Revit export and never make it into this index. The export is read-only and never modifies your Revit files. Revision history and hidden items sync to Dropbox through the same connection the Time Tracker app uses — connect Dropbox there once, and this tab picks it up automatically on every device. Until you do, it's local to this browser only.</p>
+        </div>
+
+        <div class="note-block" id="note-rebar">
+          <h3>Rebar Shapes</h3>
+          <p>Bend geometry follows ACI 318 Ch. 25 minimum bend diameters (6db for #3&ndash;#8, 8db for #9&ndash;#11, 4db for stirrup/tie bends #3&ndash;#5) and standard hook extensions &mdash; a reasonable field default, not a substitute for checking against the CRSI Manual of Standard Practice or the project's own bar list requirements before fabrication.</p>
+        </div>
+
+        <div class="note-block" id="note-detailcatalog">
+          <h3>Detail Catalog</h3>
+          <p>Getting details OUT of Revit is fully automatic &mdash; that part never needs Insert Views from File or any hand-typing. You can still add, edit, or delete a catalog entry right here in the browser too, for anything not worth round-tripping through Revit (a "My Catalog" entry, tagged read-only-safe from the synced ones so a re-sync never touches it). <b>Sync Detail Library</b> is created once (a brand-new Details Library.rvt) and then reused on every later run &mdash; it walks a folder of your regular projects, and any project whose file hasn't been saved since the last run is skipped without even opening it, so most runs only touch what actually changed. For a changed project, it pulls in every drafting view that's actually placed on a sheet (its own definition of a "real" detail) AND every legend view outright (legends need no sheet-placement test &mdash; they're deliberate by nature), updates an entry in place if you revised it, and keeps both versions side by side if a same-named entry from a different project turns out to have different content. It also tags each detail's Foundation/Floor/Roof/PEMB sheet type from the sheet(s) it's actually placed on &mdash; a detail on a "Foundation Details" sheet is a foundation detail even in a PEMB project, checking the sheet name first and falling back to the project name/notes only when no sheet says anything &mdash; tagging legends simply "Legend"; use the "Sheet type" filter above to narrow by any of these. It also guesses Element/Material/Connection (Column, HSS, Bearing, and so on) straight from each detail's own view name so you can browse or filter by type &mdash; HSS, timber, moment connection, whatever &mdash; and remembers which project (and sheet, for a detail) each one was actually pulled from, shown right on the card and inside its own modal as "Pulled from&hellip;". Legends have one real Revit limitation: the API can duplicate an existing legend but can't create one from nothing, so both the library and whatever project you're pulling a legend INTO need at least one legend view already sitting in them (even a blank one, made once by hand via View &rarr; Legends &rarr; Legend) before a legend can sync or place. It writes <code>detail-catalog-export.json</code> itself at the end of every run (no separate step needed), which this tab only ever reads. The older <b>Build Detail Database</b> button still works for a quick refresh if you only changed something in the library by hand. Search is tokenized and ranked like a real search engine &mdash; every word you type has to match something (name, view name, element, material, connection, sheet type, tags, source project/sheet, or description), and a hit in the name ranks above one buried only in the description, so a two-or-three-word search narrows in fast without needing an exact phrase. Open a card and click "Place on sheet" to drag a marker onto roughly where it should land &mdash; that writes a placement request to <code>detail-catalog-pull.json</code> in the same linked folder, and that card then carries a red "Queued" badge (in the grid and inside its own modal, which lists exactly which project/sheet it's queued for) until "Import Queued Details" clears it. Back in whatever project you're actually working in, running <b>Import Queued Details</b> reads that file, copies the detail's content in from Details Library.rvt, places it on the requested sheet near where you dropped it (Revit centers the viewport there, same as placing any view by hand &mdash; expect a small nudge into final position), and trims the request off the queue. Link the folder here the same way as the Rebar Shape Designer's "Link export folder" (File System Access API, Chrome/Edge only); "Re-check now" re-reads the database and your pending requests without waiting for the next page load. For grabbing several details at once, "Add to cart" on any card's modal builds up a shopping cart (shown at the bottom, with an "In cart" badge on each card) &mdash; set the project once there and each item defaults to a sheet matching its own sheet type (Foundation to a foundation sheet, Roof to a roof sheet, and so on), editable per item if the guess is wrong or you'd rather send it elsewhere; "Send cart to Revit&hellip;" then auto-arranges each sheet's own group of items onto it in a grid and queues them all in one step instead of placing them one at a time. Open a card's modal and use &larr;/&rarr; (or the arrows beside it) to step through whatever's currently filtered without closing back to the grid first. Standard note blocks work the same way: select the text notes to keep together in Revit, run <b>Save Notes Bundle</b>, give it a title, and it lands in the library tagged "General Notes" &mdash; searchable and placeable through the exact same pipeline as any detail. Running it again with the same title updates that bundle instead of making a duplicate.</p>
+        </div>
+      </section>
+
     </main>
   </div>
 </div>
@@ -1100,12 +1361,823 @@
     document.querySelectorAll('.panel').forEach(p=>p.classList.toggle('active', p.id===name));
     const moreBtn = document.getElementById('mobileMoreBtn');
     if(moreBtn){
-      const inMoreSheet = ['spans','site','loadpath','pdfcompare','sheetindex','rebar','tutorial'].includes(name);
+      const inMoreSheet = ['spans','site','loadpath','pdfcompare','sheetindex','rebar','detailcatalog','tutorial','notes'].includes(name);
       moreBtn.classList.toggle('active', inMoreSheet);
     }
     closeMobileMoreSheet();
     window.scrollTo(0,0);
   }
+  // Jump to the Notes tab and scroll/flash a specific note block. Used by the
+  // small "See Notes -> X" links that replaced the long inline caveat
+  // paragraphs on each calculator tab.
+  function goToNote(id){
+    showPanel('notes');
+    setTimeout(()=>{
+      const el = document.getElementById('note-'+id);
+      if(!el) return;
+      el.scrollIntoView({behavior:'smooth', block:'start'});
+      el.classList.add('note-flash');
+      setTimeout(()=>el.classList.remove('note-flash'), 1600);
+    }, 30);
+  }
+
+  // ---- DETAIL CATALOG ----
+  // Two sources feed the same grid: entries synced automatically from
+  // detail-catalog-export.json (Sync Detail Library / Save Notes Bundle /
+  // Build Detail Database in pyRevit — this tab only ever READS that
+  // file), plus entries you add/edit/delete right here for anything not
+  // worth round-tripping through Revit. Placement is always automatic
+  // either way: drag a card's marker onto a sheet (or add several to the
+  // cart) and run "Import Queued Details" in that project — no Insert
+  // Views from File, no retyping names by hand into Revit.
+  // Simple schematic placeholder thumbnails so the sample entries show the
+  // grid's actual image-card look before anything real has been synced
+  // from Revit - real entries get their thumbnail from Revit's own
+  // ExportImage (pyRevit) or an uploaded file (manual Add/Edit), never this.
+  function dcPlaceholderThumb(label, hue){
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="400" height="300">
+      <rect width="400" height="300" fill="hsl(${hue},30%,95%)"/>
+      <rect x="10" y="10" width="380" height="280" fill="none" stroke="hsl(${hue},35%,55%)" stroke-width="2"/>
+      <line x1="60" y1="230" x2="340" y2="230" stroke="hsl(${hue},40%,35%)" stroke-width="5"/>
+      <line x1="110" y1="230" x2="110" y2="90" stroke="hsl(${hue},40%,35%)" stroke-width="12"/>
+      <line x1="290" y1="230" x2="290" y2="90" stroke="hsl(${hue},40%,35%)" stroke-width="12"/>
+      <rect x="150" y="65" width="100" height="28" fill="hsl(${hue},45%,55%)" stroke="hsl(${hue},40%,35%)" stroke-width="1.5"/>
+      <line x1="60" y1="230" x2="30" y2="255" stroke="hsl(${hue},40%,35%)" stroke-width="2"/>
+      <line x1="90" y1="230" x2="60" y2="255" stroke="hsl(${hue},40%,35%)" stroke-width="2"/>
+      <line x1="120" y1="230" x2="90" y2="255" stroke="hsl(${hue},40%,35%)" stroke-width="2"/>
+      <text x="200" y="278" font-family="Arial,sans-serif" font-size="15" fill="hsl(${hue},45%,28%)" text-anchor="middle">${label}</text>
+    </svg>`;
+    return 'data:image/svg+xml,' + encodeURIComponent(svg);
+  }
+  const DC_SAMPLE = [
+    {id:'d001', name:'HSS Column on Isolated Footing', view:'D-Col-HSS-Bearing-Isolated Footing', element:'Column', material:'Steel/HSS', connection:'Bearing plate + anchor rods', project:'Sample Set', tags:['footing','base plate','anchor bolt'], desc:'Base plate detail for an HSS column bearing on an isolated spread footing, with anchor rod pattern and grout pad.', thumb:dcPlaceholderThumb('HSS Col. Base Plate',205)},
+    {id:'d002', name:'Timber Post on Isolated Footing', view:'D-Col-Timber-PostBase-Isolated Footing', element:'Column', material:'Timber', connection:'Post base bearing', project:'Sample Set', tags:['footing','post base','deck'], desc:'Wood post bearing on a concrete pier/footing with a standard post base connector.', thumb:dcPlaceholderThumb('Timber Post Base',28)},
+    {id:'d003', name:'HSS Column Moment Base Plate', view:'D-Col-HSS-MomentWelded-BasePlate', element:'Column', material:'Steel/HSS', connection:'Moment (welded)', project:'Sample Set', tags:['moment connection','base plate','welded'], desc:'Fixed-base moment connection for an HSS column, thickened base plate with stiffeners.', thumb:dcPlaceholderThumb('Moment Base Plate',205)},
+    {id:'d004', name:'Ledger Bolted to Band Joist', view:'D-Ledger-Timber-Bolted-BandJoist', element:'Ledger', material:'Timber', connection:'Bolted, lag', project:'Sample Set', tags:['deck','ledger','fastener spacing'], desc:'Deck ledger board connection to an existing band joist, bolt pattern and flashing.', thumb:dcPlaceholderThumb('Ledger to Band Joist',28)},
+    {id:'d005', name:'Holdown at End Post', view:'D-Holdown-Timber-Strap-EndPost', element:'Holdown', material:'Timber', connection:'Bolted, strap', project:'Sample Set', tags:['shearwall','holdown','seismic'], desc:'Holdown/strap detail anchoring a shearwall end post down to the foundation.', thumb:dcPlaceholderThumb('Holdown at End Post',28)},
+    {id:'d006', name:'Continuous Footing Step', view:'D-Footing-Concrete-Step-Sloped Site', element:'Footing', material:'Concrete', connection:'N/A', project:'Sample Set', tags:['footing','step','sloped site'], desc:'Stepped continuous footing detail for a sloped bearing grade.', thumb:dcPlaceholderThumb('Stepped Footing',48)},
+    {id:'d007', name:'Beam-to-HSS-Column Moment Connection', view:'D-Beam-HSS-MomentBolted-ColumnConn', element:'Beam', material:'Steel/HSS', connection:'Moment (bolted)', project:'Sample Set', tags:['moment connection','bolted','steel frame'], desc:'Bolted moment connection between a wide-flange beam and an HSS column.', thumb:dcPlaceholderThumb('Beam-Column Moment Conn.',205)},
+    {id:'d008', name:'Rim-to-Foundation Wall Bearing', view:'D-Beam-Timber-Bearing-FoundationWall', element:'Beam', material:'Timber', connection:'Bearing', project:'Sample Set', tags:['bearing','foundation wall','sill'], desc:'Rim joist bearing on a foundation wall with sill plate and anchor bolt spacing.', thumb:dcPlaceholderThumb('Rim to Fdn. Wall',48)},
+  ];
+  let dcQueue = [];
+  try{ dcQueue = JSON.parse(localStorage.getItem('dcQueue')||'[]'); }catch(e){ dcQueue = []; }
+
+  const DC_FS_KEY = 'dcExportDir';
+  const DC_EXPORT_FILENAME = 'detail-catalog-manual.json'; // this browser's own hand-entered entries only
+  const DC_LIBRARY_FILENAME = 'detail-catalog-export.json'; // written by Sync Detail Library / Build Detail Database — read-only from here
+  const DC_PULL_FILENAME = 'detail-catalog-pull.json'; // written here, consumed+trimmed by import_queued_details_script.py
+  const DC_LOCALSTORAGE_KEY = 'dcCatalogUserEntries';
+
+  // User-managed entries (added/edited/deleted right in this tab) — kept
+  // separate from DC_SAMPLE so the samples are never accidentally edited or
+  // lost, and merged into DC_DATA for display/search. Persisted to
+  // localStorage immediately, and to the linked folder's JSON file when one
+  // is linked (see dcChooseExportFolder/dcPersist below) so it follows you
+  // across devices via Dropbox the same way Sheet Index's data does.
+  let dcUserEntries = [];
+  try{ dcUserEntries = JSON.parse(localStorage.getItem(DC_LOCALSTORAGE_KEY)||'[]'); }catch(e){ dcUserEntries = []; }
+  // Entries read from the pyRevit-built detail-catalog-export.json
+  // "database" (name, thumbnail, category, element/material/connection,
+  // source project/sheet per drafting/legend view in Details Library.rvt) —
+  // refreshed from the linked folder, never edited here.
+  let dcLibraryEntries = [];
+  // Pending placement requests this browser has sent — mirrors detail-catalog-pull.json,
+  // trimmed by import_queued_details_script.py as each one gets placed.
+  let dcPullEntries = [];
+  try{ dcPullEntries = JSON.parse(localStorage.getItem('dcPullQueue')||'[]'); }catch(e){ dcPullEntries = []; }
+  let DC_DATA = DC_SAMPLE.concat(dcLibraryEntries, dcUserEntries);
+
+  function dcRebuildData(){ DC_DATA = DC_SAMPLE.concat(dcLibraryEntries, dcUserEntries); }
+
+  function dcPopulateFilters(){
+    const cat = document.getElementById('dc-category');
+    const el = document.getElementById('dc-element');
+    const mat = document.getElementById('dc-material');
+    const conn = document.getElementById('dc-connection');
+    const tagbar = document.getElementById('dc-tagbar');
+    const catPrev = cat.value, elPrev = el.value, matPrev = mat.value, connPrev = conn.value;
+    // Foundation/Floor/Roof/PEMB first (pyRevit's own category order), then
+    // anything else (Uncategorized, or a category from a manual entry).
+    const catOrder = ['Foundation','Floor','Roof','PEMB','Legend','General Notes'];
+    const catsSeen = [...new Set(DC_DATA.map(d=>d.category).filter(Boolean))];
+    const categories = catOrder.filter(c=>catsSeen.includes(c)).concat(catsSeen.filter(c=>!catOrder.includes(c)).sort());
+    const elements = [...new Set(DC_DATA.map(d=>d.element).filter(Boolean))].sort();
+    const materials = [...new Set(DC_DATA.map(d=>d.material).filter(Boolean))].sort();
+    const conns = [...new Set(DC_DATA.map(d=>d.connection).filter(Boolean))].sort();
+    cat.innerHTML = '<option value="">Sheet type &mdash; any</option>';
+    el.innerHTML = '<option value="">All elements</option>';
+    mat.innerHTML = '<option value="">All materials</option>';
+    conn.innerHTML = '<option value="">All connections</option>';
+    categories.forEach(v=>{ const o=document.createElement('option'); o.value=v; o.textContent=v; cat.appendChild(o); });
+    elements.forEach(v=>{ const o=document.createElement('option'); o.value=v; o.textContent=v; el.appendChild(o); });
+    materials.forEach(v=>{ const o=document.createElement('option'); o.value=v; o.textContent=v; mat.appendChild(o); });
+    conns.forEach(v=>{ const o=document.createElement('option'); o.value=v; o.textContent=v; conn.appendChild(o); });
+    if(categories.includes(catPrev)) cat.value = catPrev;
+    if(elements.includes(elPrev)) el.value = elPrev;
+    if(materials.includes(matPrev)) mat.value = matPrev;
+    if(conns.includes(connPrev)) conn.value = connPrev;
+    const allTags = [...new Set(DC_DATA.flatMap(d=>d.tags))].sort();
+    const activeTagsPrev = [...document.querySelectorAll('.dc-tag.active')].map(b=>b.dataset.tag);
+    tagbar.innerHTML='';
+    allTags.forEach(t=>{
+      const b=document.createElement('span');
+      b.className='dc-tag'+(activeTagsPrev.includes(t)?' active':''); b.textContent=t; b.dataset.tag=t;
+      b.onclick=()=>{ b.classList.toggle('active'); dcRender(); };
+      tagbar.appendChild(b);
+    });
+    // also refresh the Add/Edit form's datalists so autocomplete offers
+    // whatever element/material/connection values already exist
+    const elList = document.getElementById('dc-e-element-list');
+    const matList = document.getElementById('dc-e-material-list');
+    const connList = document.getElementById('dc-e-connection-list');
+    if(elList) elList.innerHTML = elements.map(v=>`<option value="${v}">`).join('');
+    if(matList) matList.innerHTML = materials.map(v=>`<option value="${v}">`).join('');
+    if(connList) connList.innerHTML = conns.map(v=>`<option value="${v}">`).join('');
+  }
+
+  // Per-field weights for search relevance ranking — a hit in the name
+  // counts for much more than a hit buried in the description, so "post
+  // base" ranks the actual post-base detail above one that merely
+  // mentions posts in passing.
+  const DC_SEARCH_FIELDS = [
+    {key:'name', weight:5},
+    {key:'view', weight:4},
+    {key:'element', weight:3},
+    {key:'material', weight:3},
+    {key:'connection', weight:3},
+    {key:'category', weight:3},
+    {key:'tagsText', weight:3},
+    {key:'sourceProject', weight:2},
+    {key:'sourceSheet', weight:2},
+    {key:'desc', weight:1},
+  ];
+  // Tokenized, "every word must match somewhere" search (each token can
+  // match a different field) with a relevance score, rather than one
+  // whole-phrase substring test — closer to how an actual search engine
+  // behaves, per Matt's "robust... like Google" ask. A whole-phrase exact
+  // match anywhere gets a bonus on top of the per-token score.
+  function dcSearchScore(d, tokens, qRaw){
+    const fields = {};
+    for(const f of DC_SEARCH_FIELDS){
+      let v = f.key==='tagsText' ? (d.tags||[]).join(' ') : (d[f.key]||'');
+      fields[f.key] = String(v).toLowerCase();
+    }
+    let score = 0;
+    for(const tok of tokens){
+      let hit = false;
+      for(const f of DC_SEARCH_FIELDS){
+        if(fields[f.key].indexOf(tok)!==-1){
+          hit = true;
+          score += f.weight;
+          if(fields[f.key]===tok) score += f.weight; // whole-field exact match, e.g. searching "column"
+        }
+      }
+      if(!hit) return -1; // every token must match somewhere (AND search)
+    }
+    if(qRaw && fields.name.indexOf(qRaw)!==-1) score += 6; // whole phrase, unbroken, in the name
+    return score;
+  }
+  function dcRender(){
+    const qRaw = document.getElementById('dc-search').value.trim().toLowerCase();
+    const tokens = qRaw.split(/\s+/).filter(Boolean);
+    const catF = document.getElementById('dc-category').value;
+    const elF = document.getElementById('dc-element').value;
+    const matF = document.getElementById('dc-material').value;
+    const connF = document.getElementById('dc-connection').value;
+    const activeTags = [...document.querySelectorAll('.dc-tag.active')].map(b=>b.dataset.tag);
+    let results = DC_DATA.filter(d=>{
+      if(catF && d.category!==catF) return false;
+      if(elF && d.element!==elF) return false;
+      if(matF && d.material!==matF) return false;
+      if(connF && d.connection!==connF) return false;
+      if(activeTags.length && !activeTags.every(t=>d.tags.includes(t))) return false;
+      return true;
+    });
+    if(tokens.length){
+      results = results
+        .map(d=>({d, score: dcSearchScore(d, tokens, qRaw)}))
+        .filter(x=>x.score>=0)
+        .sort((a,b)=>b.score-a.score)
+        .map(x=>x.d);
+    }
+    dcLastResults = results; // so the open modal can step left/right through exactly what's currently shown
+    const queuedIds = new Set(dcPullEntries.map(p=>p.detailId).filter(Boolean));
+    const cartIds = new Set(dcQueue.map(q=>q.id));
+    const grid = document.getElementById('dc-grid');
+    grid.innerHTML='';
+    // The "nothing in the catalog yet" notice is about the DATA SET, not the
+    // current filter results — show it only while everything in DC_DATA is
+    // still a built-in sample, hide it the moment you've added a real entry
+    // (by hand, or via a synced library).
+    const hasRealData = dcUserEntries.length>0 || dcLibraryEntries.length>0;
+    document.getElementById('dc-empty-notice').style.display = hasRealData ? 'none' : 'block';
+    if(!results.length){
+      grid.innerHTML = '<div class="dc-empty">No details match those filters.</div>';
+      return;
+    }
+    results.forEach(d=>{
+      const card=document.createElement('div');
+      card.className='dc-card';
+      card.style.position = 'relative';
+      card.onclick=()=>dcOpenModal(d.id);
+      const thumbHtml = d.thumb
+        ? `<img src="${d.thumb}" alt="" loading="lazy" style="width:100%;height:110px;object-fit:contain;background:var(--paper);border:1px solid var(--line);border-radius:6px;margin-bottom:8px;" onerror="this.remove();">`
+        : '';
+      const catHtml = (d.category && d.category!=='Uncategorized')
+        ? `<span class="dc-chip" style="background:var(--blueprint);color:#fff;">${d.category}</span>`
+        : '';
+      const badges = [];
+      if(queuedIds.has(d.id)) badges.push('<span class="dc-chip" style="background:var(--rust);color:#fff;" title="Sent to Revit, waiting on Import Queued Details">Queued</span>');
+      if(cartIds.has(d.id)) badges.push('<span class="dc-chip" style="background:var(--steel);color:#fff;">In cart</span>');
+      const metaLine = [d.element, d.material, d.connection].filter(Boolean).join(' · ');
+      const sourceHtml = d.sourceProject
+        ? `<div class="dc-meta" title="The project (and sheet, if any) this was pulled from">from: ${d.sourceProject}${d.sourceSheet ? ' — '+d.sourceSheet : ''}</div>`
+        : '';
+      card.innerHTML = `${thumbHtml}<h4>${d.name}</h4>
+        ${metaLine ? `<div class="dc-meta">${metaLine}</div>` : ''}
+        <div class="dc-meta" style="font-family:monospace;">view: ${d.view||'—'}</div>
+        ${sourceHtml}
+        <div class="dc-chips">${catHtml}${badges.join('')}${d.tags.map(t=>`<span class="dc-chip">${t}</span>`).join('')}</div>`;
+      grid.appendChild(card);
+    });
+  }
+
+  let dcModalId = null;
+  let dcLastResults = []; // the currently-filtered/searched card list, so the modal can step through exactly what's on screen
+  function dcModalNav(dir){
+    if(!dcModalId || !dcLastResults.length) return;
+    const idx = dcLastResults.findIndex(x=>x.id===dcModalId);
+    if(idx===-1) return;
+    const nextIdx = (idx + dir + dcLastResults.length) % dcLastResults.length; // wraps around both ends
+    dcOpenModal(dcLastResults[nextIdx].id);
+  }
+  document.addEventListener('keydown', (e)=>{
+    if(!document.getElementById('dc-modal-backdrop').classList.contains('open')) return;
+    if(e.target && ['INPUT','TEXTAREA','SELECT'].includes(e.target.tagName)) return;
+    if(e.key === 'ArrowLeft'){ e.preventDefault(); dcModalNav(-1); }
+    else if(e.key === 'ArrowRight'){ e.preventDefault(); dcModalNav(1); }
+  });
+  function dcOpenModal(id){
+    const d = DC_DATA.find(x=>x.id===id);
+    if(!d) return;
+    dcModalId = id;
+    document.getElementById('dc-modal-title').textContent = d.name;
+    const posIdx = dcLastResults.findIndex(x=>x.id===id);
+    const posEl = document.getElementById('dc-modal-position');
+    const prevBtn = document.querySelector('.dc-modal-nav-prev');
+    const nextBtn = document.querySelector('.dc-modal-nav-next');
+    if(posIdx>-1 && dcLastResults.length>1){
+      posEl.textContent = `${posIdx+1} of ${dcLastResults.length} — use ← → or the arrows to browse`;
+      posEl.style.display = 'block';
+      if(prevBtn) prevBtn.disabled = false;
+      if(nextBtn) nextBtn.disabled = false;
+    } else {
+      posEl.textContent = '';
+      posEl.style.display = 'none';
+      if(prevBtn) prevBtn.disabled = true;
+      if(nextBtn) nextBtn.disabled = true;
+    }
+    const pendingForThis = dcPullEntries.filter(p=>p.detailId===d.id);
+    const queuedHtml = pendingForThis.length
+      ? `<br><span style="color:var(--rust);">Currently queued for: ${pendingForThis.map(p=>`${p.project} ${p.sheetNumber}`.trim()).join(', ')}</span>`
+      : '';
+    const metaBits = [d.element, d.material, d.connection].filter(Boolean).join(' &middot; ');
+    const sourceHtml = d.sourceProject
+      ? `<br>Pulled from: ${d.sourceProject}${d.sourceSheet ? ' &mdash; '+d.sourceSheet : ''}`
+      : '';
+    document.getElementById('dc-modal-meta').innerHTML = `${(d.category && d.category!=='Uncategorized') ? d.category+' &middot; ' : ''}${metaBits}<br>View name: <code>${d.view||'(not set)'}</code> in Details Library.rvt${sourceHtml}${queuedHtml}`;
+    document.getElementById('dc-modal-desc').textContent = d.desc;
+    document.getElementById('dc-modal-preview').innerHTML = d.thumb
+      ? `<img src="${d.thumb}" alt="" style="max-width:100%;max-height:70vh;">`
+      : `<div style="text-align:center;color:var(--steel);font-size:.8rem;padding:20px;">
+           [ no thumbnail on this entry yet — edit it and upload one ]
+         </div>`;
+    dcUpdateQueueBtn();
+    const isReadOnly = d.project==='Sample Set' || d.fromLibrary;
+    const editBtn = document.querySelector('#dc-modal-backdrop button[onclick^="dcOpenEditor"]');
+    const delBtn = document.querySelector('#dc-modal-backdrop button[onclick^="dcDeleteFromModal"]');
+    if(editBtn) editBtn.style.display = isReadOnly ? 'none' : 'inline-block';
+    if(delBtn) delBtn.style.display = isReadOnly ? 'none' : 'inline-block';
+    document.getElementById('dc-modal-backdrop').classList.add('open');
+  }
+  function dcCloseModal(){
+    document.getElementById('dc-modal-backdrop').classList.remove('open');
+    dcModalId = null;
+  }
+  function dcUpdateQueueBtn(){
+    const btn = document.getElementById('dc-modal-queue-btn');
+    if(!dcModalId) return;
+    const inQueue = dcQueue.some(q=>q.id===dcModalId);
+    btn.textContent = inQueue ? 'Remove from cart' : 'Add to cart';
+  }
+  // Category -> keyword sets for suggesting a same-type sheet, mirroring infer_category() in detail_catalog_core.py
+  const DC_CATEGORY_SHEET_KEYWORDS = {
+    'Foundation': ['found','footing'],
+    'Floor': ['floor','framing'],
+    'Roof': ['roof'],
+    'PEMB': ['pemb','pre-engineered','pre engineered','metal building'],
+    'Legend': ['legend'],
+    'General Notes': ['general','notes','index']
+  };
+  let dcCartProject = localStorage.getItem('dcCartProject') || '';
+  function dcSuggestSheetForCategory(category, project){
+    if(!project) return {sheetNumber:'', sheetName:''};
+    const keywords = DC_CATEGORY_SHEET_KEYWORDS[category];
+    if(!keywords || !keywords.length) return {sheetNumber:'', sheetName:''};
+    const store = loadSheetIndexStore();
+    const sheets = (Object.values(store.sheets||{})).filter(s=>s.project===project);
+    const hit = sheets.find(s=>{
+      const hay = (String(s.sheetName||'')+' '+String(s.sheetNumber||'')).toLowerCase();
+      return keywords.some(k=>hay.includes(k));
+    });
+    return hit ? {sheetNumber:hit.sheetNumber||'', sheetName:hit.sheetName||''} : {sheetNumber:'', sheetName:''};
+  }
+  function dcSetCartProject(value){
+    dcCartProject = value.trim();
+    localStorage.setItem('dcCartProject', dcCartProject);
+    dcQueue.forEach(q=>{
+      if(!q.sheetManual){
+        const s = dcSuggestSheetForCategory(q.category, dcCartProject);
+        q.sheetNumber = s.sheetNumber; q.sheetName = s.sheetName;
+      }
+    });
+    dcSaveQueue();
+  }
+  function dcToggleQueueFromModal(){
+    if(!dcModalId) return;
+    const d = DC_DATA.find(x=>x.id===dcModalId);
+    const idx = dcQueue.findIndex(q=>q.id===dcModalId);
+    if(idx>-1) dcQueue.splice(idx,1);
+    else{
+      const s = dcSuggestSheetForCategory(d.category, dcCartProject);
+      dcQueue.push({
+        id:d.id, name:d.name, view:d.view, category:d.category||'',
+        sheetNumber: s.sheetNumber, sheetName: s.sheetName,
+        sheetManual: false
+      });
+    }
+    dcSaveQueue();
+    dcUpdateQueueBtn();
+  }
+  function dcSaveQueue(){
+    localStorage.setItem('dcQueue', JSON.stringify(dcQueue));
+    dcRenderQueue();
+    dcRender();
+  }
+  function dcRenderQueue(){
+    const wrap = document.getElementById('dc-queue');
+    const list = document.getElementById('dc-queue-list');
+    document.getElementById('dc-queue-count').textContent = dcQueue.length;
+    if(!dcQueue.length){ wrap.style.display='none'; return; }
+    wrap.style.display='block';
+    const projInput = document.getElementById('dc-cart-project-inline');
+    if(projInput && document.activeElement !== projInput) projInput.value = dcCartProject;
+    const store = loadSheetIndexStore();
+    const projects = [...new Set((Object.values(store.sheets||{})).map(s=>s.project).filter(Boolean))].sort();
+    const projListEl = document.getElementById('dc-cart-project-inline-list');
+    if(projListEl) projListEl.innerHTML = projects.map(p=>`<option value="${String(p).replace(/"/g,'&quot;')}">`).join('');
+    const sheets = (Object.values(store.sheets||{})).filter(s=>s.project===dcCartProject)
+      .sort((a,b)=>String(a.sheetNumber||'').localeCompare(String(b.sheetNumber||''), undefined, {numeric:true}));
+    list.innerHTML = dcQueue.map(q=>{
+      const empty = !q.sheetNumber;
+      const match = sheets.find(s=>s.sheetNumber===q.sheetNumber);
+      // if the item's current sheet isn't in this project's sheet list (e.g. project just changed,
+      // or it hasn't been imported into the index yet), still offer it as a selectable option so nothing is silently lost
+      const optionSheets = match || !q.sheetNumber ? sheets : [{sheetNumber:q.sheetNumber, sheetName:q.sheetName||''}, ...sheets];
+      const options = `<option value=""${empty?' selected':''}>Choose a sheet&hellip;</option>` + optionSheets.map(s=>
+        `<option value="${String(s.sheetNumber||'').replace(/"/g,'&quot;')}"${s.sheetNumber===q.sheetNumber?' selected':''}>${String(s.sheetNumber||'')} — ${String(s.sheetName||'').replace(/</g,'&lt;')}</option>`
+      ).join('');
+      return `<div class="dc-cart-row" title="${String(q.view||'').replace(/"/g,'&quot;')}">
+        <span class="dc-cart-name">${q.category ? `<span class="dc-cart-cat">${q.category}</span>` : ''}${q.name}</span>
+        <select class="dc-cart-sheet${empty?' dc-cart-sheet-empty':''}" onchange="dcSetCartItemSheet('${q.id}', this.value)">${options}</select>
+        <button onclick="dcRemoveFromQueue('${q.id}')" aria-label="Remove">&times;</button>
+      </div>`;
+    }).join('');
+  }
+  function dcSetCartItemSheet(id, value){
+    const item = dcQueue.find(q=>q.id===id);
+    if(!item) return;
+    item.sheetNumber = value.trim();
+    item.sheetManual = true;
+    const store = loadSheetIndexStore();
+    const match = (Object.values(store.sheets||{})).find(s=>s.project===dcCartProject && s.sheetNumber===item.sheetNumber);
+    item.sheetName = match ? match.sheetName : '';
+    localStorage.setItem('dcQueue', JSON.stringify(dcQueue));
+    dcRenderQueue(); // a <select> doesn't lose focus like a text input would, so it's safe to re-render and pick up the empty-state styling
+  }
+  function dcRemoveFromQueue(id){
+    dcQueue = dcQueue.filter(q=>q.id!==id);
+    dcSaveQueue();
+    dcUpdateQueueBtn();
+  }
+  function dcClearQueue(){
+    dcQueue = [];
+    dcSaveQueue();
+    dcUpdateQueueBtn();
+  }
+  // ---- Place on sheet (drag-and-drop placement request) ----
+  let dcPlacingId = null;
+  let dcPlaceFrac = null;
+  function dcOpenPlace(id){
+    dcCloseModal();
+    const d = DC_DATA.find(x=>x.id===id);
+    if(!d) return;
+    dcPlacingId = id;
+    dcPlaceFrac = null;
+    document.getElementById('dc-place-detail-name').textContent = d.name + ' — view: ' + (d.view||'(not set)');
+    const store = loadSheetIndexStore();
+    const projects = [...new Set((Object.values(store.sheets||{})).map(s=>s.project).filter(Boolean))].sort();
+    document.getElementById('dc-place-project-list').innerHTML = projects.map(p=>`<option value="${String(p).replace(/"/g,'&quot;')}">`).join('');
+    document.getElementById('dc-place-project').value = '';
+    document.getElementById('dc-place-sheet').value = '';
+    document.getElementById('dc-place-sheet-list').innerHTML = '';
+    const marker = document.getElementById('dc-place-marker');
+    marker.style.display = 'none';
+    dcInitPlaceRect();
+    document.getElementById('dc-place-backdrop').classList.add('open');
+  }
+  function dcClosePlace(){
+    document.getElementById('dc-place-backdrop').classList.remove('open');
+    dcPlacingId = null;
+  }
+  function dcPlacePopulateSheets(){
+    const store = loadSheetIndexStore();
+    const project = document.getElementById('dc-place-project').value.trim();
+    const sheets = (Object.values(store.sheets||{})).filter(s=>s.project===project);
+    document.getElementById('dc-place-sheet-list').innerHTML = sheets.map(s=>
+      `<option value="${String(s.sheetNumber||'').replace(/"/g,'&quot;')}">${String(s.sheetNumber||'')} — ${String(s.sheetName||'').replace(/</g,'&lt;')}</option>`
+    ).join('');
+  }
+  function dcInitPlaceRect(){
+    const rect = document.getElementById('dc-place-rect');
+    if(!rect || rect.dataset.bound) return;
+    rect.dataset.bound = '1';
+    let dragging = false;
+    const update = (e)=>{
+      e.preventDefault();
+      const bounds = rect.getBoundingClientRect();
+      let xFrac = (e.clientX - bounds.left) / bounds.width;
+      let yFrac = (e.clientY - bounds.top) / bounds.height;
+      xFrac = Math.min(1, Math.max(0, xFrac));
+      yFrac = Math.min(1, Math.max(0, yFrac));
+      dcPlaceFrac = {x:xFrac, y:yFrac};
+      const marker = document.getElementById('dc-place-marker');
+      marker.style.left = (xFrac*100)+'%';
+      marker.style.top = (yFrac*100)+'%';
+      marker.style.display = 'block';
+    };
+    rect.addEventListener('pointerdown', e=>{ dragging = true; rect.setPointerCapture(e.pointerId); update(e); });
+    rect.addEventListener('pointermove', e=>{ if(dragging) update(e); });
+    rect.addEventListener('pointerup', ()=>{ dragging = false; });
+    rect.addEventListener('pointercancel', ()=>{ dragging = false; });
+  }
+  function dcConfirmPlace(){
+    const d = DC_DATA.find(x=>x.id===dcPlacingId);
+    if(!d) return;
+    const project = document.getElementById('dc-place-project').value.trim();
+    const sheetNumber = document.getElementById('dc-place-sheet').value.trim();
+    if(!project || !sheetNumber){ alert('Enter the project and sheet number to place this on.'); return; }
+    if(!dcPlaceFrac){ alert('Click or drag on the sheet above to set roughly where it should land.'); return; }
+    const store = loadSheetIndexStore();
+    const match = (Object.values(store.sheets||{})).find(s=>s.project===project && s.sheetNumber===sheetNumber);
+    const entry = {
+      id: 'p'+Date.now().toString(36)+Math.random().toString(36).slice(2,6),
+      detailId: d.id,
+      name: d.name, view: d.view, project,
+      sheetNumber, sheetName: match ? match.sheetName : '',
+      xFrac: Math.round(dcPlaceFrac.x*1000)/1000,
+      yFrac: Math.round(dcPlaceFrac.y*1000)/1000,
+      requestedAt: new Date().toISOString()
+    };
+    dcPullEntries.push(entry);
+    dcPersistPull();
+    dcRenderPullQueue();
+    dcRender();
+    dcClosePlace();
+    if(typeof showLoadToast === 'function') showLoadToast('Queued — run "Import Queued Details" in that project to place it.');
+  }
+  // ---- Shopping cart checkout (bulk "Place on sheet" for everything in the cart, each item to its own assigned sheet) ----
+  function dcOpenCartCheckout(){
+    if(!dcQueue.length) return;
+    document.getElementById('dc-cart-count-label').textContent =
+      dcQueue.length + ' item(s) in the cart, project: ' + (dcCartProject || '(not set)');
+    const missing = dcQueue.filter(q=>!q.sheetNumber);
+    const noteEl = document.getElementById('dc-cart-missing-note');
+    if(missing.length){
+      noteEl.textContent = missing.length + ' item(s) have no sheet set yet and will stay in the cart: ' + missing.map(q=>q.name).join(', ');
+      noteEl.style.display = 'block';
+    } else {
+      noteEl.style.display = 'none';
+    }
+    document.getElementById('dc-cart-backdrop').classList.add('open');
+  }
+  function dcCloseCartCheckout(){
+    document.getElementById('dc-cart-backdrop').classList.remove('open');
+  }
+  function dcConfirmCartCheckout(){
+    if(!dcQueue.length) return;
+    const project = dcCartProject;
+    if(!project){ alert('Set the project in the cart panel before sending to Revit.'); return; }
+    const sendable = dcQueue.filter(q=>q.sheetNumber);
+    if(!sendable.length){ alert('Set a sheet number for at least one item before sending.'); return; }
+    const store = loadSheetIndexStore();
+    const sheetsForProject = (Object.values(store.sheets||{})).filter(s=>s.project===project);
+    // group sendable items by their own assigned sheet, so each sheet gets its own auto-arranged grid
+    const groups = {};
+    sendable.forEach(q=>{
+      (groups[q.sheetNumber] = groups[q.sheetNumber] || []).push(q);
+    });
+    const now = new Date().toISOString();
+    Object.keys(groups).forEach(sheetNumber=>{
+      const items = groups[sheetNumber];
+      const match = sheetsForProject.find(s=>s.sheetNumber===sheetNumber);
+      const n = items.length;
+      const cols = Math.ceil(Math.sqrt(n));
+      const rows = Math.ceil(n/cols);
+      items.forEach((q,i)=>{
+        const col = i % cols, row = Math.floor(i/cols);
+        // spread evenly inside a centered margin so items don't land on the sheet's edge
+        const xFrac = Math.round(((col+0.5)/cols*0.7 + 0.15)*1000)/1000;
+        const yFrac = Math.round(((row+0.5)/rows*0.7 + 0.15)*1000)/1000;
+        dcPullEntries.push({
+          id: 'p'+Date.now().toString(36)+Math.random().toString(36).slice(2,6)+i,
+          detailId: q.id,
+          name: q.name, view: q.view, project,
+          sheetNumber, sheetName: match ? match.sheetName : '',
+          xFrac, yFrac,
+          requestedAt: now
+        });
+      });
+    });
+    dcPersistPull();
+    dcRenderPullQueue();
+    const sentIds = new Set(sendable.map(q=>q.id));
+    dcQueue = dcQueue.filter(q=>!sentIds.has(q.id));
+    dcSaveQueue();
+    dcRender();
+    dcCloseCartCheckout();
+    if(typeof showLoadToast === 'function') showLoadToast(sendable.length + ' item(s) sent — run "Import Queued Details" in ' + project + ' to place them.');
+  }
+  function dcRemovePull(id){
+    dcPullEntries = dcPullEntries.filter(x=>x.id!==id);
+    dcPersistPull();
+    dcRenderPullQueue();
+    dcRender();
+  }
+  function dcRenderPullQueue(){
+    const wrap = document.getElementById('dc-pullqueue');
+    const list = document.getElementById('dc-pull-list');
+    document.getElementById('dc-pull-count').textContent = dcPullEntries.length;
+    if(!dcPullEntries.length){ wrap.style.display='none'; return; }
+    wrap.style.display='block';
+    list.innerHTML = dcPullEntries.map(p=>
+      `<span class="dc-queue-item" title="${String(p.view||'').replace(/"/g,'&quot;')}">${p.name} &rarr; ${p.project} ${p.sheetNumber}<button onclick="dcRemovePull('${p.id}')" aria-label="Remove">&times;</button></span>`
+    ).join('');
+  }
+  async function dcPersistPull(){
+    localStorage.setItem('dcPullQueue', JSON.stringify(dcPullEntries));
+    const handle = await dcGetExportDirHandle(false);
+    if(!handle) return;
+    try{
+      const fileHandle = await handle.getFileHandle(DC_PULL_FILENAME, {create:true});
+      const writable = await fileHandle.createWritable();
+      await writable.write(JSON.stringify({pulls: dcPullEntries, savedAt: new Date().toISOString()}, null, 2));
+      await writable.close();
+    }catch(ex){
+      console.warn('Detail Catalog: could not write pull-request file', ex);
+    }
+  }
+  async function dcTryLoadPullFromHandle(handle){
+    try{
+      const fileHandle = await handle.getFileHandle(DC_PULL_FILENAME, {create:false});
+      const file = await fileHandle.getFile();
+      const data = JSON.parse(await file.text());
+      if(Array.isArray(data.pulls)){
+        dcPullEntries = data.pulls;
+        localStorage.setItem('dcPullQueue', JSON.stringify(dcPullEntries));
+      }
+    }catch(e){ /* nothing sent yet, or Import Queued Details already cleared it */ }
+  }
+
+  // ---- pyRevit-built database (read-only, name + thumbnail only) ----
+  async function dcResolveLibraryThumb(handle, relPath){
+    try{
+      const parts = relPath.split('/');
+      let dirHandle = handle;
+      for(let i=0;i<parts.length-1;i++){
+        dirHandle = await dirHandle.getDirectoryHandle(parts[i], {create:false});
+      }
+      const fileHandle = await dirHandle.getFileHandle(parts[parts.length-1], {create:false});
+      const file = await fileHandle.getFile();
+      return URL.createObjectURL(file);
+    }catch(e){ return null; }
+  }
+  async function dcTryLoadLibraryFromHandle(handle){
+    try{
+      const fileHandle = await handle.getFileHandle(DC_LIBRARY_FILENAME, {create:false});
+      const file = await fileHandle.getFile();
+      const data = JSON.parse(await file.text());
+      if(Array.isArray(data.details)){
+        dcLibraryEntries = await Promise.all(data.details.map(async e=>({
+          id: e.id, name: e.name, view: e.view,
+          thumb: e.thumb ? await dcResolveLibraryThumb(handle, e.thumb) : null,
+          element: e.element || '', material: e.material || '', connection: e.connection || '',
+          tags: Array.isArray(e.tags) ? e.tags : [], desc: e.desc || '',
+          category: e.category || 'Uncategorized',
+          sourceProject: e.sourceProject || '', sourceSheet: e.sourceSheet || '',
+          project: e.project || 'Details Library', fromLibrary:true
+        })));
+        dcRebuildData();
+      }
+    }catch(e){ /* Build Detail Database hasn't been run yet, or nothing exported */ }
+  }
+  async function dcRecheckLibrary(){
+    const handle = await dcGetExportDirHandle(false);
+    if(!handle){ if(typeof showLoadToast === 'function') showLoadToast('Link a catalog folder first.'); return; }
+    await dcTryLoadLibraryFromHandle(handle);
+    await dcTryLoadPullFromHandle(handle);
+    dcPopulateFilters();
+    dcRender();
+    dcRenderPullQueue();
+    if(typeof showLoadToast === 'function') showLoadToast('Checked for updates.');
+  }
+
+  // ---- Add / Edit form (entries you manage by hand, separate from
+  // whatever Sync Detail Library pulled in automatically) ----
+  let dcEditingId = null;
+  let dcEditThumbDataUrl = null;
+  function dcOpenEditor(id){
+    dcEditingId = id;
+    dcEditThumbDataUrl = null;
+    const d = id ? DC_DATA.find(x=>x.id===id) : null;
+    document.getElementById('dc-editor-title').textContent = d ? 'Edit detail' : 'Add detail';
+    document.getElementById('dc-e-name').value = d ? d.name : '';
+    document.getElementById('dc-e-view').value = d ? (d.view||'') : '';
+    document.getElementById('dc-e-element').value = d ? d.element : '';
+    document.getElementById('dc-e-material').value = d ? d.material : '';
+    document.getElementById('dc-e-connection').value = d ? d.connection : '';
+    document.getElementById('dc-e-tags').value = d ? d.tags.join(', ') : '';
+    document.getElementById('dc-e-desc').value = d ? (d.desc||'') : '';
+    document.getElementById('dc-e-thumb-file').value = '';
+    const preview = document.getElementById('dc-e-thumb-preview');
+    preview.innerHTML = (d && d.thumb) ? `<img src="${d.thumb}" style="max-width:180px;max-height:120px;border:1px solid var(--line);border-radius:6px;">` : '';
+    dcCloseModal();
+    document.getElementById('dc-editor-backdrop').classList.add('open');
+  }
+  function dcCloseEditor(){
+    document.getElementById('dc-editor-backdrop').classList.remove('open');
+    dcEditingId = null;
+  }
+  function dcHandleThumbFile(evt){
+    const file = evt.target.files[0];
+    if(!file) return;
+    const reader = new FileReader();
+    reader.onload = ()=>{
+      dcEditThumbDataUrl = reader.result; // stored inline in the catalog JSON — no separate thumbnail files to keep in sync
+      document.getElementById('dc-e-thumb-preview').innerHTML = `<img src="${dcEditThumbDataUrl}" style="max-width:180px;max-height:120px;border:1px solid var(--line);border-radius:6px;">`;
+    };
+    reader.readAsDataURL(file);
+  }
+  function dcSaveEditor(){
+    const name = document.getElementById('dc-e-name').value.trim();
+    const view = document.getElementById('dc-e-view').value.trim();
+    if(!name || !view){ alert('Name and the Details Library view name are both required.'); return; }
+    const existing = dcEditingId ? dcUserEntries.find(x=>x.id===dcEditingId) : null;
+    const entry = {
+      id: dcEditingId || ('u'+Date.now().toString(36)+Math.random().toString(36).slice(2,6)),
+      name, view,
+      element: document.getElementById('dc-e-element').value.trim() || 'Uncategorized',
+      material: document.getElementById('dc-e-material').value.trim() || 'Uncategorized',
+      connection: document.getElementById('dc-e-connection').value.trim() || 'N/A',
+      tags: document.getElementById('dc-e-tags').value.split(',').map(t=>t.trim()).filter(Boolean),
+      desc: document.getElementById('dc-e-desc').value.trim(),
+      project: 'My Catalog',
+      thumb: dcEditThumbDataUrl || (existing ? existing.thumb : null),
+      updatedAt: new Date().toISOString()
+    };
+    if(existing){
+      const idx = dcUserEntries.indexOf(existing);
+      dcUserEntries[idx] = entry;
+    } else {
+      dcUserEntries.push(entry);
+    }
+    dcRebuildData();
+    dcPersist();
+    dcPopulateFilters();
+    dcRender();
+    dcCloseEditor();
+  }
+  function dcDeleteFromModal(){
+    if(!dcModalId) return;
+    if(!confirm('Remove this entry from the catalog? This only removes it here — it does not delete the view in Details Library.rvt.')) return;
+    dcUserEntries = dcUserEntries.filter(x=>x.id!==dcModalId);
+    dcRebuildData();
+    dcPersist();
+    dcPopulateFilters();
+    dcRender();
+    dcCloseModal();
+  }
+
+  // ---- Persistence: localStorage always; a linked folder's JSON when one
+  // is set up, using the same File System Access API pattern as Rebar
+  // Shapes' "Link export folder" — reuses its generic IndexedDB handle
+  // store (rbIdbGet/rbIdbSet, defined in the Rebar Shapes section below)
+  // under a separate key so the two features' linked folders are independent.
+  async function dcGetExportDirHandle(forcePicker){
+    if(!('showDirectoryPicker' in window)) return null;
+    let handle = null;
+    if(!forcePicker){
+      try{ handle = await rbIdbGet(DC_FS_KEY); }catch(e){}
+      if(!handle) return null;
+      try{
+        let perm = await handle.queryPermission({mode:'readwrite'});
+        if(perm !== 'granted') perm = await handle.requestPermission({mode:'readwrite'});
+        if(perm === 'granted') return handle;
+        return null;
+      }catch(e){ return null; }
+    }
+    try{
+      handle = await window.showDirectoryPicker({mode:'readwrite'});
+      await rbIdbSet(DC_FS_KEY, handle);
+      return handle;
+    }catch(e){ return null; }
+  }
+  async function dcChooseExportFolder(){
+    const statusEl = document.getElementById('dc-export-status');
+    if(!('showDirectoryPicker' in window)){
+      if(statusEl) statusEl.textContent = 'This browser doesn\'t support direct-folder saving (Chrome or Edge required) — entries stay in this browser only.';
+      return;
+    }
+    const handle = await dcGetExportDirHandle(true);
+    if(handle && statusEl){
+      // A folder just linked for the first time may already have a
+      // detail-catalog-export.json in it (e.g. synced from another device) —
+      // load that in immediately rather than silently overwriting it.
+      await dcTryLoadFromHandle(handle);
+      await dcTryLoadLibraryFromHandle(handle);
+      await dcTryLoadPullFromHandle(handle);
+      statusEl.textContent = `Linked to "${handle.name}" — reads ${DC_LIBRARY_FILENAME} for the library, saves your own entries to ${DC_EXPORT_FILENAME}, and sends placement requests via ${DC_PULL_FILENAME}, all synced wherever that folder syncs.`;
+      dcPopulateFilters();
+      dcRender();
+      dcRenderPullQueue();
+    }
+  }
+  async function dcTryLoadFromHandle(handle){
+    try{
+      const fileHandle = await handle.getFileHandle(DC_EXPORT_FILENAME, {create:false});
+      const file = await fileHandle.getFile();
+      const data = JSON.parse(await file.text());
+      if(Array.isArray(data.entries)){
+        dcUserEntries = data.entries;
+        localStorage.setItem(DC_LOCALSTORAGE_KEY, JSON.stringify(dcUserEntries));
+        dcRebuildData();
+      }
+    }catch(e){ /* no existing file in that folder yet — fine, we'll create one on first save */ }
+  }
+  async function dcPersist(){
+    localStorage.setItem(DC_LOCALSTORAGE_KEY, JSON.stringify(dcUserEntries));
+    const handle = await dcGetExportDirHandle(false);
+    if(!handle) return; // no folder linked (or permission lapsed) — localStorage is still saved above
+    try{
+      const fileHandle = await handle.getFileHandle(DC_EXPORT_FILENAME, {create:true});
+      const writable = await fileHandle.createWritable();
+      await writable.write(JSON.stringify({entries: dcUserEntries, savedAt: new Date().toISOString()}, null, 2));
+      await writable.close();
+    }catch(ex){
+      console.warn('Detail Catalog: could not write to linked folder', ex);
+    }
+  }
+  // On load: check (never prompt) whether a previously-linked folder still
+  // has permission, pull in its file if so, so the catalog reflects
+  // whatever another device last saved without an extra click.
+  async function dcCheckLinkedFolderOnLoad(){
+    const statusEl = document.getElementById('dc-export-status');
+    if(!('showDirectoryPicker' in window)) return;
+    try{
+      const handle = await rbIdbGet(DC_FS_KEY);
+      if(!handle) return;
+      const perm = await handle.queryPermission({mode:'readwrite'});
+      if(perm === 'granted'){
+        await dcTryLoadFromHandle(handle);
+        await dcTryLoadLibraryFromHandle(handle);
+        await dcTryLoadPullFromHandle(handle);
+        dcPopulateFilters();
+        dcRender();
+        dcRenderPullQueue();
+        if(statusEl) statusEl.textContent = `Linked to "${handle.name}" — reads ${DC_LIBRARY_FILENAME} for the library, saves your own entries to ${DC_EXPORT_FILENAME}, and sends placement requests via ${DC_PULL_FILENAME}.`;
+      } else if(statusEl){
+        statusEl.textContent = `Previously linked to "${handle.name}", but permission needs to be re-confirmed — click "Link catalog folder" to re-grant it.`;
+      }
+    }catch(e){ /* nothing linked yet */ }
+  }
+
+  document.addEventListener('DOMContentLoaded', ()=>{
+    dcPopulateFilters();
+    dcRender();
+    dcRenderQueue();
+    dcRenderPullQueue();
+    dcCheckLinkedFolderOnLoad();
+  });
   document.querySelectorAll('nav button[data-panel]').forEach(btn=>{
     btn.addEventListener('click', ()=> showPanel(btn.dataset.panel));
   });
@@ -1239,6 +2311,44 @@
     });
     return rows;
   }
+  // Builds a RedSpec-style "Design Controls" table (Design value / Allowable
+  // value / % utilized) from the structured lastXCalc.controls array each
+  // calc function now populates, so the building official can see exactly
+  // what governed and by how much without re-deriving it from prose.
+  function buildControlsTableHtml(controls){
+    if(!controls || !controls.length) return '';
+    const rows = controls.map(c=>{
+      const pctStr = isFinite(c.pct) ? c.pct.toFixed(0)+'%' : '&mdash;';
+      const over = c.pct>100;
+      return `<tr${over?' class="over"':''}><td class="clabel">${c.label}${c.defl?` (${c.defl})`:''}</td><td class="cval">${fmtCalcNum(c.design)}</td><td class="cval">${fmtCalcNum(c.allow)}</td><td class="cpct">${pctStr}</td></tr>`;
+    }).join('');
+    return `<p class="section-label">Design Controls</p>
+      <table class="controls">
+        <tr><th>Check</th><th>Design</th><th>Allowable</th><th>% Utilized</th></tr>
+        ${rows}
+      </table>`;
+  }
+  function fmtCalcNum(v){
+    if(v===Infinity) return '&infin;';
+    if(!isFinite(v)) return '&mdash;';
+    return (Math.abs(v)>=100 ? Math.round(v) : Math.round(v*100)/100).toLocaleString();
+  }
+  // Application Loads table, RedSpec-style — the load TYPE/case actually fed
+  // into the governing checks above, so the official can trace every number
+  // in Design Controls back to where it came from.
+  function buildLoadsTableHtml(loadsCfg){
+    if(!loadsCfg) return '';
+    const rows = loadsCfg.map(r=>`<tr><td class="clabel">${r.label}</td><td class="cval">${r.value}</td></tr>`).join('');
+    return `<p class="section-label">Application Loads</p>
+      <table class="loads"><tr><th>Item</th><th>Value</th></tr>${rows}</table>`;
+  }
+  function buildReactionsTableHtml(reactions){
+    if(!reactions || !reactions.length) return '';
+    const rows = reactions.map(r=>`<tr><td class="clabel">${r.type==='wall'?'Wall':r.type==='beam'?'Beam':'Post'} ${r.idx+1}</td><td class="cval">${Math.round(r.R).toLocaleString()} lb</td></tr>`).join('');
+    return `<p class="section-label">Support Reactions</p>
+      <table class="loads"><tr><th>Support</th><th>Reaction</th></tr>${rows}</table>`;
+  }
+
   function generatePrintSheet(cfg){
     const panel = document.getElementById(cfg.panelId);
     if(!panel) return;
@@ -1256,10 +2366,12 @@
     const flagEl = panel.querySelector('.flag');
     const disclaimer = flagEl ? flagEl.innerHTML : 'Preliminary field check — not a substitute for a stamped calculation.';
     const dateStr = new Date().toLocaleDateString('en-US', {year:'numeric', month:'long', day:'numeric'});
+    const loadsHtml = buildLoadsTableHtml(cfg.loadsRows);
+    const controlsHtml = buildControlsTableHtml(cfg.calc && cfg.calc.controls);
+    const reactionsHtml = buildReactionsTableHtml(cfg.calc && cfg.calc.reactions);
+    const governHtml = (cfg.calc && cfg.calc.govern) ? `<p class="govern-line">Governing check: <b>${cfg.calc.govern}</b>${cfg.calc.note?` &mdash; ${cfg.calc.note}`:''}</p>` : '';
 
-    const win = window.open('', '_blank');
-    if(!win){ showLoadToast('Pop-up blocked — allow pop-ups for this page to print a calc sheet.'); return; }
-    win.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>${cfg.title} — Calculation Sheet</title>
+    const html = `<!doctype html><html><head><meta charset="utf-8"><title>${cfg.title} — Calculation Sheet</title>
 <style>
   @page{ margin:0.65in; }
   *{ box-sizing:border-box; }
@@ -1274,6 +2386,15 @@
   table.inputs td{ padding:4px 8px; border-bottom:1px solid #e4e0d4; }
   table.inputs td.label{ color:#5b6b83; width:60%; }
   table.inputs td.value{ font-weight:600; text-align:right; white-space:nowrap; }
+  table.controls, table.loads{ width:100%; border-collapse:collapse; font-family:Arial,sans-serif; font-size:.85rem; margin-bottom:16px; page-break-inside:avoid; }
+  table.controls th, table.loads th{ text-align:left; font-size:.7rem; text-transform:uppercase; letter-spacing:.04em; color:#5b6b83; border-bottom:2px solid #1c2438; padding:4px 8px; }
+  table.controls td, table.loads td{ padding:5px 8px; border-bottom:1px solid #e4e0d4; }
+  table.controls td.clabel, table.loads td.clabel{ color:#1c2438; }
+  table.controls td.cval, table.loads td.cval{ text-align:right; white-space:nowrap; font-variant-numeric:tabular-nums; }
+  table.controls td.cpct{ text-align:right; font-weight:700; white-space:nowrap; }
+  table.controls tr.over td{ color:#a11; }
+  table.controls tr.over td.cpct::after{ content:' — EXCEEDS'; font-weight:700; }
+  .govern-line{ font-family:Arial,sans-serif; font-size:.85rem; margin:0 0 14px; }
   .diagram-wrap{ text-align:center; margin:10px 0 16px; page-break-inside:avoid; }
   .diagram-wrap svg{ max-width:100%; height:auto; border:1px solid #c7c2b4; border-radius:4px; background:#f4f2ec; }
   .result-block{ font-family:Arial,sans-serif; font-size:.9rem; line-height:1.65; border:1px solid #c7c2b4; border-radius:6px; padding:14px 16px; background:#fafaf7; page-break-inside:avoid; margin-bottom:16px; }
@@ -1297,30 +2418,92 @@
   <h2 class="report-title">${cfg.title} — Calculation Summary</h2>
   <p class="section-label">Inputs</p>
   <table class="inputs">${inputRows.map(r=>`<tr><td class="label">${r.label}</td><td class="value">${r.value}</td></tr>`).join('')}</table>
-  ${diagramsHtml ? `<p class="section-label">Diagram</p>${diagramsHtml}` : ''}
-  <p class="section-label">Result</p>
+  ${loadsHtml}
+  ${diagramsHtml ? `<p class="section-label">Diagram &mdash; Spans and Loads</p>${diagramsHtml}` : ''}
+  ${controlsHtml}
+  ${governHtml}
+  ${reactionsHtml}
+  <p class="section-label">Result Summary</p>
   <div class="result-block">${resultHtml}</div>
   <div class="disclaimer">${disclaimer}</div>
   <div class="sig">
     <div>Prepared by</div>
     <div>Date</div>
   </div>
-</body></html>`);
-    win.document.close();
-    win.focus();
+</body></html>`;
+
+    // Shown as an in-page iframe overlay rather than a new window/tab —
+    // window.open() gets silently blocked in sandboxed webviews (Claude's
+    // in-app browser, some mobile contexts) with no pop-up-permission toggle
+    // for the person to grant. An iframe is just a DOM element, not a new
+    // browsing context, so it isn't subject to pop-up blocking; its own
+    // "Print / Save as PDF" button calls window.print() against the
+    // iframe's own window, which prints only that iframe's content.
+    let frame = document.getElementById('print-sheet-frame');
+    if(!frame){
+      frame = document.createElement('iframe');
+      frame.id = 'print-sheet-frame';
+      document.body.appendChild(frame);
+    }
+    let closeBtn = document.getElementById('print-sheet-close');
+    if(!closeBtn){
+      closeBtn = document.createElement('button');
+      closeBtn.id = 'print-sheet-close';
+      closeBtn.textContent = '✕ Close';
+      closeBtn.onclick = ()=>{ frame.style.display='none'; closeBtn.style.display='none'; };
+      document.body.appendChild(closeBtn);
+    }
+    frame.srcdoc = html;
+    frame.style.display = 'block';
+    closeBtn.style.display = 'block';
   }
   function printGlulamSheet(){
-    generatePrintSheet({panelId:'glulam', title:(document.getElementById('g-member-type') && document.getElementById('g-member-type').value==='sawn') ? 'Beam Sizing — Bundled Sawn Lumber' : 'Beam Sizing — Glulam', diagramIds:['g-beam-svg','g-shear-svg','g-moment-svg'], resultId:'g-result'});
+    const c = lastGlulamCalc;
+    const loadsRows = c ? [
+      {label:'Load type', value:'Uniform (Dead + Live &times; Tributary)'},
+      {label:'Dead load', value:`${c.dl} psf`},
+      {label:'Live load / snow', value:`${c.ll} psf`},
+      {label:'Tributary width', value: c.tribApply ? `${c.trib} ft` : `${c.trib} ft (not applied — OFF)`},
+      {label:'Resulting uniform load, w', value:`${Math.round(c.w).toLocaleString()} plf`},
+      {label:'Section provided', value:c.size}
+    ] : null;
+    generatePrintSheet({panelId:'glulam', title:(document.getElementById('g-member-type') && document.getElementById('g-member-type').value==='sawn') ? 'Beam Sizing — Bundled Sawn Lumber' : 'Beam Sizing — Glulam', diagramIds:['g-beam-svg','g-shear-svg','g-moment-svg'], resultId:'g-result', calc:c, loadsRows});
   }
   function printSpanCalcSheet(){
-    generatePrintSheet({panelId:'spancalc', title:'LVL / I-Joist Calc', diagramIds:[], resultId:'sp-result'});
+    const c = lastSpanCalc;
+    const loadsRows = c ? [
+      {label:'Load type', value: c.P ? 'Uniform (Dead + Live) + point load at midspan' : 'Uniform (Dead + Live)'},
+      {label:'Dead load', value:`${c.dl} psf`},
+      {label:'Live load / snow', value:`${c.ll} psf`},
+      {label:'Tributary width', value:`${c.trib} ft`},
+      {label:'Point load (midspan)', value: c.P ? `${Math.round(c.P).toLocaleString()} lb` : 'none'},
+      {label:'Span', value:`${c.span} ft`},
+      {label:'Section provided', value:c.size}
+    ] : null;
+    generatePrintSheet({panelId:'spancalc', title:'LVL / I-Joist Calc', diagramIds:[], resultId:'sp-result', calc:c, loadsRows});
   }
   function printJoistSheet(){
-    generatePrintSheet({panelId:'joist', title:'Joist Spans', diagramIds:['j-beam-svg'], resultId:'j-result'});
+    const c = lastJoistCalc;
+    const loadsRows = c ? [
+      {label:'Load type', value:'Uniform (Dead + Live &times; Tributary)'},
+      {label:'Dead load', value:`${c.dl} psf`},
+      {label:'Live load', value:`${c.ll} psf`},
+      {label:'Spacing / tributary', value:`${c.spacing}" o.c. (${c.trib.toFixed(2)} ft trib.)`},
+      {label:'Resulting uniform load, w', value:`${Math.round(c.wTotal).toLocaleString()} plf`},
+      {label:'Section provided', value:c.size}
+    ] : null;
+    generatePrintSheet({panelId:'joist', title:'Joist Spans', diagramIds:['j-beam-svg'], resultId:'j-result', calc:c, loadsRows});
   }
   function printFootingSheet(){
     const mode = document.getElementById('f-mode-seg') ? document.getElementById('f-mode-seg').querySelector('.active').dataset.mode : 'size';
-    generatePrintSheet({panelId:'footing', title:'Footing / Bearing — '+(mode==='size'?'Size a Footing':'Check a Footing'), diagramIds:[], resultId:'f-result'});
+    const c = lastFootingCalc;
+    const loadsRows = c ? [
+      {label:'Footing size', value:c.size},
+      {label:'Service load', value: c.P!==undefined ? `${c.P.toFixed(1)} kips (column)` : `${Math.round(c.p).toLocaleString()} plf (wall)`},
+      {label:'Eccentricity', value: c.eIn ? `${c.eIn} in` : 'none'},
+      {label:'Allowable soil bearing, qa', value:`${Math.round(c.qa).toLocaleString()} psf`}
+    ] : null;
+    generatePrintSheet({panelId:'footing', title:'Footing / Bearing — '+(mode==='size'?'Size a Footing':'Check a Footing'), diagramIds:[], resultId:'f-result', calc:c, loadsRows});
   }
 
   function openMobileMoreSheet(){
@@ -2282,6 +3465,11 @@
     return sizes.sort((a,b)=> (a.b*a.d) - (b.b*b.d));
   }
 
+  // Populated by calcGlulam() each time it runs — the print sheet reads this
+  // to build a RedSpec-style "Design Controls" (%) table and an "Application
+  // Loads" table instead of just dumping the on-screen result text, without
+  // duplicating the calc logic itself.
+  let lastGlulamCalc = null;
   function calcGlulam(){
     const memberTypeEl = document.getElementById('g-member-type');
     const memberType = memberTypeEl ? memberTypeEl.value : 'glulam';
@@ -2429,10 +3617,20 @@
           Moment required = ${Mreq.toFixed(0)} ft-lb -> allowable ${fit.Mallow.toFixed(0)} ft-lb<br>
           I required (defl) = ${Ireq.toFixed(0)} in4 -> provided ${fit.I.toFixed(0)} in4<br>
           Governs: ${fit.Mallow/Mreq < fit.I/Ireq ? 'bending' : 'deflection'}${reactionNote}`;
+        lastGlulamCalc = {
+          isSawn:true, size:`(${sawnPlies}) ${fit.key} — ${fit.b}" x ${dFrac}" bundled, ${JOIST_GRADE_LABEL[gradeKey]||gradeKey} DF-L`,
+          w, dl, ll, trib, tribApply, govern: fit.Mallow/Mreq < fit.I/Ireq ? 'Bending' : 'Deflection',
+          controls: [
+            {label:'Bending Moment (ft-lb)', design:Mreq, allow:fit.Mallow, pct:Mreq/fit.Mallow*100},
+            {label:'Deflection, I (in4)', design:Ireq, allow:fit.I, pct:Ireq/fit.I*100, defl:`L/${defl}`}
+          ],
+          reactions
+        };
       } else {
         box.classList.add('warn');
         box.innerHTML = `<div class="headline">No size up to (${sawnPlies}) 2x14 works</div>
           Even (${sawnPlies}) 2x14 doesn't clear the required moment/deflection for this span.${bayNote} Try more plies, a higher grade, or switch to Glulam.${reactionNote}`;
+        lastGlulamCalc = null;
       }
     } else {
       // Fixed width — only the depth is solved for, since width is picked to match
@@ -2448,10 +3646,20 @@
           Sx required = ${Sreq.toFixed(1)} in3 -> provided ${fit.Sx.toFixed(1)} in3<br>
           I required (defl) = ${Ireq.toFixed(0)} in4 -> provided ${fit.I.toFixed(0)} in4<br>
           Governs: ${fit.Sx/Sreq < fit.I/Ireq ? 'bending' : 'deflection'}${reactionNote}`;
+        lastGlulamCalc = {
+          isSawn:false, size:`${wFrac}" x ${dFrac}" glulam`,
+          w, dl, ll, trib, tribApply, govern: fit.Sx/Sreq < fit.I/Ireq ? 'Bending' : 'Deflection',
+          controls: [
+            {label:'Bending, Sx (in3)', design:Sreq, allow:fit.Sx, pct:Sreq/fit.Sx*100},
+            {label:'Deflection, I (in4)', design:Ireq, allow:fit.I, pct:Ireq/fit.I*100, defl:`L/${defl}`}
+          ],
+          reactions
+        };
       } else {
         box.classList.add('warn');
         box.innerHTML = `<div class="headline">No depth up to 30" at ${wFrac}" width fits — needs a wider beam, a deeper custom glulam, or a different framing scheme.</div>
           Sx required = ${Sreq.toFixed(1)} in3, I required = ${Ireq.toFixed(0)} in4 exceed what a 30"-deep ${wFrac}"-wide section provides.${bayNote}${reactionNote}`;
+        lastGlulamCalc = null;
       }
     }
   }
@@ -2489,6 +3697,7 @@
     {depth:18,    label:'18"',     Mr:5100, Vr:2100, EI:870e6}
   ];
 
+  let lastSpanCalc = null;
   function calcSpan(){
     const span = parseFloat(document.getElementById('sp-span').value);
     const trib = parseFloat(document.getElementById('sp-trib').value);
@@ -2538,10 +3747,20 @@
           I required (defl) = ${Ireq.toFixed(0)} in4 -> provided ${fit.I.toFixed(0)} in4<br>
           Shear area required = ${shearAreaReq.toFixed(1)} in2 -> provided ${fit.area.toFixed(1)} in2<br>
           Governs: ${govern}`;
+        lastSpanCalc = {
+          size:`${b}" x ${dLabel}" ${isLvl?'LVL':'sawn'} (${grade.label})`,
+          dl, ll, trib, P, span, govern: govern.charAt(0).toUpperCase()+govern.slice(1),
+          controls: [
+            {label:'Bending, Sx (in3)', design:Sreq, allow:fit.Sx, pct:Sreq/fit.Sx*100},
+            {label:'Deflection, I (in4)', design:Ireq, allow:fit.I, pct:Ireq/fit.I*100, defl:`L/${deflRatio}`},
+            {label:'Shear area (in2)', design:shearAreaReq, allow:fit.area, pct:shearAreaReq/fit.area*100}
+          ]
+        };
       } else {
         box.classList.add('warn');
         box.innerHTML = `<div class="headline">No depth at ${b}" width fits within the standard size list — needs more plies, a deeper custom section, or a different framing scheme.</div>
           Sx required = ${Sreq.toFixed(1)} in3, I required = ${Ireq.toFixed(0)} in4, shear area required = ${shearAreaReq.toFixed(1)} in2.`;
+        lastSpanCalc = null;
       }
     } else {
       // I-joist: table lookup
@@ -2561,10 +3780,21 @@
           Shear: ${V.toFixed(0)} lb -> capacity ${fit.Vr} lb<br>
           Deflection: ${fit.defl.toFixed(3)}" -> allowable ${deflLimitIn.toFixed(3)}"<br>
           Governs: ${govern}<br><span class="note">Generic representative capacities — confirm against the manufacturer's actual ESR span tables before specifying.</span>`;
+        lastSpanCalc = {
+          size:`${fit.label} deep I-joist (generic)`,
+          dl, ll, trib, P, span, govern: govern.charAt(0).toUpperCase()+govern.slice(1),
+          controls: [
+            {label:'Bending Moment (ft-lb)', design:M, allow:fit.Mr, pct:M/fit.Mr*100},
+            {label:'Shear (lb)', design:V, allow:fit.Vr, pct:V/fit.Vr*100},
+            {label:'Deflection (in)', design:fit.defl, allow:deflLimitIn, pct:fit.defl/deflLimitIn*100, defl:`L/${deflRatio}`}
+          ],
+          note:'Generic representative I-joist capacities — confirm against the manufacturer\'s actual ESR span tables.'
+        };
       } else {
         box.classList.add('warn');
         box.innerHTML = `<div class="headline">No depth up to 18" (generic table) fits — needs a deeper/heavier I-joist series, closer spacing, or a different framing scheme.</div>
           M = ${M.toFixed(0)} ft-lb, V = ${V.toFixed(0)} lb — check against actual manufacturer capacities for deeper series.`;
+        lastSpanCalc = null;
       }
     }
   }
@@ -3207,6 +4437,7 @@
     </div>`;
   }
 
+  let lastJoistCalc = null;
   function calcJoist(){
     const box = document.getElementById('j-result');
     if(!box) return;
@@ -3271,6 +4502,17 @@
         Governing element: ${worst.seg.label} — ${fmtSpan(worst.seg.length)} ${worst.seg.type==='bay'?'span':'cantilever'}, allowable ${fmtSpan(worst.allow)} (governed by ${governText})<br>
         Other bays/overhangs: ${segs.filter(s=>s!==worst.seg).map(s=>`${s.label} ${fmtSpan(s.length)}`).join(', ') || '—'}${reactionNote}<br>
         <span style="color:#5b6b83">Next size down would not clear the governing bay/overhang above.</span>${codeWarning}`;
+      lastJoistCalc = {
+        size:`${key} @ ${spacing}" o.c., ${JOIST_GRADE_LABEL[grade]||grade} DF-L`,
+        dl, ll, trib, spacing, wTotal, govern: worst.governs==='bending' ? 'Bending' : 'Deflection',
+        controls: segs.map(s=>{
+          const res = s.type==='bay'
+            ? joistAllowableSpan(grade, key, spacing, dl, ll, deflRatio)
+            : joistAllowableCantilever(grade, key, spacing, dl, ll, deflRatio);
+          return {label:`${s.label} (${s.type==='bay'?'span':'cantilever'})`, design:s.length, allow:res.span, pct:s.length/res.span*100, defl:`L/${deflRatio}`};
+        }),
+        reactions
+      };
     }else{
       const worst14 = checkSize('2x14');
       box.className = 'result warn';
@@ -3279,6 +4521,7 @@
         Grade: ${JOIST_GRADE_LABEL[grade]||grade} DF-L &nbsp;|&nbsp; Total load: ${wTotal.toFixed(0)} plf<br>
         Even a 2x14 @ ${spacing}" o.c. only reaches ${fmtSpan(worst14.allow)} as a ${worst14.seg.type==='bay'?'span':'cantilever'}, short of the ${worst14.seg.label} at ${fmtSpan(worst14.seg.length)}.${reactionNote}<br>
         Try tighter spacing, a higher grade, moving that bearing, or check an LVL/I-joist on the LVL/I-Joist Calc tab.${codeWarning}`;
+      lastJoistCalc = null;
     }
   }
 
@@ -3440,6 +4683,7 @@
   function toggleFixedL(){
     document.getElementById('f-size-fixedL-wrap').classList.toggle('hide', document.getElementById('f-size-shape').value !== 'rect');
   }
+  let lastFootingCalc = null;
   function runFooting(){
     if(footingMode==='size') sizeFooting(); else calcFooting();
   }
@@ -3475,6 +4719,10 @@
           Footing area = ${(Lr*Lr).toFixed(1)} ft&sup2; &nbsp; P = ${(P/1000).toFixed(1)} kips<br>
           At that size: q<sub>max</sub> = ${q.qMax===Infinity?'&infin;':q.qMax.toFixed(0)} psf ${q.outsideKern?'':`&nbsp; q<sub>min</sub> = ${q.qMin.toFixed(0)} psf`} (allowable ${qa.toFixed(0)} psf)<br>
           ${eIn ? `Eccentricity e = ${eIn} in, kern = L/6 = ${(Lr/6).toFixed(2)} ft${q.outsideKern? ' — outside the kern; some lift-off assumed, see flag below':''}<br>` : ''}`;
+        lastFootingCalc = {
+          size:`${fmtSpan(Lr)} x ${fmtSpan(Lr)} square isolated footing`, P: P/1000, qa, eIn,
+          controls:[{label:'Soil bearing pressure, qmax (psf)', design:q.qMax, allow:qa, pct:q.qMax/qa*100}]
+        };
       } else {
         const L = parseFloat(document.getElementById('f-size-L').value);
         const kern = L/6;
@@ -3498,6 +4746,10 @@
           Footing area = ${(L*Br).toFixed(1)} ft&sup2; &nbsp; P = ${(P/1000).toFixed(1)} kips<br>
           At that size: q<sub>max</sub> = ${q.qMax===Infinity?'&infin;':q.qMax.toFixed(0)} psf (allowable ${qa.toFixed(0)} psf)<br>
           ${note ? `<span class="note">${note}</span><br>` : ''}`;
+        lastFootingCalc = {
+          size:`${fmtSpan(L)} x ${fmtSpan(Br)} isolated footing`, P: P/1000, qa, eIn,
+          controls:[{label:'Soil bearing pressure, qmax (psf)', design:q.qMax, allow:qa, pct:q.qMax/qa*100}]
+        };
       }
     } else {
       const p = parseFloat(document.getElementById('f-size-p').value);
@@ -3518,6 +4770,10 @@
         p = ${p.toFixed(0)} plf (per linear foot of wall)<br>
         At that size: q<sub>max</sub> = ${q.qMax===Infinity?'&infin;':q.qMax.toFixed(0)} psf ${q.outsideKern?'':`&nbsp; q<sub>min</sub> = ${q.qMin.toFixed(0)} psf`} (allowable ${qa.toFixed(0)} psf)<br>
         ${eIn ? `Eccentricity e = ${eIn} in, kern = W/6 = ${(Wr/6).toFixed(2)} ft${q.outsideKern? ' — outside the kern; some lift-off assumed, see flag below':''}<br>` : ''}`;
+      lastFootingCalc = {
+        size:`${fmtSpan(Wr)} wide continuous footing`, p, qa, eIn,
+        controls:[{label:'Soil bearing pressure, qmax (psf)', design:q.qMax, allow:qa, pct:q.qMax/qa*100}]
+      };
     }
   }
 
@@ -3551,6 +4807,10 @@
         q<sub>max</sub> = ${q.qMax===Infinity?'&infin;':q.qMax.toFixed(0)} psf &nbsp; q<sub>min</sub> = ${q.qMin.toFixed(0)} psf<br>` : ''}
         ${note ? `<span class="note">${note}</span><br>` : ''}
         Allowable bearing pressure = ${qa.toFixed(0)} psf`;
+      lastFootingCalc = {
+        size:`${L}' x ${B}' isolated footing (as entered)`, P: P/1000, qa, eIn,
+        controls:[{label:'Soil bearing pressure, qmax (psf)', design:q.qMax, allow:qa, pct:q.qMax/qa*100}]
+      };
 
     } else {
       const W = parseFloat(document.getElementById('f-W').value);
@@ -3575,6 +4835,10 @@
         q<sub>max</sub> = ${q.qMax===Infinity?'&infin;':q.qMax.toFixed(0)} psf &nbsp; q<sub>min</sub> = ${q.qMin.toFixed(0)} psf<br>` : ''}
         ${note ? `<span class="note">${note}</span><br>` : ''}
         Allowable bearing pressure = ${qa.toFixed(0)} psf`;
+      lastFootingCalc = {
+        size:`${W}' wide continuous footing (as entered)`, p, qa, eIn,
+        controls:[{label:'Soil bearing pressure, qmax (psf)', design:q.qMax, allow:qa, pct:q.qMax/qa*100}]
+      };
     }
   }
 
