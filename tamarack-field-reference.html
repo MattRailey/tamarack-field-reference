@@ -106,6 +106,10 @@
   .dc-card .dc-chips{ display:flex; flex-wrap:wrap; gap:4px; }
   .dc-chip{ font-size:.66rem; padding:2px 7px; border-radius:999px; background:var(--paper); color:var(--steel); }
   .dc-empty{ color:var(--steel); font-size:.85rem; padding:30px 0; text-align:center; }
+  .dc-card.dc-selectable{ cursor:pointer; }
+  .dc-card.dc-selected{ outline:3px solid var(--blueprint); outline-offset:-3px; }
+  .dc-card-select-box{ position:absolute; top:8px; left:8px; width:22px; height:22px; background:#fff; border:2px solid var(--steel); border-radius:4px; display:flex; align-items:center; justify-content:center; font-size:.85rem; font-weight:bold; z-index:2; color:#fff; }
+  .dc-card-select-box.checked{ background:var(--blueprint); border-color:var(--blueprint); }
   .dc-modal-backdrop{ position:fixed; inset:0; background:rgba(20,24,40,.6); display:none; align-items:center; justify-content:center; z-index:200; padding:20px; }
   .dc-modal-backdrop.open{ display:flex; }
   .dc-modal{ background:#fff; border-radius:10px; max-width:760px; width:100%; max-height:88vh; overflow:auto; padding:20px; }
@@ -1191,6 +1195,17 @@
           </label>
           <div class="dc-tags" id="dc-tagbar"></div>
           <button class="run" onclick="dcOpenEditor(null)" style="margin-top:10px;">+ Add detail&hellip;</button>
+          <button class="run secondary" id="dc-select-toggle-btn" onclick="dcToggleSelectMode()" style="margin-top:10px;margin-left:8px;">Select multiple&hellip;</button>
+        </div>
+
+        <div class="card" id="dc-batch-toolbar" style="display:none;">
+          <div class="row" style="align-items:center; gap:10px; flex-wrap:wrap;">
+            <strong id="dc-batch-count">0 selected</strong>
+            <button class="run" onclick="dcOpenBatchEditor()">Batch edit&hellip;</button>
+            <button class="run secondary" onclick="dcSelectAllVisible()">Select all shown</button>
+            <button class="run secondary" onclick="dcClearSelection()">Clear selection</button>
+            <button class="run secondary" onclick="dcToggleSelectMode()">Done</button>
+          </div>
         </div>
 
         <div id="dc-empty-notice" class="card" style="display:none;">
@@ -1296,6 +1311,47 @@
           <div class="row" style="margin-top:14px;">
             <button class="run" onclick="dcSaveEditor()">Save</button>
             <button class="run secondary" onclick="dcCloseEditor()">Cancel</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="dc-modal-backdrop" id="dc-batch-editor-backdrop" onclick="if(event.target===this)dcCloseBatchEditor()">
+        <div class="dc-modal">
+          <button class="dc-modal-close" onclick="dcCloseBatchEditor()">&times;</button>
+          <h3 style="margin:0 0 6px;">Batch edit <span id="dc-batch-editor-count"></span></h3>
+          <p class="sub" style="margin:0 0 12px;">Leave a field blank to leave it unchanged. Name and view name are never batch-edited since each has to stay unique. For details pulled in from Details Library.rvt, only the Generic flag actually changes here — their other fields come from Revit itself; everything else below applies only to hand-added ("My Catalog") entries in the selection.</p>
+          <div class="grid">
+            <div><label>Element (blank = don't change)</label><input type="text" id="dc-be-element" list="dc-e-element-list" placeholder="e.g. Column"></div>
+            <div><label>Material (blank = don't change)</label><input type="text" id="dc-be-material" list="dc-e-material-list" placeholder="e.g. Steel/HSS"></div>
+            <div><label>Connection (blank = don't change)</label><input type="text" id="dc-be-connection" list="dc-e-connection-list" placeholder="e.g. Bearing plate + anchor rods"></div>
+          </div>
+          <div style="margin-top:10px;">
+            <label>Tags</label>
+            <div class="row" style="gap:10px;align-items:center;">
+              <select id="dc-be-tags-mode" style="width:auto;">
+                <option value="none">Don't change tags</option>
+                <option value="add">Add these tags</option>
+                <option value="remove">Remove these tags</option>
+                <option value="replace">Replace all tags with these</option>
+              </select>
+              <input type="text" id="dc-be-tags" placeholder="comma-separated, e.g. footing, anchor bolt" style="flex:1;">
+            </div>
+          </div>
+          <div style="margin-top:10px;">
+            <label>Generic flag</label>
+            <select id="dc-be-generic">
+              <option value="none">Don't change</option>
+              <option value="mark">Mark all as Generic</option>
+              <option value="unmark">Unmark all as Generic</option>
+            </select>
+          </div>
+          <div style="margin-top:10px;">
+            <label>Description (blank = don't change)</label>
+            <textarea id="dc-be-desc" rows="2" style="width:100%;padding:9px 10px;border:1px solid var(--line);border-radius:6px;font-family:var(--sans);font-size:.9rem;"></textarea>
+          </div>
+          <div class="row" style="margin-top:14px;">
+            <button class="run" onclick="dcApplyBatchEdit()">Apply to selected</button>
+            <button class="run secondary" onclick="dcCloseBatchEditor()">Cancel</button>
           </div>
         </div>
       </div>
@@ -1590,6 +1646,98 @@
     if(qRaw && fields.name.indexOf(qRaw)!==-1) score += 6; // whole phrase, unbroken, in the name
     return score;
   }
+  // ---- Multi-select + batch edit ----
+  let dcSelectMode = false;
+  let dcSelectedIds = new Set();
+  function dcToggleSelectMode(){
+    dcSelectMode = !dcSelectMode;
+    if(!dcSelectMode) dcSelectedIds.clear();
+    document.getElementById('dc-select-toggle-btn').textContent = dcSelectMode ? 'Exit select mode' : 'Select multiple…';
+    document.getElementById('dc-batch-toolbar').style.display = dcSelectMode ? 'block' : 'none';
+    dcUpdateBatchToolbar();
+    dcRender();
+  }
+  function dcClearSelection(){ dcSelectedIds.clear(); dcUpdateBatchToolbar(); dcRender(); }
+  function dcSelectAllVisible(){ dcLastResults.forEach(d=>dcSelectedIds.add(d.id)); dcUpdateBatchToolbar(); dcRender(); }
+  function dcToggleCardSelect(id){
+    if(dcSelectedIds.has(id)) dcSelectedIds.delete(id); else dcSelectedIds.add(id);
+    dcUpdateBatchToolbar();
+    dcRender();
+  }
+  function dcUpdateBatchToolbar(){
+    const el = document.getElementById('dc-batch-count');
+    if(el) el.textContent = dcSelectedIds.size + ' selected';
+  }
+  function dcOpenBatchEditor(){
+    if(!dcSelectedIds.size){ alert('Select at least one detail first.'); return; }
+    document.getElementById('dc-batch-editor-count').textContent = '(' + dcSelectedIds.size + ' selected)';
+    document.getElementById('dc-be-element').value = '';
+    document.getElementById('dc-be-material').value = '';
+    document.getElementById('dc-be-connection').value = '';
+    document.getElementById('dc-be-tags-mode').value = 'none';
+    document.getElementById('dc-be-tags').value = '';
+    document.getElementById('dc-be-generic').value = 'none';
+    document.getElementById('dc-be-desc').value = '';
+    document.getElementById('dc-batch-editor-backdrop').classList.add('open');
+  }
+  function dcCloseBatchEditor(){
+    document.getElementById('dc-batch-editor-backdrop').classList.remove('open');
+  }
+  function dcApplyBatchEdit(){
+    const elVal = document.getElementById('dc-be-element').value.trim();
+    const matVal = document.getElementById('dc-be-material').value.trim();
+    const connVal = document.getElementById('dc-be-connection').value.trim();
+    const tagsMode = document.getElementById('dc-be-tags-mode').value;
+    const tagsVal = document.getElementById('dc-be-tags').value.split(',').map(t=>t.trim()).filter(Boolean);
+    const genericMode = document.getElementById('dc-be-generic').value;
+    const descVal = document.getElementById('dc-be-desc').value.trim();
+
+    let userChanged = 0, libraryGenericOnly = 0, untouched = 0;
+    dcSelectedIds.forEach(id=>{
+      // Generic applies to ANY entry, library-synced or hand-added — it's
+      // tracked separately (dcGenericIds) from an entry's own fields.
+      if(genericMode==='mark') dcGenericIds.add(id);
+      else if(genericMode==='unmark') dcGenericIds.delete(id);
+
+      const userEntry = dcUserEntries.find(x=>x.id===id);
+      if(!userEntry){
+        // Library (Revit-synced) entry — same restriction as the
+        // single-item editor: only Generic can actually change here.
+        if(genericMode!=='none') libraryGenericOnly++;
+        else untouched++;
+        return;
+      }
+      let changed = genericMode!=='none';
+      if(elVal){ userEntry.element = elVal; changed = true; }
+      if(matVal){ userEntry.material = matVal; changed = true; }
+      if(connVal){ userEntry.connection = connVal; changed = true; }
+      if(descVal){ userEntry.desc = descVal; changed = true; }
+      if(tagsMode==='add' && tagsVal.length){
+        userEntry.tags = [...new Set([...(userEntry.tags||[]), ...tagsVal])];
+        changed = true;
+      } else if(tagsMode==='remove' && tagsVal.length){
+        const removeSet = new Set(tagsVal.map(t=>t.toLowerCase()));
+        userEntry.tags = (userEntry.tags||[]).filter(t=>!removeSet.has(t.toLowerCase()));
+        changed = true;
+      } else if(tagsMode==='replace'){
+        userEntry.tags = tagsVal;
+        changed = true;
+      }
+      if(changed) userChanged++; else untouched++;
+    });
+
+    dcPersist();
+    dcRebuildData();
+    dcPopulateFilters();
+    dcRender();
+    dcCloseBatchEditor();
+
+    let msg = userChanged + ' detail(s) updated.';
+    if(libraryGenericOnly) msg += ' ' + libraryGenericOnly + ' synced detail(s) had only their Generic flag changed (their other fields come from Revit).';
+    if(untouched) msg += ' ' + untouched + ' detail(s) had nothing to change.';
+    alert(msg);
+  }
+
   function dcRender(){
     const qRaw = document.getElementById('dc-search').value.trim().toLowerCase();
     const tokens = qRaw.split(/\s+/).filter(Boolean);
@@ -1633,9 +1781,13 @@
     }
     results.forEach(d=>{
       const card=document.createElement('div');
-      card.className='dc-card';
+      const isSelected = dcSelectedIds.has(d.id);
+      card.className = 'dc-card' + (dcSelectMode ? ' dc-selectable' : '') + (isSelected ? ' dc-selected' : '');
       card.style.position = 'relative';
-      card.onclick=()=>dcOpenModal(d.id);
+      card.onclick = dcSelectMode ? ()=>dcToggleCardSelect(d.id) : ()=>dcOpenModal(d.id);
+      const selectBoxHtml = dcSelectMode
+        ? `<div class="dc-card-select-box${isSelected?' checked':''}">${isSelected?'&#10003;':''}</div>`
+        : '';
       const thumbHtml = d.thumb
         ? `<img src="${d.thumb}" alt="" loading="lazy" style="width:100%;height:110px;object-fit:contain;background:var(--paper);border:1px solid var(--line);border-radius:6px;margin-bottom:8px;" onerror="this.remove();">`
         : '';
@@ -1649,7 +1801,7 @@
       const sourceHtml = d.sourceProject
         ? `<div class="dc-meta" title="The project (and sheet, if any) this was pulled from">from: ${d.sourceProject}${d.sourceSheet ? ' — '+d.sourceSheet : ''}</div>`
         : '';
-      card.innerHTML = `${thumbHtml}<h4>${d.name}</h4>
+      card.innerHTML = `${selectBoxHtml}${thumbHtml}<h4>${d.name}</h4>
         ${metaLine ? `<div class="dc-meta">${metaLine}</div>` : ''}
         <div class="dc-meta" style="font-family:monospace;">view: ${d.view||'—'}</div>
         ${sourceHtml}
