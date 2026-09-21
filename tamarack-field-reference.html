@@ -1296,6 +1296,7 @@
             <div><label>Material</label><input type="text" id="dc-e-material" list="dc-e-material-list" placeholder="e.g. Steel/HSS"><datalist id="dc-e-material-list"></datalist></div>
             <div><label>Connection</label><input type="text" id="dc-e-connection" list="dc-e-connection-list" placeholder="e.g. Bearing plate + anchor rods"><datalist id="dc-e-connection-list"></datalist></div>
             <div><label>Tags (comma-separated)</label><input type="text" id="dc-e-tags" placeholder="footing, base plate, anchor bolt"></div>
+            <div><label>Sheet type</label><select id="dc-e-category"></select></div>
           </div>
           <label style="display:flex;align-items:center;gap:6px;margin-top:10px;font-weight:normal;">
             <input type="checkbox" id="dc-e-generic" style="width:auto;margin:0;">
@@ -1319,11 +1320,12 @@
         <div class="dc-modal">
           <button class="dc-modal-close" onclick="dcCloseBatchEditor()">&times;</button>
           <h3 style="margin:0 0 6px;">Batch edit <span id="dc-batch-editor-count"></span></h3>
-          <p class="sub" style="margin:0 0 12px;">Leave a field blank to leave it unchanged. Name and view name are never batch-edited since each has to stay unique. For details pulled in from Details Library.rvt, only the Generic flag actually changes here — their other fields come from Revit itself; everything else below applies only to hand-added ("My Catalog") entries in the selection.</p>
+          <p class="sub" style="margin:0 0 12px;">Leave a field blank to leave it unchanged. Name and view name are never batch-edited since each has to stay unique. Generic flag and Sheet type apply to ANY selected detail, synced or hand-added. Element, Material, Connection, Tags, and Description only apply to hand-added ("My Catalog") entries in the selection — for a detail pulled in from Details Library.rvt, those fields still come from Revit itself.</p>
           <div class="grid">
             <div><label>Element (blank = don't change)</label><input type="text" id="dc-be-element" list="dc-e-element-list" placeholder="e.g. Column"></div>
             <div><label>Material (blank = don't change)</label><input type="text" id="dc-be-material" list="dc-e-material-list" placeholder="e.g. Steel/HSS"></div>
             <div><label>Connection (blank = don't change)</label><input type="text" id="dc-be-connection" list="dc-e-connection-list" placeholder="e.g. Bearing plate + anchor rods"></div>
+            <div><label>Sheet type</label><select id="dc-be-category"></select></div>
           </div>
           <div style="margin-top:10px;">
             <label>Tags</label>
@@ -1503,6 +1505,7 @@
   const DC_PULL_FILENAME = 'detail-catalog-pull.json'; // written here, consumed+trimmed by import_queued_details_script.py
   const DC_LOCALSTORAGE_KEY = 'dcCatalogUserEntries';
   const DC_GENERIC_LOCALSTORAGE_KEY = 'dcCatalogGenericIds';
+  const DC_CATEGORY_OVERRIDES_LOCALSTORAGE_KEY = 'dcCatalogCategoryOverrides';
 
   // User-managed entries (added/edited/deleted right in this tab) — kept
   // separate from DC_SAMPLE so the samples are never accidentally edited or
@@ -1530,6 +1533,22 @@
   let dcGenericIds = new Set();
   try{ dcGenericIds = new Set(JSON.parse(localStorage.getItem(DC_GENERIC_LOCALSTORAGE_KEY)||'[]')); }catch(e){ dcGenericIds = new Set(); }
 
+  // Sheet-type (category) overrides, keyed by entry id — same idea as
+  // dcGenericIds: a synced entry's category normally comes straight from
+  // Revit (the sheet it was pulled from), but a detail that's really just
+  // notes, or was mis-tagged, needs a way to be recategorized WITHOUT
+  // editing the model. Survives re-sync the same way Generic does, and
+  // saved into the same DC_EXPORT_FILENAME file.
+  let dcCategoryOverrides = {};
+  try{ dcCategoryOverrides = JSON.parse(localStorage.getItem(DC_CATEGORY_OVERRIDES_LOCALSTORAGE_KEY)||'{}'); }catch(e){ dcCategoryOverrides = {}; }
+  // Sheet-type options offered everywhere a category can be set — "Notes"
+  // covers a detail that's really just a note block someone pulled in as
+  // a drafting view rather than through Save Notes Bundle (which tags
+  // "General Notes" automatically); kept distinct from that since Matt
+  // may want to tell "properly bundled notes" and "this detail is really
+  // just notes" apart later.
+  const DC_CATEGORY_OPTIONS = ['Foundation','Floor','Roof','PEMB','Legend','General Notes','Notes','Uncategorized'];
+
   // Ids "Deleted" from a synced (Revit-sourced) entry — dcUserEntries
   // covers a hand-added entry's own delete (just remove it from that
   // array), but a Revit-sourced entry gets fully rebuilt from
@@ -1555,6 +1574,7 @@
     // exist in Matt's real library) so they're dropped the moment real
     // data shows up, not merely appended to it.
     const real = dcLibraryEntries.filter(d=>!dcExcludedIds.has(d.id)).concat(dcUserEntries);
+    real.forEach(d=>{ if(dcCategoryOverrides[d.id]) d.category = dcCategoryOverrides[d.id]; });
     DC_DATA = real.length ? real : DC_SAMPLE;
   }
 
@@ -1567,7 +1587,7 @@
     const catPrev = cat.value, elPrev = el.value, matPrev = mat.value, connPrev = conn.value;
     // Foundation/Floor/Roof/PEMB first (pyRevit's own category order), then
     // anything else (Uncategorized, or a category from a manual entry).
-    const catOrder = ['Foundation','Floor','Roof','PEMB','Legend','General Notes'];
+    const catOrder = DC_CATEGORY_OPTIONS;
     const catsSeen = [...new Set(DC_DATA.map(d=>d.category).filter(Boolean))];
     const categories = catOrder.filter(c=>catsSeen.includes(c)).concat(catsSeen.filter(c=>!catOrder.includes(c)).sort());
     const elements = [...new Set(DC_DATA.map(d=>d.element).filter(Boolean))].sort();
@@ -1678,6 +1698,9 @@
     document.getElementById('dc-be-tags').value = '';
     document.getElementById('dc-be-generic').value = 'none';
     document.getElementById('dc-be-desc').value = '';
+    const beCatSel = document.getElementById('dc-be-category');
+    beCatSel.innerHTML = '<option value="">Don\'t change</option>' + DC_CATEGORY_OPTIONS.map(c=>`<option value="${c}">${c}</option>`).join('');
+    beCatSel.value = '';
     document.getElementById('dc-batch-editor-backdrop').classList.add('open');
   }
   function dcCloseBatchEditor(){
@@ -1690,28 +1713,35 @@
     const tagsMode = document.getElementById('dc-be-tags-mode').value;
     const tagsVal = document.getElementById('dc-be-tags').value.split(',').map(t=>t.trim()).filter(Boolean);
     const genericMode = document.getElementById('dc-be-generic').value;
+    const categoryVal = document.getElementById('dc-be-category').value;
     const descVal = document.getElementById('dc-be-desc').value.trim();
 
-    let userChanged = 0, libraryGenericOnly = 0, untouched = 0;
+    let userChanged = 0, libraryFieldOnly = 0, untouched = 0;
     dcSelectedIds.forEach(id=>{
-      // Generic applies to ANY entry, library-synced or hand-added — it's
-      // tracked separately (dcGenericIds) from an entry's own fields.
+      // Generic and Sheet type apply to ANY entry, library-synced or
+      // hand-added — both are tracked separately (dcGenericIds,
+      // dcCategoryOverrides) from an entry's own Revit-sourced fields.
       if(genericMode==='mark') dcGenericIds.add(id);
       else if(genericMode==='unmark') dcGenericIds.delete(id);
+      if(categoryVal) dcCategoryOverrides[id] = categoryVal;
+      const touchedLibraryField = genericMode!=='none' || !!categoryVal;
 
       const userEntry = dcUserEntries.find(x=>x.id===id);
       if(!userEntry){
         // Library (Revit-synced) entry — same restriction as the
-        // single-item editor: only Generic can actually change here.
-        if(genericMode!=='none') libraryGenericOnly++;
+        // single-item editor: only Generic and Sheet type can actually
+        // change here; Element/Material/Connection/Tags/Description stay
+        // whatever Revit gave them.
+        if(touchedLibraryField) libraryFieldOnly++;
         else untouched++;
         return;
       }
-      let changed = genericMode!=='none';
+      let changed = touchedLibraryField;
       if(elVal){ userEntry.element = elVal; changed = true; }
       if(matVal){ userEntry.material = matVal; changed = true; }
       if(connVal){ userEntry.connection = connVal; changed = true; }
       if(descVal){ userEntry.desc = descVal; changed = true; }
+      if(categoryVal){ userEntry.category = categoryVal; } // keep the entry's own field in sync too, not just the override map
       if(tagsMode==='add' && tagsVal.length){
         userEntry.tags = [...new Set([...(userEntry.tags||[]), ...tagsVal])];
         changed = true;
@@ -1733,7 +1763,7 @@
     dcCloseBatchEditor();
 
     let msg = userChanged + ' detail(s) updated.';
-    if(libraryGenericOnly) msg += ' ' + libraryGenericOnly + ' synced detail(s) had only their Generic flag changed (their other fields come from Revit).';
+    if(libraryFieldOnly) msg += ' ' + libraryFieldOnly + ' synced detail(s) had only their Generic flag/Sheet type changed (their other fields come from Revit).';
     if(untouched) msg += ' ' + untouched + ' detail(s) had nothing to change.';
     alert(msg);
   }
@@ -2237,6 +2267,9 @@
     document.getElementById('dc-e-tags').value = d ? d.tags.join(', ') : '';
     document.getElementById('dc-e-desc').value = d ? (d.desc||'') : '';
     document.getElementById('dc-e-generic').checked = d ? dcGenericIds.has(d.id) : false;
+    const catSel = document.getElementById('dc-e-category');
+    catSel.innerHTML = DC_CATEGORY_OPTIONS.map(c=>`<option value="${c}">${c}</option>`).join('');
+    catSel.value = d ? (dcCategoryOverrides[d.id] || d.category || 'Uncategorized') : 'Uncategorized';
     document.getElementById('dc-e-thumb-file').value = '';
     const preview = document.getElementById('dc-e-thumb-preview');
     preview.innerHTML = (d && d.thumb) ? `<img src="${d.thumb}" style="max-width:180px;max-height:120px;border:1px solid var(--line);border-radius:6px;">` : '';
@@ -2263,16 +2296,27 @@
     if(!name || !view){ alert('Name and the Details Library view name are both required.'); return; }
     // dcEditingId can point at EITHER a hand-added entry or a
     // Revit-synced one — only a hand-added entry's own fields (name,
-    // view, element, etc.) are editable here-in-place-of-Revit; a
-    // synced entry keeps its Revit-sourced fields and only its Generic
-    // flag below is what this form can actually change for it.
+    // view, element, etc.) are editable here-in-place-of-Revit; a synced
+    // entry keeps its Revit-sourced fields and only its Generic flag and
+    // Sheet type (both tracked outside those fields) can actually change.
     const existingUser = dcEditingId ? dcUserEntries.find(x=>x.id===dcEditingId) : null;
     const editingLibraryEntry = dcEditingId && !existingUser ? dcLibraryEntries.find(x=>x.id===dcEditingId) : null;
     const isGeneric = document.getElementById('dc-e-generic').checked;
+    const categoryVal = document.getElementById('dc-e-category').value;
     if(editingLibraryEntry){
-      // Nothing here to add to dcUserEntries — just update the Generic flag.
+      // Nothing here to add to dcUserEntries — just update the Generic
+      // flag and any sheet-type override (both tracked outside the
+      // Revit-sourced fields, same reasoning as Generic).
       if(isGeneric) dcGenericIds.add(dcEditingId); else dcGenericIds.delete(dcEditingId);
+      // Whatever's picked here becomes the override going forward — simpler
+      // and more predictable than trying to detect "back to Revit's
+      // original", since dcRebuildData already overwrites d.category in
+      // place once an override exists, so the "original" isn't reliably
+      // recoverable from the in-memory entry after that point.
+      if(categoryVal) dcCategoryOverrides[dcEditingId] = categoryVal;
+      dcRebuildData();
       dcPersist();
+      dcPopulateFilters();
       dcRender();
       dcCloseEditor();
       return;
@@ -2283,6 +2327,7 @@
       element: document.getElementById('dc-e-element').value.trim() || 'Uncategorized',
       material: document.getElementById('dc-e-material').value.trim() || 'Uncategorized',
       connection: document.getElementById('dc-e-connection').value.trim() || 'N/A',
+      category: categoryVal || 'Uncategorized',
       tags: document.getElementById('dc-e-tags').value.split(',').map(t=>t.trim()).filter(Boolean),
       desc: document.getElementById('dc-e-desc').value.trim(),
       project: 'My Catalog',
@@ -2382,21 +2427,27 @@
         dcGenericIds = new Set(data.genericIds);
         localStorage.setItem(DC_GENERIC_LOCALSTORAGE_KEY, JSON.stringify([...dcGenericIds]));
       }
+      if(data.categoryOverrides && typeof data.categoryOverrides === 'object'){
+        dcCategoryOverrides = data.categoryOverrides;
+        localStorage.setItem(DC_CATEGORY_OVERRIDES_LOCALSTORAGE_KEY, JSON.stringify(dcCategoryOverrides));
+      }
       dcRebuildData();
     }catch(e){ /* no existing file in that folder yet — fine, we'll create one on first save */ }
   }
   async function dcPersist(){
-    // Hand-added entries AND which ids are marked Generic are the only
-    // two things this browser owns end-to-end, so one write covers both
-    // (see DC_EXPORT_FILENAME's comment above for why they're combined).
+    // Hand-added entries, which ids are marked Generic, and any sheet-type
+    // (category) overrides are the things this browser owns end-to-end, so
+    // one write covers all three (see DC_EXPORT_FILENAME's comment above
+    // for why they're combined).
     localStorage.setItem(DC_LOCALSTORAGE_KEY, JSON.stringify(dcUserEntries));
     localStorage.setItem(DC_GENERIC_LOCALSTORAGE_KEY, JSON.stringify([...dcGenericIds]));
+    localStorage.setItem(DC_CATEGORY_OVERRIDES_LOCALSTORAGE_KEY, JSON.stringify(dcCategoryOverrides));
     const handle = await dcGetExportDirHandle(false);
     if(!handle) return; // no folder linked (or permission lapsed) — localStorage is still saved above
     try{
       const fileHandle = await handle.getFileHandle(DC_EXPORT_FILENAME, {create:true});
       const writable = await fileHandle.createWritable();
-      await writable.write(JSON.stringify({entries: dcUserEntries, genericIds: [...dcGenericIds], savedAt: new Date().toISOString()}, null, 2));
+      await writable.write(JSON.stringify({entries: dcUserEntries, genericIds: [...dcGenericIds], categoryOverrides: dcCategoryOverrides, savedAt: new Date().toISOString()}, null, 2));
       await writable.close();
     }catch(ex){
       console.warn('Detail Catalog: could not write to linked folder', ex);
