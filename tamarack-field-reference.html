@@ -1185,6 +1185,10 @@
               <option value="">Connection &mdash; any</option>
             </select>
           </div>
+          <label style="display:flex;align-items:center;gap:6px;margin-top:8px;font-weight:normal;font-size:.85rem;">
+            <input type="checkbox" id="dc-show-generic" onchange="dcRender()" style="width:auto;margin:0;">
+            Show generic details too
+          </label>
           <div class="dc-tags" id="dc-tagbar"></div>
           <button class="run" onclick="dcOpenEditor(null)" style="margin-top:10px;">+ Add detail&hellip;</button>
         </div>
@@ -1278,6 +1282,10 @@
             <div><label>Connection</label><input type="text" id="dc-e-connection" list="dc-e-connection-list" placeholder="e.g. Bearing plate + anchor rods"><datalist id="dc-e-connection-list"></datalist></div>
             <div><label>Tags (comma-separated)</label><input type="text" id="dc-e-tags" placeholder="footing, base plate, anchor bolt"></div>
           </div>
+          <label style="display:flex;align-items:center;gap:6px;margin-top:10px;font-weight:normal;">
+            <input type="checkbox" id="dc-e-generic" style="width:auto;margin:0;">
+            Generic (a standard/boilerplate detail — hide it from the grid by default; "Show generic" in the filters still finds it)
+          </label>
           <label>Description</label>
           <textarea id="dc-e-desc" rows="2" style="width:100%;padding:9px 10px;border:1px solid var(--line);border-radius:6px;font-family:var(--sans);font-size:.9rem;"></textarea>
           <div style="margin-top:10px;">
@@ -1445,9 +1453,46 @@
   // trimmed by import_queued_details_script.py as each one gets placed.
   let dcPullEntries = [];
   try{ dcPullEntries = JSON.parse(localStorage.getItem('dcPullQueue')||'[]'); }catch(e){ dcPullEntries = []; }
-  let DC_DATA = DC_SAMPLE.concat(dcLibraryEntries, dcUserEntries);
 
-  function dcRebuildData(){ DC_DATA = DC_SAMPLE.concat(dcLibraryEntries, dcUserEntries); }
+  // Ids marked "Generic" (hidden from the grid by default, still fully
+  // searchable/filterable once "Show generic" is checked) — purely a
+  // browser-side display flag, kept separate from Revit's own database so
+  // it survives every re-sync (which fully replaces dcLibraryEntries).
+  // Persisted the same two ways as dcUserEntries: localStorage always,
+  // and the linked folder's JSON when one is set up, so it follows Matt
+  // across devices.
+  const DC_GENERIC_LOCALSTORAGE_KEY = 'dcCatalogGenericIds';
+  const DC_GENERIC_FILENAME = 'detail-catalog-generic.json';
+  let dcGenericIds = new Set();
+  try{ dcGenericIds = new Set(JSON.parse(localStorage.getItem(DC_GENERIC_LOCALSTORAGE_KEY)||'[]')); }catch(e){ dcGenericIds = new Set(); }
+
+  // Ids "Deleted" from a synced (Revit-sourced) entry — dcUserEntries
+  // covers a hand-added entry's own delete (just remove it from that
+  // array), but a Revit-sourced entry gets fully rebuilt from
+  // detail-catalog-export.json on every sync, so removing it here alone
+  // wouldn't stick. This id list is written to detail-catalog-excluded.json
+  // instead, which Sync Detail Library / Build Detail Database now read
+  // and skip on every later run — see build_database_entries's
+  // `excluded` param in detail_catalog_core.py. The view itself still
+  // physically exists in Details Library.rvt (harmless) unless removed
+  // there by hand; this just keeps it out of the catalog for good.
+  const DC_EXCLUDED_LOCALSTORAGE_KEY = 'dcCatalogExcludedIds';
+  const DC_EXCLUDED_FILENAME = 'detail-catalog-excluded.json';
+  let dcExcludedIds = new Set();
+  try{ dcExcludedIds = new Set(JSON.parse(localStorage.getItem(DC_EXCLUDED_LOCALSTORAGE_KEY)||'[]')); }catch(e){ dcExcludedIds = new Set(); }
+
+  let DC_DATA = [];
+
+  function dcRebuildData(){
+    // The sample entries are only a "here's the shape of it" placeholder
+    // for an empty catalog — once anything real has been synced or
+    // hand-added, they'd otherwise sit forever in every filter dropdown
+    // (a permanent "Sample Set" project, categories/elements that don't
+    // exist in Matt's real library) so they're dropped the moment real
+    // data shows up, not merely appended to it.
+    const real = dcLibraryEntries.filter(d=>!dcExcludedIds.has(d.id)).concat(dcUserEntries);
+    DC_DATA = real.length ? real : DC_SAMPLE;
+  }
 
   function dcPopulateFilters(){
     const cat = document.getElementById('dc-category');
@@ -1545,7 +1590,10 @@
     const matF = document.getElementById('dc-material').value;
     const connF = document.getElementById('dc-connection').value;
     const activeTags = [...document.querySelectorAll('.dc-tag.active')].map(b=>b.dataset.tag);
+    const showGenericEl = document.getElementById('dc-show-generic');
+    const showGeneric = showGenericEl ? showGenericEl.checked : false;
     let results = DC_DATA.filter(d=>{
+      if(!showGeneric && dcGenericIds.has(d.id)) return false;
       if(catF && d.category!==catF) return false;
       if(elF && d.element!==elF) return false;
       if(matF && d.material!==matF) return false;
@@ -1996,6 +2044,9 @@
     if(!handle){ if(typeof showLoadToast === 'function') showLoadToast('Link a catalog folder first.'); return; }
     await dcTryLoadLibraryFromHandle(handle);
     await dcTryLoadPullFromHandle(handle);
+    await dcTryLoadGenericFromHandle(handle);
+    await dcTryLoadExcludedFromHandle(handle);
+    dcRebuildData();
     dcPopulateFilters();
     dcRender();
     dcRenderPullQueue();
@@ -2018,6 +2069,7 @@
     document.getElementById('dc-e-connection').value = d ? d.connection : '';
     document.getElementById('dc-e-tags').value = d ? d.tags.join(', ') : '';
     document.getElementById('dc-e-desc').value = d ? (d.desc||'') : '';
+    document.getElementById('dc-e-generic').checked = d ? dcGenericIds.has(d.id) : false;
     document.getElementById('dc-e-thumb-file').value = '';
     const preview = document.getElementById('dc-e-thumb-preview');
     preview.innerHTML = (d && d.thumb) ? `<img src="${d.thumb}" style="max-width:180px;max-height:120px;border:1px solid var(--line);border-radius:6px;">` : '';
@@ -2042,7 +2094,22 @@
     const name = document.getElementById('dc-e-name').value.trim();
     const view = document.getElementById('dc-e-view').value.trim();
     if(!name || !view){ alert('Name and the Details Library view name are both required.'); return; }
-    const existing = dcEditingId ? dcUserEntries.find(x=>x.id===dcEditingId) : null;
+    // dcEditingId can point at EITHER a hand-added entry or a
+    // Revit-synced one — only a hand-added entry's own fields (name,
+    // view, element, etc.) are editable here-in-place-of-Revit; a
+    // synced entry keeps its Revit-sourced fields and only its Generic
+    // flag below is what this form can actually change for it.
+    const existingUser = dcEditingId ? dcUserEntries.find(x=>x.id===dcEditingId) : null;
+    const editingLibraryEntry = dcEditingId && !existingUser ? dcLibraryEntries.find(x=>x.id===dcEditingId) : null;
+    const isGeneric = document.getElementById('dc-e-generic').checked;
+    if(editingLibraryEntry){
+      // Nothing here to add to dcUserEntries — just update the Generic flag.
+      if(isGeneric) dcGenericIds.add(dcEditingId); else dcGenericIds.delete(dcEditingId);
+      dcPersistGeneric();
+      dcRender();
+      dcCloseEditor();
+      return;
+    }
     const entry = {
       id: dcEditingId || ('u'+Date.now().toString(36)+Math.random().toString(36).slice(2,6)),
       name, view,
@@ -2052,15 +2119,17 @@
       tags: document.getElementById('dc-e-tags').value.split(',').map(t=>t.trim()).filter(Boolean),
       desc: document.getElementById('dc-e-desc').value.trim(),
       project: 'My Catalog',
-      thumb: dcEditThumbDataUrl || (existing ? existing.thumb : null),
+      thumb: dcEditThumbDataUrl || (existingUser ? existingUser.thumb : null),
       updatedAt: new Date().toISOString()
     };
-    if(existing){
-      const idx = dcUserEntries.indexOf(existing);
+    if(existingUser){
+      const idx = dcUserEntries.indexOf(existingUser);
       dcUserEntries[idx] = entry;
     } else {
       dcUserEntries.push(entry);
     }
+    if(isGeneric) dcGenericIds.add(entry.id); else dcGenericIds.delete(entry.id);
+    dcPersistGeneric();
     dcRebuildData();
     dcPersist();
     dcPopulateFilters();
@@ -2069,10 +2138,21 @@
   }
   function dcDeleteFromModal(){
     if(!dcModalId) return;
-    if(!confirm('Remove this entry from the catalog? This only removes it here — it does not delete the view in Details Library.rvt.')) return;
-    dcUserEntries = dcUserEntries.filter(x=>x.id!==dcModalId);
+    const isLibraryEntry = dcLibraryEntries.some(x=>x.id===dcModalId);
+    if(!confirm('Remove this entry from the catalog? This only removes it here — it does not delete the view in Details Library.rvt.'+
+      (isLibraryEntry ? ' A future Sync Detail Library / Build Detail Database run will keep it out of the catalog too, unless you un-delete it.' : ''))) return;
+    if(isLibraryEntry){
+      dcExcludedIds.add(dcModalId);
+      dcGenericIds.delete(dcModalId); // no point tracking generic-ness for something now excluded
+      dcPersistExcluded();
+      dcPersistGeneric();
+    } else {
+      dcUserEntries = dcUserEntries.filter(x=>x.id!==dcModalId);
+      dcGenericIds.delete(dcModalId);
+      dcPersist();
+      dcPersistGeneric();
+    }
     dcRebuildData();
-    dcPersist();
     dcPopulateFilters();
     dcRender();
     dcCloseModal();
@@ -2116,6 +2196,9 @@
       await dcTryLoadFromHandle(handle);
       await dcTryLoadLibraryFromHandle(handle);
       await dcTryLoadPullFromHandle(handle);
+      await dcTryLoadGenericFromHandle(handle);
+      await dcTryLoadExcludedFromHandle(handle);
+      dcRebuildData();
       statusEl.textContent = `Linked to "${handle.name}" — reads ${DC_LIBRARY_FILENAME} for the library, saves your own entries to ${DC_EXPORT_FILENAME}, and sends placement requests via ${DC_PULL_FILENAME}, all synced wherever that folder syncs.`;
       dcPopulateFilters();
       dcRender();
@@ -2147,6 +2230,61 @@
       console.warn('Detail Catalog: could not write to linked folder', ex);
     }
   }
+  // Generic ids and excluded (deleted) ids each get their own tiny JSON
+  // file, same read/persist shape as dcUserEntries above — kept as plain
+  // {"<id>": true, ...} maps (not arrays) since detail_catalog_core.py's
+  // load_json_map/save_json_map on the Revit side already speak that
+  // shape for categories.json/sources.json, so the excluded-ids file
+  // reads directly with no format translation needed there.
+  async function dcTryLoadGenericFromHandle(handle){
+    try{
+      const fileHandle = await handle.getFileHandle(DC_GENERIC_FILENAME, {create:false});
+      const file = await fileHandle.getFile();
+      const data = JSON.parse(await file.text());
+      if(data && typeof data === 'object'){
+        dcGenericIds = new Set(Object.keys(data));
+        localStorage.setItem(DC_GENERIC_LOCALSTORAGE_KEY, JSON.stringify([...dcGenericIds]));
+      }
+    }catch(e){ /* nothing marked generic yet from another device */ }
+  }
+  async function dcPersistGeneric(){
+    localStorage.setItem(DC_GENERIC_LOCALSTORAGE_KEY, JSON.stringify([...dcGenericIds]));
+    const handle = await dcGetExportDirHandle(false);
+    if(!handle) return;
+    try{
+      const fileHandle = await handle.getFileHandle(DC_GENERIC_FILENAME, {create:true});
+      const writable = await fileHandle.createWritable();
+      const obj = {}; dcGenericIds.forEach(id=>obj[id]=true);
+      await writable.write(JSON.stringify(obj, null, 2));
+      await writable.close();
+    }catch(ex){ console.warn('Detail Catalog: could not write generic-ids file', ex); }
+  }
+  async function dcTryLoadExcludedFromHandle(handle){
+    try{
+      const fileHandle = await handle.getFileHandle(DC_EXCLUDED_FILENAME, {create:false});
+      const file = await fileHandle.getFile();
+      const data = JSON.parse(await file.text());
+      if(data && typeof data === 'object'){
+        dcExcludedIds = new Set(Object.keys(data));
+        localStorage.setItem(DC_EXCLUDED_LOCALSTORAGE_KEY, JSON.stringify([...dcExcludedIds]));
+      }
+    }catch(e){ /* nothing deleted yet from another device */ }
+  }
+  async function dcPersistExcluded(){
+    localStorage.setItem(DC_EXCLUDED_LOCALSTORAGE_KEY, JSON.stringify([...dcExcludedIds]));
+    const handle = await dcGetExportDirHandle(false);
+    if(!handle) return;
+    try{
+      const fileHandle = await handle.getFileHandle(DC_EXCLUDED_FILENAME, {create:true});
+      const writable = await fileHandle.createWritable();
+      const obj = {}; dcExcludedIds.forEach(id=>obj[id]=true);
+      await writable.write(JSON.stringify(obj, null, 2));
+      await writable.close();
+      // Sync Detail Library / Build Detail Database read this same file
+      // on their NEXT run to stop re-adding a deleted entry — nothing
+      // more to do here until then.
+    }catch(ex){ console.warn('Detail Catalog: could not write excluded-ids file', ex); }
+  }
   // On load: check (never prompt) whether a previously-linked folder still
   // has permission, pull in its file if so, so the catalog reflects
   // whatever another device last saved without an extra click.
@@ -2161,6 +2299,9 @@
         await dcTryLoadFromHandle(handle);
         await dcTryLoadLibraryFromHandle(handle);
         await dcTryLoadPullFromHandle(handle);
+        await dcTryLoadGenericFromHandle(handle);
+        await dcTryLoadExcludedFromHandle(handle);
+        dcRebuildData();
         dcPopulateFilters();
         dcRender();
         dcRenderPullQueue();
@@ -2172,6 +2313,7 @@
   }
 
   document.addEventListener('DOMContentLoaded', ()=>{
+    dcRebuildData();
     dcPopulateFilters();
     dcRender();
     dcRenderQueue();
