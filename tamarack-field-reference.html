@@ -1198,6 +1198,10 @@
           <button class="run secondary" id="dc-select-toggle-btn" onclick="dcToggleSelectMode()" style="margin-top:10px;margin-left:8px;">Select multiple&hellip;</button>
         </div>
 
+        <div class="card" id="dc-summary-card">
+          <div id="dc-summary" style="font-size:.85rem;color:var(--steel);"></div>
+        </div>
+
         <div class="card" id="dc-batch-toolbar" style="display:none;">
           <div class="row" style="align-items:center; gap:10px; flex-wrap:wrap;">
             <strong id="dc-batch-count">0 selected</strong>
@@ -1503,6 +1507,7 @@
   const DC_EXPORT_FILENAME = 'detail-catalog-mine.json';
   const DC_LIBRARY_FILENAME = 'detail-catalog-export.json'; // written by Sync Detail Library / Build Detail Database — read-only from here
   const DC_PULL_FILENAME = 'detail-catalog-pull.json'; // written here, consumed+trimmed by import_queued_details_script.py
+  const DC_OPEN_PROJECTS_FILENAME = 'detail-catalog-open-projects.json'; // written by Report Open Projects (pyRevit), read-only from here — a snapshot, not live
   const DC_LOCALSTORAGE_KEY = 'dcCatalogUserEntries';
   const DC_GENERIC_LOCALSTORAGE_KEY = 'dcCatalogGenericIds';
   const DC_CATEGORY_OVERRIDES_LOCALSTORAGE_KEY = 'dcCatalogCategoryOverrides';
@@ -1524,6 +1529,13 @@
   // trimmed by import_queued_details_script.py as each one gets placed.
   let dcPullEntries = [];
   try{ dcPullEntries = JSON.parse(localStorage.getItem('dcPullQueue')||'[]'); }catch(e){ dcPullEntries = []; }
+  // Snapshot of which projects are open in Revit right now, per the last
+  // "Report Open Projects" run — used to narrow the Cart/Place-on-sheet
+  // project pickers to what you can actually import into today. Empty
+  // means "no snapshot yet" — pickers fall back to the full Sheet Index
+  // project list in that case, so this is purely additive.
+  let dcOpenProjects = [];
+  try{ dcOpenProjects = JSON.parse(localStorage.getItem('dcOpenProjects')||'[]'); }catch(e){ dcOpenProjects = []; }
 
   // Ids marked "Generic" (hidden from the grid by default, still fully
   // searchable/filterable once "Show generic" is checked) — purely a
@@ -1768,6 +1780,30 @@
     alert(msg);
   }
 
+  function dcUpdateSummary(results){
+    const el = document.getElementById('dc-summary');
+    if(!el) return;
+    const total = DC_DATA.length;
+    const generic = DC_DATA.filter(d=>dcGenericIds.has(d.id)).length;
+    const mine = dcUserEntries.length;
+    const synced = dcLibraryEntries.length;
+    const byCat = {};
+    DC_DATA.forEach(d=>{
+      const c = d.category || 'Uncategorized';
+      byCat[c] = (byCat[c]||0) + 1;
+    });
+    const catParts = Object.keys(byCat).sort((a,b)=>byCat[b]-byCat[a])
+      .map(c=>`${c}: ${byCat[c]}`).join(' &nbsp;&middot;&nbsp; ');
+    const showingNote = (results.length !== total)
+      ? ` &nbsp;|&nbsp; Showing ${results.length} of ${total} with current filters`
+      : '';
+    el.innerHTML =
+      `<strong>${total}</strong> total detail(s) in catalog ` +
+      `(${synced} synced from Revit, ${mine} added by hand, ${generic} flagged Generic)` +
+      showingNote +
+      (catParts ? `<br>${catParts}` : '');
+  }
+
   function dcRender(){
     const qRaw = document.getElementById('dc-search').value.trim().toLowerCase();
     const tokens = qRaw.split(/\s+/).filter(Boolean);
@@ -1795,6 +1831,7 @@
         .map(x=>x.d);
     }
     dcLastResults = results; // so the open modal can step left/right through exactly what's currently shown
+    dcUpdateSummary(results);
     const queuedIds = new Set(dcPullEntries.map(p=>p.detailId).filter(Boolean));
     const cartIds = new Set(dcQueue.map(q=>q.id));
     const grid = document.getElementById('dc-grid');
@@ -1969,6 +2006,15 @@
     dcRenderQueue();
     dcRender();
   }
+  function dcProjectOptions(){
+    // Prefer whatever Report Open Projects last snapshotted (projects
+    // actually open in Revit right now, since that's the only thing you
+    // can import a queued detail into today) — fall back to every
+    // project Sheet Index knows about when no snapshot exists yet.
+    if(dcOpenProjects.length) return [...dcOpenProjects].sort();
+    const store = loadSheetIndexStore();
+    return [...new Set((Object.values(store.sheets||{})).map(s=>s.project).filter(Boolean))].sort();
+  }
   function dcRenderQueue(){
     const wrap = document.getElementById('dc-queue');
     const list = document.getElementById('dc-queue-list');
@@ -1978,7 +2024,7 @@
     const projInput = document.getElementById('dc-cart-project-inline');
     if(projInput && document.activeElement !== projInput) projInput.value = dcCartProject;
     const store = loadSheetIndexStore();
-    const projects = [...new Set((Object.values(store.sheets||{})).map(s=>s.project).filter(Boolean))].sort();
+    const projects = dcProjectOptions();
     const projListEl = document.getElementById('dc-cart-project-inline-list');
     if(projListEl) projListEl.innerHTML = projects.map(p=>`<option value="${String(p).replace(/"/g,'&quot;')}">`).join('');
     const sheets = (Object.values(store.sheets||{})).filter(s=>s.project===dcCartProject)
@@ -2030,8 +2076,7 @@
     dcPlacingId = id;
     dcPlaceFrac = null;
     document.getElementById('dc-place-detail-name').textContent = d.name + ' — view: ' + (d.view||'(not set)');
-    const store = loadSheetIndexStore();
-    const projects = [...new Set((Object.values(store.sheets||{})).map(s=>s.project).filter(Boolean))].sort();
+    const projects = dcProjectOptions();
     document.getElementById('dc-place-project-list').innerHTML = projects.map(p=>`<option value="${String(p).replace(/"/g,'&quot;')}">`).join('');
     document.getElementById('dc-place-project').value = '';
     document.getElementById('dc-place-sheet').value = '';
@@ -2236,6 +2281,17 @@
       }
     }catch(e){ /* Build Detail Database hasn't been run yet, or nothing exported */ }
   }
+  async function dcTryLoadOpenProjectsFromHandle(handle){
+    try{
+      const fileHandle = await handle.getFileHandle(DC_OPEN_PROJECTS_FILENAME, {create:false});
+      const file = await fileHandle.getFile();
+      const data = JSON.parse(await file.text());
+      if(Array.isArray(data.projects)){
+        dcOpenProjects = data.projects;
+        localStorage.setItem('dcOpenProjects', JSON.stringify(dcOpenProjects));
+      }
+    }catch(e){ /* Report Open Projects hasn't been run yet — fine, pickers fall back to the full list */ }
+  }
   async function dcRecheckLibrary(){
     const handle = await dcGetExportDirHandle(false);
     if(!handle){ if(typeof showLoadToast === 'function') showLoadToast('Link a catalog folder first.'); return; }
@@ -2243,6 +2299,7 @@
     await dcTryLoadPullFromHandle(handle);
     await dcTryLoadFromHandle(handle); // picks up mine.json too, in case another device changed a manual entry or a Generic flag
     await dcTryLoadExcludedFromHandle(handle);
+    await dcTryLoadOpenProjectsFromHandle(handle);
     dcRebuildData();
     dcPopulateFilters();
     dcRender();
@@ -2407,6 +2464,7 @@
       await dcTryLoadLibraryFromHandle(handle);
       await dcTryLoadPullFromHandle(handle);
       await dcTryLoadExcludedFromHandle(handle);
+      await dcTryLoadOpenProjectsFromHandle(handle);
       dcRebuildData();
       statusEl.textContent = `Linked to "${handle.name}" — reads ${DC_LIBRARY_FILENAME} for the library, saves your own entries and Generic flags to ${DC_EXPORT_FILENAME}, and sends placement requests via ${DC_PULL_FILENAME}, all synced wherever that folder syncs.`;
       dcPopulateFilters();
