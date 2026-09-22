@@ -1188,14 +1188,26 @@
             <select id="dc-connection" onchange="dcRender()">
               <option value="">Connection &mdash; any</option>
             </select>
+            <select id="dc-source-project" onchange="dcRender()">
+              <option value="">Pulled from &mdash; any</option>
+            </select>
           </div>
           <label style="display:flex;align-items:center;gap:6px;margin-top:8px;font-weight:normal;font-size:.85rem;">
             <input type="checkbox" id="dc-show-generic" onchange="dcRender()" style="width:auto;margin:0;">
             Show generic details too
           </label>
+          <label style="display:flex;align-items:center;gap:6px;margin-top:4px;font-weight:normal;font-size:.85rem;" title="Duplicates are grouped by content. Only each group's standard shows unless this is checked.">
+            <input type="checkbox" id="dc-show-alternates" onchange="dcRender()" style="width:auto;margin:0;">
+            Show alternate versions of duplicates
+          </label>
+          <label style="display:flex;align-items:center;gap:6px;margin-top:4px;font-weight:normal;font-size:.85rem;">
+            <input type="checkbox" id="dc-dups-only" onchange="dcRender()" style="width:auto;margin:0;">
+            Only details with more than one version (review duplicates)
+          </label>
           <div class="dc-tags" id="dc-tagbar"></div>
           <button class="run" onclick="dcOpenEditor(null)" style="margin-top:10px;">+ Add detail&hellip;</button>
           <button class="run secondary" id="dc-select-toggle-btn" onclick="dcToggleSelectMode()" style="margin-top:10px;margin-left:8px;">Select multiple&hellip;</button>
+          <button class="run secondary" onclick="dcOpenSourceProjects()" style="margin-top:10px;margin-left:8px;">Pulled-from projects&hellip;</button>
         </div>
 
         <div class="card" id="dc-summary-card">
@@ -1247,6 +1259,7 @@
           <h3 id="dc-modal-title" style="margin:0 0 4px;"></h3>
           <div class="dc-meta" id="dc-modal-position" style="margin-bottom:2px;"></div>
           <div class="dc-meta" id="dc-modal-meta"></div>
+          <div id="dc-modal-versions" style="margin-top:8px;"></div>
           <div class="dc-modal-preview" id="dc-modal-preview"></div>
           <div id="dc-modal-desc" class="sub" style="margin:0 0 12px;"></div>
           <button class="run" onclick="dcOpenPlace(dcModalId)">Place on sheet&hellip;</button>
@@ -1360,6 +1373,15 @@
             <button class="run" onclick="dcApplyBatchEdit()">Apply to selected</button>
             <button class="run secondary" onclick="dcCloseBatchEditor()">Cancel</button>
           </div>
+        </div>
+      </div>
+
+      <div class="dc-modal-backdrop" id="dc-source-projects-backdrop" onclick="if(event.target===this)dcCloseSourceProjects()">
+        <div class="dc-modal">
+          <button class="dc-modal-close" onclick="dcCloseSourceProjects()">&times;</button>
+          <h3 style="margin:0 0 4px;">Projects pulled from</h3>
+          <p class="sub" style="margin:0 0 10px;">Every project a synced detail has come from, how many, and when each was first pulled in. Click a project to filter the catalog to just it.</p>
+          <div id="dc-source-projects-list"></div>
         </div>
       </div>
 
@@ -1554,6 +1576,43 @@
   // saved into the same DC_EXPORT_FILENAME file.
   let dcCategoryOverrides = {};
   try{ dcCategoryOverrides = JSON.parse(localStorage.getItem(DC_CATEGORY_OVERRIDES_LOCALSTORAGE_KEY)||'{}'); }catch(e){ dcCategoryOverrides = {}; }
+  // ---- Duplicate groups. Sync computes a content fingerprint for every
+  // library view (fpSimilar = same text + element makeup; fp = identical,
+  // including geometry). Entries sharing one are versions of the same
+  // detail. One per group is the STANDARD (your pick, stored in
+  // detail-catalog-mine.json; otherwise the earliest pulled); the rest are
+  // kept as alternates - hidden by default, one click away in the modal.
+  const DC_STANDARDS_LOCALSTORAGE_KEY = 'dcDupStandards';
+  let dcStandards = {};
+  try{ dcStandards = JSON.parse(localStorage.getItem(DC_STANDARDS_LOCALSTORAGE_KEY)||'{}'); }catch(e){ dcStandards = {}; }
+  let dcDupGroups = {}; // key -> [entries]
+  function dcDupKey(d){ return d.fpSimilar || d.fp || null; }
+  function dcBuildDupGroups(){
+    dcDupGroups = {};
+    DC_DATA.forEach(d=>{
+      const k = dcDupKey(d);
+      if(!k) return;
+      (dcDupGroups[k] = dcDupGroups[k] || []).push(d);
+    });
+    Object.keys(dcDupGroups).forEach(k=>{ if(dcDupGroups[k].length<2) delete dcDupGroups[k]; });
+  }
+  function dcGroupOf(d){ const k = dcDupKey(d); return k && dcDupGroups[k] ? dcDupGroups[k] : null; }
+  function dcStandardOf(group){
+    const k = dcDupKey(group[0]);
+    const picked = dcStandards[k] && group.find(x=>x.id===dcStandards[k]);
+    if(picked) return picked;
+    return [...group].sort((a,b)=>(a.pulledAt||'9999').localeCompare(b.pulledAt||'9999') || String(a.name).localeCompare(String(b.name)))[0];
+  }
+  function dcIsAlternate(d){ const g = dcGroupOf(d); return !!g && dcStandardOf(g).id!==d.id; }
+  function dcMakeStandard(id){
+    const d = DC_DATA.find(x=>x.id===id);
+    const k = d && dcDupKey(d);
+    if(!k) return;
+    dcStandards[k] = id;
+    dcPersist();
+    dcRender();
+    dcOpenModal(id);
+  }
   // Sheet-type options offered everywhere a category can be set — "Notes"
   // covers a detail that's really just a note block someone pulled in as
   // a drafting view rather than through Save Notes Bundle (which tags
@@ -1589,6 +1648,7 @@
     const real = dcLibraryEntries.filter(d=>!dcExcludedIds.has(d.id)).concat(dcUserEntries);
     real.forEach(d=>{ if(dcCategoryOverrides[d.id]) d.category = dcCategoryOverrides[d.id]; });
     DC_DATA = real.length ? real : DC_SAMPLE;
+    dcBuildDupGroups();
   }
 
   function dcPopulateFilters(){
@@ -1596,8 +1656,9 @@
     const el = document.getElementById('dc-element');
     const mat = document.getElementById('dc-material');
     const conn = document.getElementById('dc-connection');
+    const srcProj = document.getElementById('dc-source-project');
     const tagbar = document.getElementById('dc-tagbar');
-    const catPrev = cat.value, elPrev = el.value, matPrev = mat.value, connPrev = conn.value;
+    const catPrev = cat.value, elPrev = el.value, matPrev = mat.value, connPrev = conn.value, srcProjPrev = srcProj.value;
     // Foundation/Floor/Roof/PEMB first (pyRevit's own category order), then
     // anything else (Uncategorized, or a category from a manual entry).
     const catOrder = DC_CATEGORY_OPTIONS;
@@ -1606,18 +1667,22 @@
     const elements = [...new Set(DC_DATA.map(d=>d.element).filter(Boolean))].sort();
     const materials = [...new Set(DC_DATA.map(d=>d.material).filter(Boolean))].sort();
     const conns = [...new Set(DC_DATA.map(d=>d.connection).filter(Boolean))].sort();
+    const srcProjects = [...new Set(DC_DATA.map(d=>d.sourceProject).filter(Boolean))].sort();
     cat.innerHTML = '<option value="">Sheet type &mdash; any</option>';
     el.innerHTML = '<option value="">All elements</option>';
     mat.innerHTML = '<option value="">All materials</option>';
     conn.innerHTML = '<option value="">All connections</option>';
+    srcProj.innerHTML = '<option value="">Pulled from &mdash; any</option>';
     categories.forEach(v=>{ const o=document.createElement('option'); o.value=v; o.textContent=v; cat.appendChild(o); });
     elements.forEach(v=>{ const o=document.createElement('option'); o.value=v; o.textContent=v; el.appendChild(o); });
     materials.forEach(v=>{ const o=document.createElement('option'); o.value=v; o.textContent=v; mat.appendChild(o); });
     conns.forEach(v=>{ const o=document.createElement('option'); o.value=v; o.textContent=v; conn.appendChild(o); });
+    srcProjects.forEach(v=>{ const o=document.createElement('option'); o.value=v; o.textContent=v; srcProj.appendChild(o); });
     if(categories.includes(catPrev)) cat.value = catPrev;
     if(elements.includes(elPrev)) el.value = elPrev;
     if(materials.includes(matPrev)) mat.value = matPrev;
     if(conns.includes(connPrev)) conn.value = connPrev;
+    if(srcProjects.includes(srcProjPrev)) srcProj.value = srcProjPrev;
     const allTags = [...new Set(DC_DATA.flatMap(d=>d.tags))].sort();
     const activeTagsPrev = [...document.querySelectorAll('.dc-tag.active')].map(b=>b.dataset.tag);
     tagbar.innerHTML='';
@@ -1819,13 +1884,51 @@
     const showingNote = (results.length !== total)
       ? ` &nbsp;|&nbsp; Showing ${results.length} of ${total} with current filters`
       : '';
+    const dupGroups = Object.values(dcDupGroups);
+    const altCount = dupGroups.reduce((n,g)=>n+g.length-1,0);
+    const dupNote = dupGroups.length ? ` &nbsp;|&nbsp; ${dupGroups.length} detail(s) with multiple versions (${altCount} alternate(s))` : '';
     el.innerHTML =
       `<strong>${total}</strong> total detail(s) in catalog ` +
       `(${synced} synced from Revit, ${mine} added by hand, ${generic} flagged Generic)` +
-      showingNote +
+      showingNote + dupNote +
       (catParts ? `<br>${catParts}` : '');
   }
 
+  function dcOpenSourceProjects(){
+    const byProject = {};
+    DC_DATA.forEach(d=>{
+      if(!d.sourceProject) return;
+      const rec = byProject[d.sourceProject] || (byProject[d.sourceProject] = {count:0, first:null, last:null});
+      rec.count++;
+      if(d.pulledAt){
+        if(!rec.first || d.pulledAt < rec.first) rec.first = d.pulledAt;
+        if(!rec.last || d.pulledAt > rec.last) rec.last = d.pulledAt;
+      }
+    });
+    const projects = Object.keys(byProject).sort();
+    const list = document.getElementById('dc-source-projects-list');
+    if(!projects.length){
+      list.innerHTML = '<p class="note">No synced details have a source project recorded yet — this fills in as details come through "Sync Detail Library."</p>';
+    } else {
+      list.innerHTML = projects.map(p=>{
+        const r = byProject[p];
+        const dateRange = r.first
+          ? (r.first===r.last ? `first pulled ${r.first.slice(0,10)}` : `pulled ${r.first.slice(0,10)} &ndash; ${r.last.slice(0,10)}`)
+          : 'pull date not recorded';
+        return `<div class="dc-card" style="cursor:pointer;padding:10px 12px;margin-bottom:6px;" onclick="dcFilterBySourceProject('${p.replace(/'/g,"\\'")}')">`
+          + `<strong>${p}</strong> &mdash; ${r.count} detail(s)<br><span style="font-size:.85rem;color:var(--steel);">${dateRange}</span></div>`;
+      }).join('');
+    }
+    document.getElementById('dc-source-projects-backdrop').classList.add('open');
+  }
+  function dcCloseSourceProjects(){
+    document.getElementById('dc-source-projects-backdrop').classList.remove('open');
+  }
+  function dcFilterBySourceProject(project){
+    document.getElementById('dc-source-project').value = project;
+    dcCloseSourceProjects();
+    dcRender();
+  }
   function dcRender(){
     const qRaw = document.getElementById('dc-search').value.trim().toLowerCase();
     const tokens = qRaw.split(/\s+/).filter(Boolean);
@@ -1833,15 +1936,21 @@
     const elF = document.getElementById('dc-element').value;
     const matF = document.getElementById('dc-material').value;
     const connF = document.getElementById('dc-connection').value;
+    const srcProjF = document.getElementById('dc-source-project').value;
     const activeTags = [...document.querySelectorAll('.dc-tag.active')].map(b=>b.dataset.tag);
     const showGenericEl = document.getElementById('dc-show-generic');
     const showGeneric = showGenericEl ? showGenericEl.checked : false;
+    const showAlternates = !!(document.getElementById('dc-show-alternates')||{}).checked;
+    const dupsOnly = !!(document.getElementById('dc-dups-only')||{}).checked;
     let results = DC_DATA.filter(d=>{
       if(!showGeneric && dcGenericIds.has(d.id)) return false;
+      if(dupsOnly && !dcGroupOf(d)) return false;
+      if(!showAlternates && !dupsOnly && dcIsAlternate(d)) return false;
       if(catF && d.category!==catF) return false;
       if(elF && d.element!==elF) return false;
       if(matF && d.material!==matF) return false;
       if(connF && d.connection!==connF) return false;
+      if(srcProjF && d.sourceProject!==srcProjF) return false;
       if(activeTags.length && !activeTags.every(t=>d.tags.includes(t))) return false;
       return true;
     });
@@ -1886,6 +1995,11 @@
       const badges = [];
       if(queuedIds.has(d.id)) badges.push('<span class="dc-chip" style="background:var(--rust);color:#fff;" title="Sent to Revit, waiting on Import Queued Details">Queued</span>');
       if(cartIds.has(d.id)) badges.push('<span class="dc-chip" style="background:var(--steel);color:#fff;">In cart</span>');
+      const grp = dcGroupOf(d);
+      if(grp){
+        if(dcStandardOf(grp).id===d.id) badges.push(`<span class="dc-chip" style="background:#2e7d32;color:#fff;" title="Standard version - open it to see the alternates">&#9733; Standard &middot; ${grp.length} versions</span>`);
+        else badges.push('<span class="dc-chip" style="background:#8d6e63;color:#fff;" title="An alternate version of a detail that has a standard">Alternate</span>');
+      }
       const metaLine = [d.element, d.material, d.connection].filter(Boolean).join(' · ');
       const sourceHtml = d.sourceProject
         ? `<div class="dc-meta" title="The project (and sheet, if any) this was pulled from">from: ${d.sourceProject}${d.sourceSheet ? ' — '+d.sourceSheet : ''}</div>`
@@ -1943,6 +2057,26 @@
       ? `<br>Pulled from: ${d.sourceProject}${d.sourceSheet ? ' &mdash; '+d.sourceSheet : ''}`
       : '';
     document.getElementById('dc-modal-meta').innerHTML = `${(d.category && d.category!=='Uncategorized') ? d.category+' &middot; ' : ''}${metaBits}<br>View name: <code>${d.view||'(not set)'}</code> in Details Library.rvt${sourceHtml}${queuedHtml}`;
+    const verEl = document.getElementById('dc-modal-versions');
+    const grp = dcGroupOf(d);
+    if(verEl){
+      if(!grp){ verEl.innerHTML = ''; }
+      else {
+        const std = dcStandardOf(grp);
+        verEl.innerHTML = `<strong style="font-size:.85rem;">${grp.length} versions of this detail</strong>` +
+          grp.map(x=>{
+            const same = x.fp && d.fp && x.fp===d.fp;
+            const tag = x.id===d.id ? '(this one)' : (same ? 'identical' : 'differs slightly');
+            const isStd = x.id===std.id;
+            return `<div style="display:flex;align-items:center;gap:8px;margin-top:4px;font-size:.85rem;">
+              ${x.thumb ? `<img src="${x.thumb}" alt="" style="width:48px;height:36px;object-fit:contain;border:1px solid var(--line);background:#fff;">` : ''}
+              <span style="flex:1;">${isStd ? '&#9733; ' : ''}${x.name}<br><span style="color:var(--steel);">${x.sourceProject||'—'} &middot; ${tag}</span></span>
+              ${x.id!==d.id ? `<button class="run secondary" style="padding:2px 8px;font-size:.75rem;" onclick="dcOpenModal('${x.id}')">Open</button>` : ''}
+              ${isStd ? '<span style="font-size:.75rem;color:#2e7d32;">Standard</span>' : `<button class="run secondary" style="padding:2px 8px;font-size:.75rem;" onclick="dcMakeStandard('${x.id}')">Make standard</button>`}
+            </div>`;
+          }).join('');
+      }
+    }
     document.getElementById('dc-modal-desc').textContent = d.desc;
     document.getElementById('dc-modal-preview').innerHTML = d.thumb
       ? `<img src="${d.thumb}" alt="" style="max-width:100%;max-height:70vh;">`
@@ -2160,6 +2294,7 @@
     dcSheetHistory[detailId][project] = sheetNumber;
     dcSheetHistory[detailId]._last = sheetNumber; // fallback across projects
     try{ localStorage.setItem(DC_SHEET_HISTORY_KEY, JSON.stringify(dcSheetHistory)); }catch(e){}
+    dcPersist(); // also into detail-catalog-mine.json, so it follows you between computers
   }
   function dcGuessSheetFromHistory(detailId, project){
     const rec = dcSheetHistory[detailId];
@@ -2345,6 +2480,8 @@
           tags: Array.isArray(e.tags) ? e.tags : [], desc: e.desc || '',
           category: e.category || 'Uncategorized',
           sourceProject: e.sourceProject || '', sourceSheet: e.sourceSheet || '',
+          pulledAt: e.pulledAt || '',
+          fp: e.fp || null, fpSimilar: e.fpSimilar || null,
           project: e.project || 'Details Library', fromLibrary:true
         })));
         dcRebuildData();
@@ -2559,6 +2696,15 @@
         dcCategoryOverrides = data.categoryOverrides;
         localStorage.setItem(DC_CATEGORY_OVERRIDES_LOCALSTORAGE_KEY, JSON.stringify(dcCategoryOverrides));
       }
+      if(data.standards && typeof data.standards === 'object'){
+        dcStandards = data.standards;
+        localStorage.setItem(DC_STANDARDS_LOCALSTORAGE_KEY, JSON.stringify(dcStandards));
+      }
+      if(data.sheetHistory && typeof data.sheetHistory === 'object'){
+        // merge: the file (shared across computers) wins per detail
+        dcSheetHistory = Object.assign({}, dcSheetHistory, data.sheetHistory);
+        try{ localStorage.setItem(DC_SHEET_HISTORY_KEY, JSON.stringify(dcSheetHistory)); }catch(e){}
+      }
       dcRebuildData();
     }catch(e){ /* no existing file in that folder yet — fine, we'll create one on first save */ }
   }
@@ -2570,12 +2716,13 @@
     localStorage.setItem(DC_LOCALSTORAGE_KEY, JSON.stringify(dcUserEntries));
     localStorage.setItem(DC_GENERIC_LOCALSTORAGE_KEY, JSON.stringify([...dcGenericIds]));
     localStorage.setItem(DC_CATEGORY_OVERRIDES_LOCALSTORAGE_KEY, JSON.stringify(dcCategoryOverrides));
+    localStorage.setItem(DC_STANDARDS_LOCALSTORAGE_KEY, JSON.stringify(dcStandards));
     const handle = await dcGetExportDirHandle(false);
     if(!handle) return; // no folder linked (or permission lapsed) — localStorage is still saved above
     try{
       const fileHandle = await handle.getFileHandle(DC_EXPORT_FILENAME, {create:true});
       const writable = await fileHandle.createWritable();
-      await writable.write(JSON.stringify({entries: dcUserEntries, genericIds: [...dcGenericIds], categoryOverrides: dcCategoryOverrides, savedAt: new Date().toISOString()}, null, 2));
+      await writable.write(JSON.stringify({entries: dcUserEntries, genericIds: [...dcGenericIds], categoryOverrides: dcCategoryOverrides, standards: dcStandards, sheetHistory: dcSheetHistory, savedAt: new Date().toISOString()}, null, 2));
       await writable.close();
     }catch(ex){
       console.warn('Detail Catalog: could not write to linked folder', ex);
