@@ -317,6 +317,21 @@
     background:#1c2438; color:#fff; border:none; border-radius:6px; padding:9px 16px;
     font-family:var(--sans); font-size:.85rem; font-weight:600; cursor:pointer; box-shadow:0 2px 8px rgba(0,0,0,.25);
   }
+
+  .sm-toolbar{ display:flex; flex-wrap:wrap; gap:6px; align-items:center; }
+  .sm-tool{ padding:6px 10px; border:1px solid var(--line); background:#fff; color:#222; border-radius:6px; cursor:pointer; font-size:.85rem; font-family:var(--sans); width:auto; margin:0; }
+  .sm-tool.active{ background:#d32f2f; color:#fff; border-color:#d32f2f; }
+  .sm-layout{ display:flex; gap:12px; align-items:flex-start; margin-top:12px; }
+  .sm-viewer{ flex:1; min-width:0; height:78vh; overflow:auto; background:#8a8f99; border-radius:8px; padding:12px; }
+  .sm-page{ position:relative; margin:0 auto; background:#fff; box-shadow:0 2px 10px rgba(0,0,0,.3); }
+  .sm-page canvas, .sm-page svg{ position:absolute; left:0; top:0; }
+  .sm-page svg{ touch-action:none; }
+  .sm-textbox{ fill:rgba(21,101,192,0.06); stroke:rgba(21,101,192,0.35); stroke-width:0.4; }
+  .sm-textbox:hover{ fill:rgba(21,101,192,0.22); }
+  .sm-side{ width:300px; flex:none; max-height:78vh; overflow:auto; }
+  .sm-listitem{ padding:6px 8px; border:1px solid var(--line); border-radius:6px; margin-bottom:6px; cursor:pointer; }
+  .sm-listitem.sel{ border-color:#1565c0; background:#e8f0fb; }
+  @media (max-width: 900px){ .sm-layout{ flex-direction:column; } .sm-side{ width:auto; } }
 </style>
 </head>
 <body>
@@ -340,8 +355,10 @@
       <button data-panel="sheetindex"><span class="idx">10</span>Sheet Index</button>
       <button data-panel="rebar"><span class="idx">11</span>Rebar Shapes</button>
       <button data-panel="detailcatalog"><span class="idx">12</span>Detail Catalog</button>
-      <button data-panel="tutorial"><span class="idx">13</span>Tutorial</button>
-      <button data-panel="notes"><span class="idx">14</span>Notes</button>
+      <button data-panel="semarkup"><span class="idx">13</span>SE Markup</button>
+      <button data-panel="snowdrift"><span class="idx">14</span>Snow Drift</button>
+      <button data-panel="tutorial"><span class="idx">15</span>Tutorial</button>
+      <button data-panel="notes"><span class="idx">16</span>Notes</button>
     </nav>
 
     <nav class="mobile-topbar" id="mobileTopbar">
@@ -362,6 +379,8 @@
         <button data-panel="sheetindex"><svg viewBox="0 0 24 24"><path d="M4 4h16v16H4z"/><line x1="4" y1="9" x2="20" y2="9"/></svg>Sheet Index</button>
         <button data-panel="rebar"><svg viewBox="0 0 24 24"><path d="M5 5v10a4 4 0 0 0 4 4h10"/></svg>Rebar Shapes</button>
         <button data-panel="detailcatalog"><svg viewBox="0 0 24 24"><rect x="4" y="4" width="7" height="7"/><rect x="13" y="4" width="7" height="7"/><rect x="4" y="13" width="7" height="7"/><rect x="13" y="13" width="7" height="7"/></svg>Detail Catalog</button>
+        <button data-panel="semarkup"><svg viewBox="0 0 24 24"><path d="M4 20l4-1 11-11-3-3L5 16z"/></svg>SE Markup</button>
+        <button data-panel="snowdrift"><svg viewBox="0 0 24 24"><path d="M3 18h18M5 18l7-8 7 8"/></svg>Snow Drift</button>
         <button data-panel="tutorial"><svg viewBox="0 0 24 24"><path d="M4 19V5a2 2 0 0 1 2-2h11l3 3v13a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2z"/><line x1="8" y1="8" x2="14" y2="8"/><line x1="8" y1="12" x2="14" y2="12"/></svg>Tutorial</button>
         <button data-panel="notes"><svg viewBox="0 0 24 24"><path d="M4 4h16v16H4z"/><line x1="8" y1="9" x2="16" y2="9"/><line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="12" y2="17"/></svg>Notes</button>
       </div>
@@ -389,7 +408,7 @@
           <div class="beam-diagram-wrap">
             <svg id="g-moment-svg" viewBox="0 0 900 140" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid meet"></svg>
           </div>
-          <p class="note" style="margin-top:2px;">Each bay and overhang is diagrammed as its own independent simple span / cantilever (matching the sizing check below) — shear jumps at each support the way it would for separate simple spans, rather than smoothing through like a true continuous beam.</p>
+          <p class="note" style="margin-top:2px;">Analyzed as one continuous beam over all supports, so negative moment (below the line) shows over interior supports and at overhangs. Solid line = dead + live on every span; dashed lines = the max/min envelope with live load patterned span-by-span (dead load always on, point loads always on). Reactions below are the max over those patterns.</p>
 
           <div class="grid" style="margin-top:10px;">
             <div><label>Total number of supports</label><input id="g-support-count" type="number" inputmode="numeric" value="2" step="1" min="2" onchange="onSupportCountChange()"></div>
@@ -1122,7 +1141,7 @@
             w = (10+60) &times; 5 = 350 plf per bay &nbsp;&middot;&nbsp; each 6-ft bay: M = 350 &times; 6&sup2;/8 = 1,575 ft-lb &nbsp;&middot;&nbsp; Sx req = 1,575&times;12/2400 = 7.9 in&sup3; &nbsp;&middot;&nbsp; I req = 28.4 in&#8308;
           </p>
           <div class="result">Tool's answer for "6,6": <b>5-1/2" x 6"</b> &mdash; a much smaller beam than the 5-1/2" x 9" a (wrong) single 12-ft span would call for. Treating the mid post as if it weren't there is the single easiest way to over-order material on a deck this size &mdash; or, read backwards, entering "6,6" instead of "12" is the check that catches it. (Beam Sizing itself now handles a point load partway along a bay via its own point-load fields, alongside the multiple-bay diagram &mdash; the LVL/I-Joist Calc tab is only needed for an LVL or engineered I-joist member.)</p>
-          <p class="flag">Each bay is checked as its own simple span (the multi-span input takes the worst bay) &mdash; that's conservative versus true continuous-beam behavior, not unconservative. Also: the L/360 deflection check uses combined dead+live load, not live load alone, which is slightly conservative in the same safe direction.</p>
+          <p class="flag">Bending is checked two ways and the larger governs: each bay as its own simple span (worst bay), and the whole beam as a continuous member with patterned live load (which captures negative moment over interior supports and at overhangs). Also: the L/360 deflection check uses combined dead+live load, not live load alone, which is slightly conservative in the same safe direction.</p>
         </div>
 
         <div class="card">
@@ -1385,6 +1404,84 @@
         </div>
       </div>
 
+      <!-- SE MARKUP -->
+      <section class="panel" id="semarkup">
+        <h2>SE Markup</h2>
+        <p class="sub">Open the PDF set and mark it up directly: change or delete existing note text, add new notes, callouts, clouds, X's and arrows. Save the markup file and send it back; in Revit, <b>Apply SE Markups</b> shows every change for review, then applies it to the model. Text edits and deletions go straight into the actual text notes, new text and callouts become text notes on the sheet, clouds become revision clouds, and the rest (X's, arrows, checks, pen) come in as red markup lines for pick-up.</p>
+        <div class="card">
+          <div class="row" style="flex-wrap:wrap;gap:8px;align-items:center;">
+            <button class="run" onclick="document.getElementById('sm-pdf-input').click()">Open PDF set&hellip;</button><input type="file" accept="application/pdf" id="sm-pdf-input" style="display:none" onchange="smOpenPdf(this.files[0])">
+            <button class="run secondary" onclick="document.getElementById('sm-json-input').click()">Open markup file&hellip;</button><input type="file" accept=".json,application/json" id="sm-json-input" style="display:none" onchange="smOpenMarkupFile(this.files[0])">
+            <button class="run secondary" onclick="smDownload()">Save markup file</button>
+            <label style="display:flex;align-items:center;gap:6px;margin:0;font-weight:normal;">Reviewer <input id="sm-reviewer" type="text" style="width:140px;" placeholder="Name / initials" oninput="smSaveLocal()"></label>
+          </div>
+          <div id="sm-toolbar" class="sm-toolbar" style="margin-top:10px;"></div>
+          <div class="row" style="margin-top:8px;gap:8px;align-items:center;flex-wrap:wrap;">
+            <button class="run secondary" onclick="smBoard.go(-1)">&larr; Prev</button>
+            <span id="sm-pageinfo" style="font-size:.9rem;">No PDF open</span>
+            <button class="run secondary" onclick="smBoard.go(1)">Next &rarr;</button>
+            <label style="display:flex;align-items:center;gap:6px;margin:0;font-weight:normal;">Sheet # <input id="sm-sheetnum" type="text" style="width:90px;" onchange="smSetSheetNumber(this.value)"></label>
+            <button class="run secondary" onclick="smBoard.zoomBy(1/1.25)">&minus;</button>
+            <button class="run secondary" onclick="smBoard.zoomBy(1.25)">+</button>
+            <button class="run secondary" onclick="smBoard.fit()">Fit</button>
+            <span class="note" id="sm-status" style="margin:0;"></span>
+          </div>
+        </div>
+        <div class="sm-layout">
+          <div class="sm-viewer" id="sm-viewer"><div class="sm-page" id="sm-page"><canvas id="sm-canvas"></canvas><svg id="sm-svg" xmlns="http://www.w3.org/2000/svg"></svg></div></div>
+          <div class="card sm-side">
+            <strong>Markups on this sheet</strong>
+            <div id="sm-list" style="margin-top:6px;font-size:.85rem;"></div>
+            <p class="note" style="margin-top:10px;">Tip: pick a tool, then click or drag on the sheet. <b>Edit text</b>: click a line of existing text to change it (use "+ next line" for multi-line notes). <b>X</b> drawn over text marks that text for deletion. <b>Select</b> a markup to move it, double-click to edit its text, Delete key to remove. Ctrl+Z undoes. Markups autosave in this browser for this PDF; use <b>Save markup file</b> to send them.</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- SNOW DRIFT -->
+      <section class="panel" id="snowdrift">
+        <h2>Snow Drift Key Plan</h2>
+        <p class="sub">Open the roof plan sheet, set the snow criteria, and click along each roof step, parapet or rooftop unit to calculate its drift (ASCE 7-16 &sect;7.7&ndash;7.8). Drifts draw live as a hatched band with the drift triangle and PSF tag. Save the drift file; in Revit, <b>Import Snow Drifts</b> places the bands, triangles and tags into the plan view on that sheet.</p>
+        <div class="card">
+          <div class="grid">
+            <div><label>Code</label><select id="sd-code" onchange="sdRecalcAll()"><option value="7-16">ASCE 7-16 (IBC 2018/2021)</option></select></div>
+            <div><label>Ground snow load p<sub>g</sub> (psf)</label><input id="sd-pg" type="number" inputmode="decimal" value="30" step="1" min="0" oninput="sdRecalcAll()"></div>
+            <div><label>Exposure factor C<sub>e</sub></label><input id="sd-ce" type="number" inputmode="decimal" value="1.0" step="0.1" oninput="sdRecalcAll()"></div>
+            <div><label>Thermal factor C<sub>t</sub></label><input id="sd-ct" type="number" inputmode="decimal" value="1.0" step="0.1" oninput="sdRecalcAll()"></div>
+            <div><label>Importance factor I<sub>s</sub></label><input id="sd-is" type="number" inputmode="decimal" value="1.0" step="0.1" oninput="sdRecalcAll()"></div>
+            <div><label>Tag shows</label><select id="sd-tagmode" onchange="sdRecalcAll()"><option value="pd">Max drift surcharge p<sub>d</sub></option><option value="total">Total at wall (p<sub>f</sub> + p<sub>d</sub>)</option></select></div>
+          </div>
+          <div id="sd-criteria" class="note" style="margin-top:8px;"></div>
+          <div class="row" style="flex-wrap:wrap;gap:8px;align-items:center;margin-top:10px;">
+            <button class="run" onclick="document.getElementById('fi78076').click()">Open roof plan (PDF or image)&hellip;</button><input id="fi78076" type="file" accept="application/pdf,image/*" style="display:none" onchange="sdOpenFile(this.files[0])">
+            <button class="run secondary" onclick="document.getElementById('fi16440').click()">Open drift file&hellip;</button><input id="fi16440" type="file" accept=".json,application/json" style="display:none" onchange="sdOpenDriftFile(this.files[0])">
+            <button class="run secondary" onclick="sdDownload()">Save drift file</button>
+            <label style="display:flex;align-items:center;gap:6px;margin:0;font-weight:normal;">Drawing scale
+              <select id="sd-scale" onchange="sdOnScale()">
+                <option value="4.5">1/16" = 1'-0"</option><option value="6.75">3/32" = 1'-0"</option><option value="9" selected>1/8" = 1'-0"</option><option value="13.5">3/16" = 1'-0"</option><option value="18">1/4" = 1'-0"</option><option value="cal">Calibrated (2 clicks)</option>
+              </select></label>
+          </div>
+          <div id="sd-toolbar" class="sm-toolbar" style="margin-top:10px;"></div>
+          <div class="row" style="margin-top:8px;gap:8px;align-items:center;flex-wrap:wrap;">
+            <button class="run secondary" onclick="sdBoard.go(-1)">&larr; Prev</button>
+            <span id="sd-pageinfo" style="font-size:.9rem;">No plan open</span>
+            <button class="run secondary" onclick="sdBoard.go(1)">Next &rarr;</button>
+            <label style="display:flex;align-items:center;gap:6px;margin:0;font-weight:normal;">Sheet # <input id="sd-sheetnum" type="text" style="width:90px;" onchange="sdSetSheetNumber(this.value)"></label>
+            <button class="run secondary" onclick="sdBoard.zoomBy(1/1.25)">&minus;</button>
+            <button class="run secondary" onclick="sdBoard.zoomBy(1.25)">+</button>
+            <button class="run secondary" onclick="sdBoard.fit()">Fit</button>
+            <span class="note" id="sd-status" style="margin:0;"></span>
+          </div>
+        </div>
+        <div class="sm-layout">
+          <div class="sm-viewer" id="sd-viewer"><div class="sm-page" id="sd-page"><canvas id="sd-canvas"></canvas><svg id="sd-svg" xmlns="http://www.w3.org/2000/svg"></svg></div></div>
+          <div class="card sm-side">
+            <strong>Drifts on this sheet</strong>
+            <div id="sd-list" style="margin-top:6px;font-size:.85rem;"></div>
+            <p class="note" style="margin-top:10px;"><b>Add drift</b>: click the two ends of the wall/parapet/step edge, then click on the side the snow drifts onto. <b>Measure</b>: click two points to read a length (it's pre-filled into the next drift). Values follow ASCE 7-16: h<sub>d</sub> = 0.43&#8731;l<sub>u</sub>&middot;&#8732;(p<sub>g</sub>+10) &minus; 1.5 (l<sub>u</sub> &ge; 20 ft), windward = 0.75h<sub>d</sub>, &gamma; = 0.13p<sub>g</sub>+14 &le; 30, w = 4h<sub>d</sub> (or 4h<sub>d</sub>&sup2;/h<sub>c</sub> &le; 8h<sub>c</sub> when h<sub>d</sub> &gt; h<sub>c</sub>), no drift when h<sub>c</sub>/h<sub>b</sub> &lt; 0.2. Confirm against the engineer's own calculation.</p>
+          </div>
+        </div>
+      </section>
+
       <!-- NOTES -->
       <section class="panel" id="notes">
         <h2>Notes</h2>
@@ -1392,7 +1489,7 @@
 
         <div class="note-block" id="note-glulam">
           <h3>Beam Sizing</h3>
-          <p>Point loads above are optional and superposed onto whichever bay/overhang they fall in. Each bay, and each overhang, is checked as its own independent case (a bay as a simple span; an overhang as a cantilever, M=w&middot;a&sup2;/2 at the support) and the worst one sizes the whole beam — that's conservative versus a true continuous-beam analysis (a real continuous beam usually sees lower span moment near a cantilevered end), not unconservative, but it will occasionally call for more beam than a continuous-beam calc strictly requires. Post vs. Wall is a label only in the diagram — it doesn't change this calculation; a wall (continuous) support in reality shares load differently than a discrete post, which matters for a real bearing/hanger design even though it doesn't change the beam's own bending/deflection check. Width is fixed by your selection above (or your custom entry) — the calculator solves only for the required depth at that width; it will not swap you to a different width to save material. Default is 5-1/2", Tamarack's typical beam width. Note two separate glulam width families exist: 5-1/2"/7-1/2"/9-1/2" are the Southern Pine series, manufactured net-width to match dimension lumber (flush with a 2x6/2x8/2x10 wall or post); 3-1/8"/5-1/8"/6-3/4"/8-3/4" are the Western species (Douglas Fir) series, which do NOT match dimension lumber widths. A custom width/Fb/E lets you check a sawn timber, LVL, PSL, or a glulam width/grade not in the lists above — Sx/I are still generated from simple rectangular geometry (b&middot;d), so this isn't valid for a non-rectangular or built-up unequal-ply section. The species/grade picker for custom Fb just fills in typical dimension-lumber base values (No. 1/No. 2 unless noted) as a starting point — confirm the actual grade stamp and current NDS Supplement value for your specific size before specifying, since large-timber (beam &amp; stringer) reference values differ from dimension-lumber values. Confirm which series your supplier stocks before specifying. Verify bearing, lateral-torsional buckling (CL), and connection design separately. Support reactions shown below the beam are simple-span/cantilever reactions per this beam's own loads only — they don't include the beam's self-weight or anything stacking on top of that post elsewhere in the structure, so add those before sizing a footing.</p>
+          <p>Point loads above are optional and superposed onto whichever bay/overhang they fall in. Bending is checked two ways and the larger governs: (1) each bay as its own simple span and each overhang as a cantilever (M=w&middot;a&sup2;/2 at the support), and (2) the whole beam as one continuous member over all supports, dead load everywhere and live load patterned span-by-span, enveloped — this is what captures negative moment over interior supports. Deflection is still checked per bay/overhang as simple span/cantilever (conservative). The shear/moment diagrams and support reactions come from the continuous analysis. Post vs. Wall is a label only in the diagram — it doesn't change this calculation; a wall (continuous) support in reality shares load differently than a discrete post, which matters for a real bearing/hanger design even though it doesn't change the beam's own bending/deflection check. Width is fixed by your selection above (or your custom entry) — the calculator solves only for the required depth at that width; it will not swap you to a different width to save material. Default is 5-1/2", Tamarack's typical beam width. Note two separate glulam width families exist: 5-1/2"/7-1/2"/9-1/2" are the Southern Pine series, manufactured net-width to match dimension lumber (flush with a 2x6/2x8/2x10 wall or post); 3-1/8"/5-1/8"/6-3/4"/8-3/4" are the Western species (Douglas Fir) series, which do NOT match dimension lumber widths. A custom width/Fb/E lets you check a sawn timber, LVL, PSL, or a glulam width/grade not in the lists above — Sx/I are still generated from simple rectangular geometry (b&middot;d), so this isn't valid for a non-rectangular or built-up unequal-ply section. The species/grade picker for custom Fb just fills in typical dimension-lumber base values (No. 1/No. 2 unless noted) as a starting point — confirm the actual grade stamp and current NDS Supplement value for your specific size before specifying, since large-timber (beam &amp; stringer) reference values differ from dimension-lumber values. Confirm which series your supplier stocks before specifying. Verify bearing, lateral-torsional buckling (CL), and connection design separately. Support reactions shown below the beam are continuous-beam reactions (max over live-load patterns) per this beam's own loads only — they don't include the beam's self-weight or anything stacking on top of that post elsewhere in the structure, so add those before sizing a footing.</p>
         </div>
 
         <div class="note-block" id="note-spancalc">
@@ -1454,7 +1551,7 @@
     document.querySelectorAll('.panel').forEach(p=>p.classList.toggle('active', p.id===name));
     const moreBtn = document.getElementById('mobileMoreBtn');
     if(moreBtn){
-      const inMoreSheet = ['spans','site','loadpath','pdfcompare','sheetindex','rebar','detailcatalog','tutorial','notes'].includes(name);
+      const inMoreSheet = ['spans','site','loadpath','pdfcompare','sheetindex','rebar','detailcatalog','semarkup','snowdrift','tutorial','notes'].includes(name);
       moreBtn.classList.toggle('active', inMoreSheet);
     }
     closeMobileMoreSheet();
@@ -2073,6 +2170,7 @@
               <span style="flex:1;">${isStd ? '&#9733; ' : ''}${x.name}<br><span style="color:var(--steel);">${x.sourceProject||'—'} &middot; ${tag}</span></span>
               ${x.id!==d.id ? `<button class="run secondary" style="padding:2px 8px;font-size:.75rem;" onclick="dcOpenModal('${x.id}')">Open</button>` : ''}
               ${isStd ? '<span style="font-size:.75rem;color:#2e7d32;">Standard</span>' : `<button class="run secondary" style="padding:2px 8px;font-size:.75rem;" onclick="dcMakeStandard('${x.id}')">Make standard</button>`}
+              ${isStd ? '' : `<button class="run secondary" style="padding:2px 8px;font-size:.75rem;color:#c62828;border-color:#c62828;" onclick="dcDeleteVersion('${x.id}')" title="Remove this version from the catalog">Delete</button>`}
             </div>`;
           }).join('');
       }
@@ -2610,6 +2708,27 @@
     dcPopulateFilters();
     dcRender();
     dcCloseEditor();
+  }
+  // Delete one alternate version from inside a duplicate group, without
+  // leaving the modal - same removal rules as the main Delete button
+  // (library entries are excluded, never deleted from Details Library.rvt).
+  function dcDeleteVersion(id){
+    const x = DC_DATA.find(e=>e.id===id);
+    if(!x) return;
+    if(!confirm('Remove this version ("'+x.name+'", from '+(x.sourceProject||'unknown project')+') from the catalog?\n\nThe view stays in Details Library.rvt; it just won\'t show here or come back on future syncs.')) return;
+    const stayOn = dcModalId===id ? null : dcModalId;
+    if(dcLibraryEntries.some(e=>e.id===id)){
+      dcExcludedIds.add(id);
+      dcPersistExcluded();
+    } else {
+      dcUserEntries = dcUserEntries.filter(e=>e.id!==id);
+    }
+    dcGenericIds.delete(id);
+    dcPersist();
+    dcRebuildData();
+    dcPopulateFilters();
+    dcRender();
+    if(stayOn && DC_DATA.some(e=>e.id===stayOn)) dcOpenModal(stayOn); else dcCloseModal();
   }
   function dcDeleteFromModal(){
     if(!dcModalId) return;
@@ -3518,141 +3637,157 @@
     return loads;
   }
 
-  // ---- SHEAR & MOMENT DIAGRAMS ----
-  // Each bay/overhang is its own independent simple span or cantilever — the
-  // same simplification calcGlulam() already uses — so V is discontinuous at
-  // every support (a real jump equal to that bay's/overhang's own reaction)
-  // and M returns to 0 at every pin support, by construction.
-  // Support reactions (post/wall loads), for carrying straight into the
-  // Footing/Bearing tab. Each bay and overhang is still its own independent
-  // simple span/cantilever (same simplification as the sizing check and the
-  // shear/moment diagrams), so an interior support's reaction is just the sum
-  // of what the two bays framing into it each put on it; an end support also
-  // picks up its overhang's reaction, if any.
-  function computeReactions(){
-    const {ohStart, ohEnd, supports, totalFt} = beamLayout();
-    if(totalFt<=0 || supports.length<2) return null;
+  // ---- CONTINUOUS BEAM ANALYSIS (shear, moment, reactions) ----
+  // UPDATED per SE review: the beam is now analyzed as ONE continuous member
+  // over all its supports (finite-element beam model, pinned supports,
+  // constant EI), so negative moment over interior supports and at
+  // cantilevers shows up the way it really does, and interior reactions
+  // pick up the continuity effect (e.g. 1.25wL at the middle support of two
+  // equal spans, not 1.0wL). Dead load is applied everywhere; live load is
+  // PATTERNED span-by-span (each bay/overhang on or off) and the worst case
+  // is enveloped, which is what governs max positive moment, max negative
+  // moment and max reaction in a real continuous beam. Point loads are
+  // treated as always present. The drawn curve is the full-load case (all
+  // spans loaded); dashed lines show the max/min envelope.
+  function cbBuildMesh(){
+    const {ohStart, supports, totalFt} = beamLayout();
+    if(!(totalFt>0) || supports.length<2) return null;
+    const s0 = supports[0];
+    const supX = supports.map(s=> +(ohStart + s - s0).toFixed(4));
+    const pts = getPointLoads().filter(p=> p.loc>=-1e-6 && p.loc<=totalFt+1e-6)
+      .map(p=>({P:p.P, x: Math.min(Math.max(p.loc,0), totalFt)}));
+    let key = [0, totalFt, ...supX, ...pts.map(p=>p.x)];
+    key = [...new Set(key.map(v=> +v.toFixed(4)))].sort((a,b)=>a-b);
+    const maxLen = totalFt/100;
+    const xs = [key[0]];
+    for(let i=1;i<key.length;i++){
+      const a=key[i-1], b=key[i];
+      if(b-a<1e-6) continue;
+      const n = Math.max(1, Math.ceil((b-a)/maxLen));
+      for(let k=1;k<=n;k++) xs.push(a+(b-a)*k/n);
+    }
+    const nearest = (x)=>{ let bi=0; for(let i=1;i<xs.length;i++) if(Math.abs(xs[i]-x)<Math.abs(xs[bi]-x)) bi=i; return bi; };
+    const supNodes = supX.map(nearest);
+    const bounds = [...new Set([0, ...supX, totalFt].map(v=> +v.toFixed(4)))].sort((a,b)=>a-b);
+    const elemSeg = [];
+    for(let e=0;e<xs.length-1;e++){
+      const m = (xs[e]+xs[e+1])/2;
+      let sg = 0; while(sg<bounds.length-2 && m>bounds[sg+1]) sg++;
+      elemSeg.push(sg);
+    }
+    const ptNodes = pts.map(p=>({node: nearest(p.x), P: p.P}));
+    return {xs, supNodes, supX, elemSeg, nSeg: bounds.length-1, ptNodes, totalFt};
+  }
+
+  // One linear solve: wElem[e] = uniform load (plf, downward) on element e,
+  // ptNodes = downward point loads at nodes. Returns sampled V/M (two samples
+  // per element, so jumps at supports/point loads show up) and reactions.
+  function cbSolve(mesh, wElem, ptNodes){
+    const n = mesh.xs.length, N = 2*n, BW = 3;
+    const K = Array.from({length:N}, ()=> new Float64Array(N));
+    const F = new Float64Array(N);
+    const els = [];
+    for(let e=0;e<n-1;e++){
+      const L = mesh.xs[e+1]-mesh.xs[e], w = wElem[e]||0, L2=L*L, L3=L2*L;
+      const k = [[12,6*L,-12,6*L],[6*L,4*L2,-6*L,2*L2],[-12,-6*L,12,-6*L],[6*L,2*L2,-6*L,4*L2]].map(r=>r.map(v=>v/L3));
+      const f = [-w*L/2, -w*L2/12, -w*L/2, w*L2/12];
+      const d = [2*e, 2*e+1, 2*e+2, 2*e+3];
+      for(let i=0;i<4;i++){ F[d[i]] += f[i]; for(let j=0;j<4;j++) K[d[i]][d[j]] += k[i][j]; }
+      els.push({k, f, d, L, w});
+    }
+    ptNodes.forEach(p=>{ F[2*p.node] -= p.P; });
+    // pinned supports via a stiff spring (keeps the matrix banded)
+    let maxDiag = 0; for(let i=0;i<N;i++) maxDiag = Math.max(maxDiag, K[i][i]);
+    const pen = maxDiag*1e10;
+    const A = K.map(r=> Float64Array.from(r)); const b = Float64Array.from(F);
+    mesh.supNodes.forEach(i=>{ A[2*i][2*i] += pen; });
+    for(let i=0;i<N;i++){
+      const piv = A[i][i];
+      for(let r=i+1;r<=Math.min(N-1,i+BW);r++){
+        const fac = A[r][i]/piv; if(!fac) continue;
+        for(let c=i;c<=Math.min(N-1,i+BW);c++) A[r][c] -= fac*A[i][c];
+        b[r] -= fac*b[i];
+      }
+    }
+    const u = new Float64Array(N);
+    for(let i=N-1;i>=0;i--){
+      let sum = b[i];
+      for(let c=i+1;c<=Math.min(N-1,i+BW);c++) sum -= A[i][c]*u[c];
+      u[i] = sum/A[i][i];
+    }
+    const R = mesh.supNodes.map(i=>{
+      const r = 2*i; let sum = 0;
+      for(let c=Math.max(0,r-BW);c<=Math.min(N-1,r+BW);c++) sum += K[r][c]*u[c];
+      return sum - F[r];
+    });
+    const xs=[], Vs=[], Ms=[];
+    els.forEach((el,e)=>{
+      const ue = el.d.map(i=>u[i]);
+      const q = el.k.map((row)=> row.reduce((a,v,j)=> a+v*ue[j], 0)).map((v,i)=> v - el.f[i]);
+      const V1 = q[0], M1 = -q[1], L = el.L, w = el.w;
+      xs.push(mesh.xs[e]); Vs.push(V1); Ms.push(M1);
+      xs.push(mesh.xs[e+1]); Vs.push(V1 - w*L); Ms.push(M1 + V1*L - w*L*L/2);
+    });
+    return {xs, Vs, Ms, R};
+  }
+
+  // Dead + patterned live, by superposition (one solve per bay/overhang).
+  let cbCache = {key:null, val:null};
+  function continuousBeamAnalysis(){
+    const mesh = cbBuildMesh();
+    if(!mesh) return null;
     const dl = parseFloat(document.getElementById('g-dl').value)||0;
     const ll = parseFloat(document.getElementById('g-ll').value)||0;
     const trib = parseFloat(document.getElementById('g-trib').value)||0;
     const tribApplyEl = document.getElementById('g-trib-apply');
     const tribApply = tribApplyEl ? tribApplyEl.checked : true;
-    const w = tribApply ? (dl+ll)*trib : 0;
-    const pts = getPointLoads();
-    const spans = spansFromSupports();
-    let cursor = ohStart;
-    const bays = spans.map(sp=>{ const r={start:cursor, end:cursor+sp, span:sp}; cursor+=sp; return r; });
-    const bayReactions = bays.map(b=>{
-      const L = b.span;
-      if(L<=0) return {Rl:0, Rr:0};
-      let Rl = w*L/2, Rr = w*L/2;
-      pts.forEach(pl=>{
-        if(pl.loc>=b.start-1e-6 && pl.loc<=b.end+1e-6){
-          const a = pl.loc-b.start, bb = b.end-pl.loc;
-          Rl += pl.P*bb/L; Rr += pl.P*a/L;
-        }
+    const wd = tribApply ? dl*trib : 0, wl = tribApply ? ll*trib : 0;
+    const key = JSON.stringify([mesh.xs.length, mesh.supX, mesh.ptNodes, wd, wl, mesh.totalFt]);
+    if(cbCache.key===key) return cbCache.val;
+    const nE = mesh.xs.length-1;
+    const dead = cbSolve(mesh, new Array(nE).fill(wd), mesh.ptNodes);
+    const lives = [];
+    if(wl>0){
+      for(let sg=0;sg<mesh.nSeg;sg++){
+        const wE = mesh.elemSeg.map(s=> s===sg ? wl : 0);
+        if(wE.some(v=>v>0)) lives.push(cbSolve(mesh, wE, []));
+      }
+    }
+    const nS = dead.xs.length;
+    const full = {xs: dead.xs, Vs: new Array(nS), Ms: new Array(nS), R: dead.R.slice()};
+    const Mmax = new Array(nS), Mmin = new Array(nS), Vabs = new Array(nS);
+    for(let i=0;i<nS;i++){
+      let V=dead.Vs[i], M=dead.Ms[i], Mp=dead.Ms[i], Mn=dead.Ms[i], Vp=dead.Vs[i], Vn=dead.Vs[i];
+      lives.forEach(lc=>{
+        const m=lc.Ms[i], v=lc.Vs[i];
+        M+=m; V+=v;
+        if(m>0) Mp+=m; else Mn+=m;
+        if(v>0) Vp+=v; else Vn+=v;
       });
-      return {Rl, Rr};
-    });
-    let ohStartR = 0, ohEndR = 0;
-    if(ohStart>0){
-      ohStartR = w*ohStart;
-      pts.forEach(pl=>{ if(pl.loc>=-1e-6 && pl.loc<=ohStart+1e-6) ohStartR += pl.P; });
+      full.Vs[i]=V; full.Ms[i]=M; Mmax[i]=Mp; Mmin[i]=Mn; Vabs[i]=Math.max(Math.abs(Vp),Math.abs(Vn));
     }
-    const lastEndPos = bays.length ? bays[bays.length-1].end : ohStart;
-    if(ohEnd>0){
-      ohEndR = w*ohEnd;
-      pts.forEach(pl=>{ if(pl.loc>=lastEndPos-1e-6 && pl.loc<=totalFt+1e-6) ohEndR += pl.P; });
-    }
-    const n = supports.length;
-    const R = new Array(n).fill(0);
-    bayReactions.forEach((br,i)=>{ R[i]+=br.Rl; R[i+1]+=br.Rr; });
-    if(ohStart>0) R[0]+=ohStartR;
-    if(ohEnd>0) R[n-1]+=ohEndR;
-    return R.map((val,i)=>({idx:i, type: beamSupportTypes[i]||'post', R:val}));
+    const Rmax = dead.R.map((r,j)=> r + lives.reduce((a,lc)=> a + Math.max(0, lc.R[j]), 0));
+    const Rmin = dead.R.map((r,j)=> r + lives.reduce((a,lc)=> a + Math.min(0, lc.R[j]), 0));
+    lives.forEach(lc=> lc.R.forEach((r,j)=>{ full.R[j]+=r; }));
+    const val = {full, Mmax, Mmin, Vabs, Rmax, Rmin, totalFt: mesh.totalFt,
+      maxPosM: Math.max(0, ...Mmax), maxNegM: Math.min(0, ...Mmin), maxV: Math.max(0, ...Vabs)};
+    cbCache = {key, val};
+    return val;
+  }
+
+  // Support reactions (post/wall loads) for the Footing/Bearing tab: the
+  // MAX reaction at each support over all live-load patterns (continuous
+  // beam), plus a flag if any pattern produces uplift.
+  function computeReactions(){
+    const a = continuousBeamAnalysis();
+    if(!a) return null;
+    return a.Rmax.map((val,i)=>({idx:i, type: beamSupportTypes[i]||'post', R:val, Rmin:a.Rmin[i], uplift: a.Rmin[i] < -1}));
   }
 
   function computeShearMoment(){
-    const {ohStart, ohEnd, supports, totalFt} = beamLayout();
-    if(totalFt<=0 || supports.length<2) return null;
-    const dl = parseFloat(document.getElementById('g-dl').value)||0;
-    const ll = parseFloat(document.getElementById('g-ll').value)||0;
-    const trib = parseFloat(document.getElementById('g-trib').value)||0;
-    const tribApplyEl = document.getElementById('g-trib-apply');
-    const tribApply = tribApplyEl ? tribApplyEl.checked : true;
-    const w = tribApply ? (dl+ll)*trib : 0; // plf
-    const pts = getPointLoads(); // {P, loc} — loc = ft from the left tip of the beam
-    const spans = spansFromSupports();
-    let cursor = ohStart;
-    const bays = spans.map(sp=>{ const r={start:cursor, end:cursor+sp, span:sp}; cursor+=sp; return r; });
-    const lastEnd = bays.length ? bays[bays.length-1].end : ohStart;
-
-    function region(x){
-      if(ohStart>0 && x<ohStart-1e-6) return {type:'ohStart'};
-      if(ohEnd>0 && x>lastEnd+1e-6) return {type:'ohEnd'};
-      for(const b of bays) if(x>=b.start-1e-6 && x<=b.end+1e-6) return {type:'bay', bay:b};
-      return {type:'bay', bay:bays[bays.length-1] || {start:0,end:totalFt,span:totalFt}};
-    }
-    function evalAt(x){
-      const r = region(x);
-      if(r.type==='ohStart'){
-        const t = x; // distance from the free tip (global 0)
-        let V=0, M=0;
-        pts.forEach(pl=>{ if(pl.loc>=-1e-6 && pl.loc<=ohStart+1e-6 && pl.loc<=t+1e-6){ V-=pl.P; M-=pl.P*(t-pl.loc); } });
-        V -= w*t; M -= w*t*t/2;
-        return {V,M};
-      }
-      if(r.type==='ohEnd'){
-        const t = totalFt - x; // distance from the free tip (global totalFt)
-        let V=0, M=0;
-        pts.forEach(pl=>{ const d = totalFt-pl.loc; if(pl.loc>=lastEnd-1e-6 && d>=-1e-6 && d<=t+1e-6){ V-=pl.P; M-=pl.P*(t-d); } });
-        V -= w*t; M -= w*t*t/2;
-        return {V,M};
-      }
-      const b = r.bay, L = b.span;
-      if(L<=0) return {V:0,M:0};
-      let Rl = w*L/2, Rr = w*L/2;
-      pts.forEach(pl=>{
-        if(pl.loc>=b.start-1e-6 && pl.loc<=b.end+1e-6){
-          const a = pl.loc-b.start, bb = b.end-pl.loc;
-          Rl += pl.P*bb/L; Rr += pl.P*a/L;
-        }
-      });
-      const xl = x-b.start;
-      let V = Rl - w*xl;
-      let M = Rl*xl - w*xl*xl/2;
-      pts.forEach(pl=>{
-        if(pl.loc>=b.start-1e-6 && pl.loc<=b.end+1e-6){
-          const a = pl.loc-b.start;
-          if(a<=xl+1e-6){ V -= pl.P; M -= pl.P*(xl-a); }
-        }
-      });
-      return {V,M};
-    }
-
-    const boundaries = [0];
-    if(ohStart>0) boundaries.push(ohStart);
-    bays.forEach(b=> boundaries.push(b.end));
-    if(ohEnd>0) boundaries.push(totalFt);
-    const bset = [...new Set(boundaries.map(v=>+v.toFixed(4)))].sort((a,b)=>a-b);
-
-    const N = 140;
-    const xs=[], Vs=[], Ms=[];
-    for(let i=0;i<bset.length-1;i++){
-      const segA = bset[i], segB = bset[i+1];
-      const segLen = segB-segA;
-      if(segLen<=0) continue;
-      const segN = Math.max(2, Math.round(N*segLen/totalFt));
-      for(let k=0;k<=segN;k++){
-        const x = segA + segLen*k/segN;
-        // nudge samples infinitesimally inside their own segment so a shared
-        // support point reads THAT segment's value on each side of the jump
-        const xEval = (k===0 && i>0) ? x+1e-4 : (k===segN && i<bset.length-2) ? x-1e-4 : x;
-        const {V,M} = evalAt(Math.min(Math.max(xEval,0),totalFt));
-        xs.push(x); Vs.push(V); Ms.push(M);
-      }
-    }
-    return {xs, Vs, Ms, totalFt};
+    const a = continuousBeamAnalysis();
+    if(!a) return null;
+    return {xs: a.full.xs, Vs: a.full.Vs, Ms: a.full.Ms, Mmax: a.Mmax, Mmin: a.Mmin, totalFt: a.totalFt};
   }
 
   function fmtNumShort(v){
@@ -3672,9 +3807,10 @@
     const usableW = (beamRenderState && beamRenderState.usableW) || 800;
     const ftToX = (ft)=> padL + (ft/totalFt)*usableW;
 
-    function renderChart(svg, ys, unit, color){
+    function renderChart(svg, ys, unit, color, envs){
       const W=900, H=140, midY=70;
-      const maxAbs = Math.max(1, ...ys.map(v=>Math.abs(v)));
+      const allY = envs ? ys.concat(envs[0], envs[1]) : ys;
+      const maxAbs = Math.max(1, ...allY.map(v=>Math.abs(v)));
       const scale = (H/2-22)/maxAbs;
       const yToPx = (v)=> midY - v*scale;
       let d = `M ${ftToX(xs[0]).toFixed(1)} ${yToPx(ys[0]).toFixed(1)}`;
@@ -3684,6 +3820,15 @@
       parts.push(`<line x1="${padL-10}" y1="${midY}" x2="${W-padL+10}" y2="${midY}" stroke="#c7c2b4" stroke-width="1"/>`);
       parts.push(`<path d="${areaD}" fill="${color}" opacity="0.15"/>`);
       parts.push(`<path d="${d}" fill="none" stroke="${color}" stroke-width="1.75"/>`);
+      if(envs){
+        envs.forEach(env=>{
+          let ed = `M ${ftToX(xs[0]).toFixed(1)} ${yToPx(env[0]).toFixed(1)}`;
+          for(let i=1;i<xs.length;i++) ed += ` L ${ftToX(xs[i]).toFixed(1)} ${yToPx(env[i]).toFixed(1)}`;
+          parts.push(`<path d="${ed}" fill="none" stroke="${color}" stroke-width="1" stroke-dasharray="4 3" opacity="0.7"/>`);
+        });
+        const eMax = Math.max(...envs[0]), eMin = Math.min(...envs[1]);
+        parts.push(`<text x="${W-padL+8}" y="14" text-anchor="end" font-size="9" font-family="var(--sans,sans-serif)" fill="${color}">envelope (patterned live): +${fmtNumShort(eMax)} / ${fmtNumShort(eMin)} ${unit}</text>`);
+      }
       let maxV=-Infinity, maxI=0, minV=Infinity, minI=0;
       ys.forEach((v,i)=>{ if(v>maxV){maxV=v;maxI=i;} if(v<minV){minV=v;minI=i;} });
       if(Math.abs(maxV)>1e-6){
@@ -3697,7 +3842,7 @@
       svg.innerHTML = parts.join('');
     }
     renderChart(vSvg, Vs, 'lb', '#2b6cb0');
-    renderChart(mSvg, Ms, 'ft-lb', '#b7541f');
+    renderChart(mSvg, Ms, 'ft-lb', '#b7541f', data.Mmax && data.Mmin ? [data.Mmax, data.Mmin] : null);
   }
 
   // Single entry point for a live update: redraw the beam picture, the shear
@@ -4202,6 +4347,18 @@
     checkOverhang(ohStart, 0, ohStart, 'start');
     checkOverhang(ohEnd, lastBayEnd, lastBayEnd+ohEnd, 'end');
 
+    // Continuous-beam check (per SE review): negative moment over interior
+    // supports / at overhangs from the continuous analysis, patterned live
+    // load enveloped. The section must satisfy BOTH this and the simple-span
+    // checks above, so it can only get more conservative, never less.
+    const cba = continuousBeamAnalysis();
+    let contNote = '';
+    if(cba){
+      const Mc = Math.max(cba.maxPosM, -cba.maxNegM);
+      const SreqC = (Mc*12)/fb;
+      contNote = ` &nbsp; Continuous beam: +M ${fmtNumShort(cba.maxPosM)} / &minus;M ${fmtNumShort(cba.maxNegM)} ft-lb.`;
+      if(SreqC > worst.Sreq){ worst.Sreq = SreqC; worst.SreqSpan = worst.SreqSpan || worst.span; worst.SreqCont = true; contNote += ' <strong>Negative/continuous moment governs bending.</strong>'; }
+    }
     const Sreq = worst.Sreq, Ireq = worst.Ireq;
     const govSpanS = worst.SreqSpan || worst.span;
     const govSpanI = worst.IreqSpan || worst.span;
@@ -4211,7 +4368,7 @@
     const bayNote = (spans.length>1 || ohStart>0 || ohEnd>0) ? ` &nbsp; (${spans.length} bay${spans.length>1?'s':''}: ${spans.join("', ")}'${ohStart>0?`, start O.H. ${ohStart}'`:''}${ohEnd>0?`, end O.H. ${ohEnd}'`:''} — governing ${govIsOH?'overhang':'bay'} ${govFt}')` : '';
     const plNote = hasPL ? ` &nbsp; +${pointLoads.length} point load${pointLoads.length>1?'s':''} (${pointLoads.map(p=>`${Math.round(p.P)} lb @ ${p.loc}'`).join(', ')})` : '';
     const reactions = computeReactions();
-    const reactionNote = reactions ? `<div style="margin-top:8px;">Support reactions — ${reactions.map(r=>`${r.type==='wall'?'Wall':r.type==='beam'?'Beam':'Post'} ${r.idx+1}: <b>${Math.round(r.R).toLocaleString()} lb</b> ${sendBtn(`sendGlulamReactionToFooting(${r.idx})`, 'Send to Footing')}`).join('<br>')}</div>` : '';
+    const reactionNote = reactions ? `<div style="margin-top:8px;">Support reactions — ${reactions.map(r=>`${r.type==='wall'?'Wall':r.type==='beam'?'Beam':'Post'} ${r.idx+1}: <b>${Math.round(r.R).toLocaleString()} lb</b>${r.uplift ? ` <span style="color:var(--rust);">(uplift ${Math.round(r.Rmin).toLocaleString()} lb under patterned live load &mdash; check hold-down)</span>` : ''} ${sendBtn(`sendGlulamReactionToFooting(${r.idx})`, 'Send to Footing')}`).join('<br>')} <span class="note">(continuous beam, max over live-load patterns)</span></div>` : '';
 
     if(isSawn){
       // Bundled sawn lumber — pick the smallest catalog size (2x6..2x14) at
@@ -4232,7 +4389,7 @@
         box.classList.remove('warn');
         const dFrac = (fit.d % 1 === 0.5) ? (Math.floor(fit.d)+'-1/2') : fit.d;
         box.innerHTML = `<div class="headline">Suggested: (${sawnPlies}) ${fit.key} — ${fit.b}" x ${dFrac}" bundled</div>
-          Grade: ${JOIST_GRADE_LABEL[gradeKey]||gradeKey} DF-L &nbsp; w = ${w.toFixed(0)} plf${loadBreakdown}${bayNote}${plNote}<br>
+          Grade: ${JOIST_GRADE_LABEL[gradeKey]||gradeKey} DF-L &nbsp; w = ${w.toFixed(0)} plf${loadBreakdown}${bayNote}${plNote}${contNote}<br>
           Moment required = ${Mreq.toFixed(0)} ft-lb -> allowable ${fit.Mallow.toFixed(0)} ft-lb<br>
           I required (defl) = ${Ireq.toFixed(0)} in4 -> provided ${fit.I.toFixed(0)} in4<br>
           Governs: ${fit.Mallow/Mreq < fit.I/Ireq ? 'bending' : 'deflection'}${reactionNote}`;
@@ -4261,7 +4418,7 @@
         box.classList.remove('warn');
         const dFrac = (fit.d % 1 === 0.5) ? (Math.floor(fit.d)+'-1/2') : fit.d;
         box.innerHTML = `<div class="headline">Suggested: ${wFrac}" x ${dFrac}"</div>
-          w = ${w.toFixed(0)} plf${loadBreakdown}${bayNote}${plNote}<br>
+          w = ${w.toFixed(0)} plf${loadBreakdown}${bayNote}${plNote}${contNote}<br>
           Sx required = ${Sreq.toFixed(1)} in3 -> provided ${fit.Sx.toFixed(1)} in3<br>
           I required (defl) = ${Ireq.toFixed(0)} in4 -> provided ${fit.I.toFixed(0)} in4<br>
           Governs: ${fit.Sx/Sreq < fit.I/Ireq ? 'bending' : 'deflection'}${reactionNote}`;
@@ -8353,6 +8510,823 @@
   // Initialize the Glulam beam & supports diagram from whatever is in the span field on load.
   try{ initBeamDiagramInteractions(); onBeamSpanTextChange(); onBeamMaterialChange(); onPointLoadCountChange(); }catch(e){ console.warn('beam diagram init failed', e); }
 
+
+  // =====================================================================
+  // Shared PDF board: renders one page of a PDF (or an image) with an SVG
+  // overlay in PAGE-POINT coordinates (1/72", origin top-left, y down), so
+  // every markup is stored independent of zoom and maps straight onto the
+  // Revit sheet (page width/height <-> sheet outline) on import.
+  // =====================================================================
+  function PdfBoard(prefix, hooks){
+    const b = {pdf:null, img:null, name:'', pageNum:1, pageCount:0, zoom:1, pageW:0, pageH:0, texts:[], renderTask:null, pageSheet:{}};
+    const el = id=> document.getElementById(prefix+'-'+id);
+    function ensureWorker(){
+      if(window.pdfjsLib && !pdfjsLib.GlobalWorkerOptions.workerSrc)
+        pdfjsLib.GlobalWorkerOptions.workerSrc = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
+    }
+    b.load = async function(file){
+      if(!file) return;
+      b.name = file.name; b.pdf = null; b.img = null; b.pageNum = 1;
+      if(/^image\//.test(file.type)){
+        const url = URL.createObjectURL(file);
+        b.img = await new Promise((res,rej)=>{ const im = new Image(); im.onload=()=>res(im); im.onerror=rej; im.src=url; });
+        b.pageCount = 1;
+      } else {
+        if(!window.pdfjsLib){ alert('The PDF viewer library did not load (needs an internet connection the first time).'); return; }
+        ensureWorker();
+        const buf = await file.arrayBuffer();
+        b.pdf = await pdfjsLib.getDocument({data: buf}).promise;
+        b.pageCount = b.pdf.numPages;
+      }
+      if(hooks.onLoad) hooks.onLoad();
+      await b.fit();
+    };
+    b.fit = async function(){
+      if(!b.pdf && !b.img) return;
+      const dims = await pageDims();
+      const avail = el('viewer').clientWidth - 24;
+      b.zoom = Math.max(0.2, avail / dims.w);
+      await b.render();
+    };
+    async function pageDims(){
+      if(b.img) return {w: b.img.naturalWidth, h: b.img.naturalHeight};
+      const page = await b.pdf.getPage(b.pageNum);
+      const vp = page.getViewport({scale:1});
+      return {w: vp.width, h: vp.height};
+    }
+    b.zoomBy = async function(f){ if(!b.pdf && !b.img) return; b.zoom = Math.min(8, Math.max(0.1, b.zoom*f)); await b.render(); };
+    b.go = async function(d){
+      if(!b.pdf && !b.img) return;
+      const n = Math.min(b.pageCount, Math.max(1, b.pageNum + d));
+      if(n===b.pageNum) return;
+      b.pageNum = n; await b.render();
+    };
+    b.render = async function(){
+      const canvas = el('canvas'), svg = el('svg'), pageEl = el('page');
+      const dpr = window.devicePixelRatio || 1;
+      b.texts = [];
+      if(b.img){
+        b.pageW = b.img.naturalWidth; b.pageH = b.img.naturalHeight;
+        canvas.width = Math.round(b.pageW*b.zoom*dpr); canvas.height = Math.round(b.pageH*b.zoom*dpr);
+        const ctx = canvas.getContext('2d');
+        ctx.setTransform(1,0,0,1,0,0);
+        ctx.drawImage(b.img, 0, 0, canvas.width, canvas.height);
+      } else {
+        const page = await b.pdf.getPage(b.pageNum);
+        const vp1 = page.getViewport({scale:1});
+        b.pageW = vp1.width; b.pageH = vp1.height;
+        const vp = page.getViewport({scale: b.zoom*dpr});
+        canvas.width = Math.round(vp.width); canvas.height = Math.round(vp.height);
+        if(b.renderTask){ try{ b.renderTask.cancel(); }catch(e){} }
+        b.renderTask = page.render({canvasContext: canvas.getContext('2d'), viewport: vp});
+        try{ await b.renderTask.promise; }catch(e){ if(e && e.name==='RenderingCancelledException') return; }
+        try{
+          const tc = await page.getTextContent();
+          tc.items.forEach(it=>{
+            if(!it.str || !it.str.trim()) return;
+            const tx = pdfjsLib.Util.transform(vp1.transform, it.transform);
+            const h = Math.hypot(tx[2], tx[3]);
+            const vertical = Math.abs(tx[1]) > Math.abs(tx[0]);
+            const w = it.width;
+            const box = vertical ? {x: tx[4]-h, y: tx[5]-w, w: h, h: w} : {x: tx[4], y: tx[5]-h, w: w, h: h};
+            b.texts.push(Object.assign({str: it.str, fontH: h, vertical}, box));
+          });
+        }catch(e){}
+      }
+      canvas.style.width = (b.pageW*b.zoom)+'px'; canvas.style.height = (b.pageH*b.zoom)+'px';
+      pageEl.style.width = (b.pageW*b.zoom)+'px'; pageEl.style.height = (b.pageH*b.zoom)+'px';
+      svg.setAttribute('viewBox', `0 0 ${b.pageW} ${b.pageH}`);
+      svg.style.width = (b.pageW*b.zoom)+'px'; svg.style.height = (b.pageH*b.zoom)+'px';
+      if(!b.pageSheet[b.pageNum]) b.pageSheet[b.pageNum] = {sheetNumber: detectSheetNumber(), pageW: b.pageW, pageH: b.pageH};
+      else { b.pageSheet[b.pageNum].pageW = b.pageW; b.pageSheet[b.pageNum].pageH = b.pageH; }
+      if(hooks.onRender) hooks.onRender();
+    };
+    function detectSheetNumber(){
+      const re = /^[A-Z]{1,3}[-.]?\d{1,3}(\.\d{1,2})?[A-Z]?$/;
+      const cands = b.texts.filter(t=> re.test(t.str.trim()) && t.x > b.pageW*0.6 && t.y > b.pageH*0.5);
+      if(!cands.length) return '';
+      cands.sort((p,q)=> q.fontH - p.fontH || (q.x+q.y) - (p.x+p.y));
+      return cands[0].str.trim();
+    }
+    b.sheetNumber = ()=> (b.pageSheet[b.pageNum]||{}).sheetNumber || '';
+    b.setSheetNumber = (v)=>{ if(!b.pageSheet[b.pageNum]) b.pageSheet[b.pageNum] = {pageW:b.pageW, pageH:b.pageH}; b.pageSheet[b.pageNum].sheetNumber = (v||'').trim(); };
+    b.toPage = function(ev){
+      const r = el('svg').getBoundingClientRect();
+      return {x: (ev.clientX - r.left)/r.width*b.pageW, y: (ev.clientY - r.top)/r.height*b.pageH};
+    };
+    b.ptPerPx = ()=> b.pageW / el('svg').getBoundingClientRect().width;
+    // pointer plumbing
+    setTimeout(()=>{
+      const svg = el('svg'); if(!svg) return;
+      svg.addEventListener('pointerdown', ev=>{ if(!b.pdf && !b.img) return; svg.setPointerCapture(ev.pointerId); hooks.onPointer && hooks.onPointer('down', b.toPage(ev), ev); });
+      svg.addEventListener('pointermove', ev=>{ if(!b.pdf && !b.img) return; hooks.onPointer && hooks.onPointer('move', b.toPage(ev), ev); });
+      svg.addEventListener('pointerup', ev=>{ if(!b.pdf && !b.img) return; hooks.onPointer && hooks.onPointer('up', b.toPage(ev), ev); });
+      svg.addEventListener('dblclick', ev=>{ if(!b.pdf && !b.img) return; hooks.onPointer && hooks.onPointer('dbl', b.toPage(ev), ev); });
+    }, 0);
+    return b;
+  }
+
+  // Small modal text editor used by both tabs (no browser prompt()).
+  function smEditDialog(title, initial, opts){
+    opts = opts || {};
+    return new Promise(resolve=>{
+      const back = document.createElement('div');
+      back.className = 'dc-modal-backdrop open';
+      back.innerHTML = `<div class="dc-modal" style="max-width:520px;">
+        <h3 style="margin:0 0 8px;">${title}</h3>
+        ${opts.original ? `<div class="note" style="margin:0 0 6px;">Current text:<div style="background:#f4f4f4;padding:6px;border-radius:4px;margin-top:4px;white-space:pre-wrap;" class="sm-orig"></div></div>` : ''}
+        ${opts.extraBtn ? `<button class="run secondary" style="margin-bottom:6px;" data-act="extra">${opts.extraBtn}</button>` : ''}
+        <textarea rows="${opts.rows||4}" style="width:100%;padding:8px;border:1px solid var(--line);border-radius:6px;font-family:var(--sans);font-size:.95rem;"></textarea>
+        <div class="row" style="margin-top:10px;gap:8px;">
+          <button class="run" data-act="ok">${opts.okLabel||'OK'}</button>
+          <button class="run secondary" data-act="cancel">Cancel</button>
+        </div></div>`;
+      document.body.appendChild(back);
+      const ta = back.querySelector('textarea');
+      ta.value = initial || '';
+      const origEl = back.querySelector('.sm-orig');
+      if(origEl) origEl.textContent = opts.original;
+      setTimeout(()=>{ ta.focus(); ta.select(); }, 30);
+      const done = (v)=>{ back.remove(); resolve(v); };
+      back.addEventListener('click', e=>{
+        const act = e.target.dataset && e.target.dataset.act;
+        if(act==='ok') done(ta.value);
+        else if(act==='cancel' || e.target===back) done(null);
+        else if(act==='extra' && opts.onExtra){
+          const r = opts.onExtra();
+          if(r){ if(origEl) origEl.textContent = r.original; ta.value = r.value; }
+        }
+      });
+      ta.addEventListener('keydown', e=>{ if(e.key==='Enter' && (e.ctrlKey||e.metaKey)) done(ta.value); if(e.key==='Escape') done(null); });
+    });
+  }
+
+  function smEsc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+  function smDownloadJson(obj, name){
+    const blob = new Blob([JSON.stringify(obj, null, 2)], {type:'application/json'});
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name;
+    document.body.appendChild(a); a.click(); setTimeout(()=>{ URL.revokeObjectURL(a.href); a.remove(); }, 500);
+  }
+  function smCloudPath(x0,y0,x1,y1,r){
+    const xa=Math.min(x0,x1), xb=Math.max(x0,x1), ya=Math.min(y0,y1), yb=Math.max(y0,y1);
+    r = r || Math.max(3, Math.min(xb-xa, yb-ya)/6);
+    const pts = [];
+    const edge = (ax,ay,bx,by)=>{ const L=Math.hypot(bx-ax,by-ay), n=Math.max(1,Math.round(L/(2*r))); for(let i=0;i<n;i++) pts.push([ax+(bx-ax)*i/n, ay+(by-ay)*i/n]); };
+    edge(xa,ya,xb,ya); edge(xb,ya,xb,yb); edge(xb,yb,xa,yb); edge(xa,yb,xa,ya);
+    pts.push(pts[0]);
+    let d = `M ${pts[0][0]} ${pts[0][1]}`;
+    for(let i=1;i<pts.length;i++){ const [px,py]=pts[i-1], [qx,qy]=pts[i]; const rr=Math.hypot(qx-px,qy-py)/2; d += ` A ${rr} ${rr} 0 0 1 ${qx} ${qy}`; }
+    return d;
+  }
+
+  // =====================================================================
+  // SE MARKUP
+  // =====================================================================
+  const SM_TOOLS = [
+    {id:'select', label:'Select / move', key:'V'},
+    {id:'edit', label:'Edit text', key:'E'},
+    {id:'text', label:'Add text', key:'T'},
+    {id:'callout', label:'Callout (arrow + text)', key:'C'},
+    {id:'x', label:'X  (delete / remove)', key:'X'},
+    {id:'cloud', label:'Cloud', key:'K'},
+    {id:'arrow', label:'Arrow', key:'A'},
+    {id:'line', label:'Line', key:'L'},
+    {id:'check', label:'✓ OK', key:'O'},
+    {id:'highlight', label:'Highlight', key:'H'},
+    {id:'pen', label:'Pen', key:'P'},
+  ];
+  let smTool = 'edit';
+  let smItems = [];
+  let smUndo = [];
+  let smSelected = null;
+  let smDrag = null;
+  const SM_RED = '#d32f2f';
+
+  const smBoard = PdfBoard('sm', {
+    onLoad(){ smLoadLocal(); },
+    onRender(){ document.getElementById('sm-sheetnum').value = smBoard.sheetNumber(); smUpdatePageInfo(); smDraw(); },
+    onPointer: smPointer,
+  });
+
+  (function smInitToolbar(){
+    const tb = document.getElementById('sm-toolbar');
+    if(!tb) return;
+    tb.innerHTML = SM_TOOLS.map(t=>`<button class="sm-tool" data-tool="${t.id}" title="${t.label} (${t.key})">${t.label}</button>`).join('') +
+      `<span style="flex:1"></span><button class="run secondary" onclick="smUndoLast()" title="Ctrl+Z">Undo</button><button class="run secondary" onclick="smDeleteSelected()">Delete selected</button>`;
+    tb.addEventListener('click', e=>{ const t = e.target.closest('[data-tool]'); if(t) smSetTool(t.dataset.tool); });
+    smSetTool('edit');
+    document.addEventListener('keydown', e=>{
+      const panel = document.getElementById('semarkup');
+      if(!panel || !panel.classList.contains('active')) return;
+      if(['INPUT','TEXTAREA','SELECT'].includes((document.activeElement||{}).tagName)) return;
+      if((e.ctrlKey||e.metaKey) && e.key.toLowerCase()==='z'){ e.preventDefault(); smUndoLast(); return; }
+      if(e.key==='Delete' || e.key==='Backspace'){ if(smSelected){ e.preventDefault(); smDeleteSelected(); } return; }
+      const t = SM_TOOLS.find(x=> x.key.toLowerCase()===e.key.toLowerCase());
+      if(t && !e.ctrlKey && !e.metaKey) smSetTool(t.id);
+    });
+  })();
+
+  function smSetTool(id){
+    smTool = id; smSelected = null; smDrag = null;
+    document.querySelectorAll('#sm-toolbar .sm-tool').forEach(b=> b.classList.toggle('active', b.dataset.tool===id));
+    const svg = document.getElementById('sm-svg');
+    if(svg) svg.style.cursor = id==='select' ? 'default' : (id==='edit' ? 'text' : 'crosshair');
+    smDraw();
+  }
+  async function smOpenPdf(file){ if(!file) return; document.getElementById('sm-status').textContent = 'Loading…'; await smBoard.load(file); document.getElementById('sm-status').textContent = ''; }
+  function smUpdatePageInfo(){
+    const n = smItems.length, here = smItems.filter(i=>i.page===smBoard.pageNum).length;
+    document.getElementById('sm-pageinfo').textContent = `${smBoard.name} — page ${smBoard.pageNum} of ${smBoard.pageCount} · ${here} markup(s) here, ${n} total`;
+  }
+  function smSetSheetNumber(v){ smBoard.setSheetNumber(v); smItems.forEach(i=>{ if(i.page===smBoard.pageNum) i.sheetNumber = smBoard.sheetNumber(); }); smSaveLocal(); }
+  function smKey(){ return 'smMarkups::' + smBoard.name; }
+  function smSaveLocal(){
+    if(!smBoard.name) return;
+    try{ localStorage.setItem(smKey(), JSON.stringify({items: smItems, pageSheet: smBoard.pageSheet, reviewer: document.getElementById('sm-reviewer').value})); }catch(e){}
+  }
+  function smLoadLocal(){
+    smItems = []; smUndo = []; smSelected = null;
+    try{
+      const d = JSON.parse(localStorage.getItem(smKey())||'null');
+      if(d){ smItems = d.items||[]; smBoard.pageSheet = d.pageSheet||{}; if(d.reviewer) document.getElementById('sm-reviewer').value = d.reviewer; }
+      else smBoard.pageSheet = {};
+    }catch(e){ smBoard.pageSheet = {}; }
+  }
+  function smPushUndo(){ smUndo.push(JSON.stringify(smItems)); if(smUndo.length>100) smUndo.shift(); }
+  function smUndoLast(){ if(!smUndo.length) return; smItems = JSON.parse(smUndo.pop()); smSelected = null; smCommit(false); }
+  function smCommit(pushUndo){ smSaveLocal(); smDraw(); smUpdatePageInfo(); }
+  function smAdd(item){
+    smPushUndo();
+    item.id = 'm' + Date.now().toString(36) + Math.random().toString(36).slice(2,6);
+    item.page = smBoard.pageNum;
+    item.sheetNumber = smBoard.sheetNumber();
+    item.author = document.getElementById('sm-reviewer').value || '';
+    item.at = new Date().toISOString();
+    smItems.push(item);
+    smCommit();
+    return item;
+  }
+  function smDeleteSelected(){
+    if(!smSelected) return;
+    smPushUndo();
+    smItems = smItems.filter(i=> i.id!==smSelected);
+    smSelected = null; smCommit();
+  }
+
+  function smTextAt(p){
+    return smBoard.texts.find(t=> p.x>=t.x-1 && p.x<=t.x+t.w+1 && p.y>=t.y-1 && p.y<=t.y+t.h+1);
+  }
+  function smLineBelow(t){
+    // next text line under t (same column, within ~1.8 line heights)
+    let best = null, bestD = Infinity;
+    smBoard.texts.forEach(o=>{
+      if(o===t || o.vertical!==t.vertical) return;
+      const dy = o.y - (t.y + t.h);
+      if(dy < -t.h*0.3 || dy > t.h*1.8) return;
+      const overlap = Math.min(o.x+o.w, t.x+t.w) - Math.max(o.x, t.x);
+      if(overlap <= 0 && Math.abs(o.x - t.x) > t.h*2) return;
+      const d = dy + Math.abs(o.x - t.x)*0.1;
+      if(d < bestD){ bestD = d; best = o; }
+    });
+    return best;
+  }
+  function smUnion(boxes){
+    const x0 = Math.min(...boxes.map(b=>b.x)), y0 = Math.min(...boxes.map(b=>b.y));
+    const x1 = Math.max(...boxes.map(b=>b.x+b.w)), y1 = Math.max(...boxes.map(b=>b.y+b.h));
+    return {x:x0, y:y0, w:x1-x0, h:y1-y0};
+  }
+
+  async function smPointer(type, p, ev){
+    if(type==='dbl'){
+      const hit = smHit(p);
+      if(hit) await smEditItem(hit);
+      return;
+    }
+    const t = smTool;
+    if(t==='select'){
+      if(type==='down'){
+        const hit = smHit(p);
+        smSelected = hit ? hit.id : null;
+        if(hit){ smPushUndo(); smDrag = {start:p, item: hit, orig: JSON.stringify(hit)}; }
+        smDraw();
+      } else if(type==='move' && smDrag){
+        const dx = p.x - smDrag.start.x, dy = p.y - smDrag.start.y;
+        const o = JSON.parse(smDrag.orig);
+        smMoveItem(smDrag.item, o, dx, dy); smDraw();
+      } else if(type==='up' && smDrag){ smDrag = null; smCommit(); }
+      return;
+    }
+    if(t==='edit'){
+      if(type!=='down') return;
+      const hit = smTextAt(p);
+      if(!hit){ document.getElementById('sm-status').textContent = 'Click directly on a line of text to edit it.'; return; }
+      let lines = [hit];
+      const val = await smEditDialog('Edit text', hit.str, {
+        original: hit.str, rows: 4, okLabel: 'Save edit', extraBtn: '+ next line',
+        onExtra(){
+          const nxt = smLineBelow(lines[lines.length-1]);
+          if(!nxt) return null;
+          lines.push(nxt);
+          const orig = lines.map(l=>l.str.trim()).join(' ');
+          return {original: orig, value: orig};
+        }
+      });
+      if(val===null) return;
+      const original = lines.map(l=>l.str.trim()).join(' ');
+      if(val.trim()===original.trim()) return;
+      smAdd({kind: val.trim() ? 'edit' : 'delete', original, replacement: val.trim(), boxes: lines.map(l=>({x:l.x,y:l.y,w:l.w,h:l.h}))});
+      return;
+    }
+    if(t==='text' || t==='check'){
+      if(type!=='down') return;
+      if(t==='check'){ smAdd({kind:'check', x:p.x, y:p.y, s: 10*smBoard.ptPerPx()}); return; }
+      const val = await smEditDialog('New note', '', {okLabel:'Add note'});
+      if(val && val.trim()) smAdd({kind:'text', x:p.x, y:p.y, text: val.trim(), size: Math.max(6, 12*smBoard.ptPerPx())});
+      return;
+    }
+    if(t==='pen'){
+      if(type==='down') smDrag = {pts:[[p.x,p.y]]};
+      else if(type==='move' && smDrag){ const last = smDrag.pts[smDrag.pts.length-1]; if(Math.hypot(p.x-last[0], p.y-last[1]) > 1.5*smBoard.ptPerPx()) smDrag.pts.push([p.x,p.y]); smDraw(); }
+      else if(type==='up' && smDrag){ const pts = smDrag.pts; smDrag = null; if(pts.length>1) smAdd({kind:'pen', pts}); else smDraw(); }
+      return;
+    }
+    // drag tools: x, cloud, arrow, line, highlight, callout
+    if(type==='down'){ smDrag = {x0:p.x, y0:p.y, x1:p.x, y1:p.y}; return; }
+    if(type==='move' && smDrag){ smDrag.x1 = p.x; smDrag.y1 = p.y; smDraw(); return; }
+    if(type==='up' && smDrag){
+      const d = smDrag; smDrag = null;
+      const tiny = Math.hypot(d.x1-d.x0, d.y1-d.y0) < 4*smBoard.ptPerPx();
+      if(t==='x'){
+        let x0=d.x0, y0=d.y0, x1=d.x1, y1=d.y1;
+        if(tiny){ const s = 8*smBoard.ptPerPx(); x0=p.x-s; y0=p.y-s; x1=p.x+s; y1=p.y+s; }
+        const r = {x:Math.min(x0,x1), y:Math.min(y0,y1), w:Math.abs(x1-x0), h:Math.abs(y1-y0)};
+        const covered = smBoard.texts.filter(tx=>{ const cx = tx.x+tx.w/2, cy = tx.y+tx.h/2; return cx>=r.x && cx<=r.x+r.w && cy>=r.y && cy<=r.y+r.h; });
+        const single = tiny ? smTextAt(p) : null;
+        const lines = covered.length ? covered : (single ? [single] : []);
+        if(lines.length){
+          lines.sort((a,b)=> a.y-b.y || a.x-b.x);
+          smAdd({kind:'delete', original: lines.map(l=>l.str.trim()).join(' '), replacement:'', boxes: lines.map(l=>({x:l.x,y:l.y,w:l.w,h:l.h})), x0,y0,x1,y1});
+        } else {
+          const note = await smEditDialog('X — what should be removed? (optional)', '', {rows:2, okLabel:'Add X'});
+          if(note===null) { smDraw(); return; }
+          smAdd({kind:'x', x0,y0,x1,y1, comment: (note||'').trim()});
+        }
+        return;
+      }
+      if(tiny){ smDraw(); return; }
+      if(t==='cloud'){
+        const note = await smEditDialog('Cloud comment (optional)', '', {rows:3, okLabel:'Add cloud'});
+        if(note===null){ smDraw(); return; }
+        smAdd({kind:'cloud', x0:d.x0,y0:d.y0,x1:d.x1,y1:d.y1, comment:(note||'').trim()});
+      } else if(t==='callout'){
+        const val = await smEditDialog('Callout text', '', {okLabel:'Add callout'});
+        if(val && val.trim()) smAdd({kind:'callout', x0:d.x0,y0:d.y0,x1:d.x1,y1:d.y1, text: val.trim(), size: Math.max(6, 12*smBoard.ptPerPx())});
+        else smDraw();
+      } else {
+        smAdd({kind:t, x0:d.x0,y0:d.y0,x1:d.x1,y1:d.y1});
+      }
+    }
+  }
+
+  function smBBox(i){
+    if(i.boxes) return smUnion(i.boxes);
+    if(i.kind==='text'){ const lines = String(i.text).split('\n'); const w = Math.max(...lines.map(l=>l.length))*i.size*0.55; return {x:i.x, y:i.y-i.size, w, h: lines.length*i.size*1.25}; }
+    if(i.kind==='check') return {x:i.x-i.s, y:i.y-i.s, w:2*i.s, h:2*i.s};
+    if(i.kind==='pen'){ const xs=i.pts.map(q=>q[0]), ys=i.pts.map(q=>q[1]); return {x:Math.min(...xs), y:Math.min(...ys), w:Math.max(...xs)-Math.min(...xs), h:Math.max(...ys)-Math.min(...ys)}; }
+    if(i.kind==='callout'){ const lines = String(i.text).split('\n'); const w = Math.max(...lines.map(l=>l.length))*i.size*0.55; const xs=[i.x0,i.x1,i.x1+w], ys=[i.y0,i.y1-i.size,i.y1+lines.length*i.size*1.25]; return {x:Math.min(...xs), y:Math.min(...ys), w:Math.max(...xs)-Math.min(...xs), h:Math.max(...ys)-Math.min(...ys)}; }
+    return {x:Math.min(i.x0,i.x1), y:Math.min(i.y0,i.y1), w:Math.abs(i.x1-i.x0), h:Math.abs(i.y1-i.y0)};
+  }
+  function smHit(p){
+    const pad = 4*smBoard.ptPerPx();
+    const here = smItems.filter(i=> i.page===smBoard.pageNum);
+    for(let k=here.length-1;k>=0;k--){
+      const b = smBBox(here[k]);
+      if(p.x>=b.x-pad && p.x<=b.x+b.w+pad && p.y>=b.y-pad && p.y<=b.y+b.h+pad) return here[k];
+    }
+    return null;
+  }
+  function smMoveItem(it, o, dx, dy){
+    if(o.boxes){ it.boxes = o.boxes.map(b=>({x:b.x+dx,y:b.y+dy,w:b.w,h:b.h})); }
+    ['x','x0','x1'].forEach(k=>{ if(o[k]!=null) it[k] = o[k]+dx; });
+    ['y','y0','y1'].forEach(k=>{ if(o[k]!=null) it[k] = o[k]+dy; });
+    if(o.pts) it.pts = o.pts.map(q=>[q[0]+dx, q[1]+dy]);
+  }
+  async function smEditItem(it){
+    if(it.kind==='edit' || it.kind==='delete'){
+      const v = await smEditDialog('Edit text', it.replacement, {original: it.original, okLabel:'Save edit'});
+      if(v===null) return; smPushUndo(); it.replacement = v.trim(); it.kind = it.replacement ? 'edit' : 'delete';
+    } else if(it.kind==='text' || it.kind==='callout'){
+      const v = await smEditDialog('Edit text', it.text); if(v===null) return; smPushUndo();
+      if(!v.trim()){ smItems = smItems.filter(x=>x!==it); } else it.text = v.trim();
+    } else {
+      const v = await smEditDialog('Comment', it.comment||'', {rows:3}); if(v===null) return; smPushUndo(); it.comment = v.trim();
+    }
+    smCommit();
+  }
+
+  function smTextSvg(x, y, text, size, color){
+    const lines = String(text).split('\n');
+    return `<text x="${x}" y="${y}" font-size="${size}" fill="${color}" font-family="Arial, sans-serif">${lines.map((l,i)=>`<tspan x="${x}" dy="${i?size*1.25:0}">${smEsc(l)}</tspan>`).join('')}</text>`;
+  }
+  function smArrowHead(x0,y0,x1,y1,s){
+    const a = Math.atan2(y1-y0, x1-x0), L = s;
+    const p1 = [x1 - L*Math.cos(a-0.4), y1 - L*Math.sin(a-0.4)], p2 = [x1 - L*Math.cos(a+0.4), y1 - L*Math.sin(a+0.4)];
+    return `<path d="M ${p1[0]} ${p1[1]} L ${x1} ${y1} L ${p2[0]} ${p2[1]}" fill="none"/>`;
+  }
+  function smItemSvg(i, sel){
+    const st = `stroke="${SM_RED}" stroke-width="2" vector-effect="non-scaling-stroke" fill="none"`;
+    let g = '';
+    const head = 6;
+    switch(i.kind){
+      case 'edit':
+      case 'delete': {
+        i.boxes.forEach(b=>{ g += `<line x1="${b.x}" y1="${b.y+b.h*0.55}" x2="${b.x+b.w}" y2="${b.y+b.h*0.55}" ${st}/>`; });
+        const u = smUnion(i.boxes);
+        if(i.kind==='edit'){
+          g += `<rect x="${u.x-1}" y="${u.y-1}" width="${u.w+2}" height="${u.h+2}" ${st} stroke-dasharray="3 2"/>`;
+          const sz = Math.max(6, i.boxes[0].h*0.95);
+          g += `<rect x="${u.x}" y="${u.y-sz*1.35*String(i.replacement).split('\n').length-2}" width="${Math.max(u.w, String(i.replacement).length*sz*0.5)}" height="${sz*1.35*String(i.replacement).split('\n').length}" fill="#fff" opacity="0.85"/>`;
+          g += smTextSvg(u.x, u.y - sz*1.35*(String(i.replacement).split('\n').length-1) - sz*0.45, i.replacement, sz, SM_RED);
+        } else {
+          g += `<line x1="${u.x}" y1="${u.y}" x2="${u.x+u.w}" y2="${u.y+u.h}" ${st}/><line x1="${u.x+u.w}" y1="${u.y}" x2="${u.x}" y2="${u.y+u.h}" ${st}/>`;
+        }
+        break;
+      }
+      case 'text': g += smTextSvg(i.x, i.y, i.text, i.size, SM_RED); break;
+      case 'callout':
+        g += `<line x1="${i.x1}" y1="${i.y1}" x2="${i.x0}" y2="${i.y0}" ${st}/>` + `<g ${st}>${smArrowHead(i.x1,i.y1,i.x0,i.y0,head)}</g>`;
+        g += smTextSvg(i.x1 + 2, i.y1 + i.size*0.35, i.text, i.size, SM_RED); break;
+      case 'x': g += `<line x1="${i.x0}" y1="${i.y0}" x2="${i.x1}" y2="${i.y1}" ${st}/><line x1="${i.x1}" y1="${i.y0}" x2="${i.x0}" y2="${i.y1}" ${st}/>`; break;
+      case 'cloud': g += `<path d="${smCloudPath(i.x0,i.y0,i.x1,i.y1)}" ${st}/>`; break;
+      case 'arrow': g += `<line x1="${i.x0}" y1="${i.y0}" x2="${i.x1}" y2="${i.y1}" ${st}/><g ${st}>${smArrowHead(i.x0,i.y0,i.x1,i.y1,head)}</g>`; break;
+      case 'line': g += `<line x1="${i.x0}" y1="${i.y0}" x2="${i.x1}" y2="${i.y1}" ${st}/>`; break;
+      case 'check': g += `<path d="M ${i.x-i.s} ${i.y} L ${i.x-i.s*0.3} ${i.y+i.s*0.7} L ${i.x+i.s} ${i.y-i.s}" ${st.replace('stroke-width="2"','stroke-width="2.5"')} stroke="#2e7d32"/>`; break;
+      case 'highlight': g += `<rect x="${Math.min(i.x0,i.x1)}" y="${Math.min(i.y0,i.y1)}" width="${Math.abs(i.x1-i.x0)}" height="${Math.abs(i.y1-i.y0)}" fill="#ffeb3b" opacity="0.4"/>`; break;
+      case 'pen': g += `<path d="M ${i.pts.map(q=>q.join(' ')).join(' L ')}" ${st}/>`; break;
+    }
+    if(i.comment){ const b = smBBox(i); g += smTextSvg(b.x + b.w + 3, b.y + 6, i.comment, 7, SM_RED); }
+    if(sel){ const b = smBBox(i); g += `<rect x="${b.x-3}" y="${b.y-3}" width="${b.w+6}" height="${b.h+6}" fill="none" stroke="#1565c0" stroke-width="1.5" vector-effect="non-scaling-stroke" stroke-dasharray="4 3"/>`; }
+    return `<g data-id="${i.id}">${g}</g>`;
+  }
+  function smDraw(){
+    const svg = document.getElementById('sm-svg');
+    if(!svg || !smBoard.pageW) return;
+    let out = '';
+    if(smTool==='edit' || smTool==='x'){
+      out += smBoard.texts.map(t=>`<rect class="sm-textbox" x="${t.x}" y="${t.y}" width="${t.w}" height="${t.h}"/>`).join('');
+    }
+    smItems.filter(i=> i.page===smBoard.pageNum).forEach(i=>{ out += smItemSvg(i, i.id===smSelected); });
+    if(smDrag){
+      const st = `stroke="${SM_RED}" stroke-width="1.5" vector-effect="non-scaling-stroke" fill="none" stroke-dasharray="4 3"`;
+      if(smDrag.pts) out += `<path d="M ${smDrag.pts.map(q=>q.join(' ')).join(' L ')}" ${st}/>`;
+      else if(smTool==='cloud') out += `<path d="${smCloudPath(smDrag.x0,smDrag.y0,smDrag.x1,smDrag.y1)}" ${st}/>`;
+      else if(['arrow','line','callout'].includes(smTool)) out += `<line x1="${smDrag.x0}" y1="${smDrag.y0}" x2="${smDrag.x1}" y2="${smDrag.y1}" ${st}/>`;
+      else if(smDrag.x0!=null) out += `<rect x="${Math.min(smDrag.x0,smDrag.x1)}" y="${Math.min(smDrag.y0,smDrag.y1)}" width="${Math.abs(smDrag.x1-smDrag.x0)}" height="${Math.abs(smDrag.y1-smDrag.y0)}" ${st}/>`;
+    }
+    svg.innerHTML = out;
+    smRenderList();
+  }
+  const SM_KIND_LABEL = {edit:'Text change', delete:'Delete text', text:'New note', callout:'Callout', x:'X / remove', cloud:'Cloud', arrow:'Arrow', line:'Line', check:'OK', highlight:'Highlight', pen:'Pen'};
+  function smRenderList(){
+    const el = document.getElementById('sm-list');
+    if(!el) return;
+    const here = smItems.filter(i=> i.page===smBoard.pageNum);
+    if(!here.length){ el.innerHTML = '<span class="note">None yet.</span>'; return; }
+    el.innerHTML = here.map((i,n)=>{
+      let desc = '';
+      if(i.kind==='edit') desc = `<s>${smEsc(i.original)}</s> &rarr; <b>${smEsc(i.replacement)}</b>`;
+      else if(i.kind==='delete') desc = `<s>${smEsc(i.original)}</s>`;
+      else if(i.text) desc = smEsc(i.text);
+      if(i.comment) desc += (desc?'<br>':'') + '<i>' + smEsc(i.comment) + '</i>';
+      return `<div class="sm-listitem${i.id===smSelected?' sel':''}" onclick="smSelectFromList('${i.id}')"><b>${n+1}. ${SM_KIND_LABEL[i.kind]||i.kind}</b>${desc?'<br>'+desc:''}</div>`;
+    }).join('');
+  }
+  function smSelectFromList(id){ smSetTool('select'); smSelected = id; smDraw(); }
+
+  function smExportObject(){
+    const pages = {};
+    smItems.forEach(i=>{ const ps = smBoard.pageSheet[i.page] || {}; pages[i.page] = {sheetNumber: ps.sheetNumber || i.sheetNumber || '', pageW: ps.pageW, pageH: ps.pageH}; });
+    const items = smItems.map(i=> Object.assign({}, i, {sheetNumber: (smBoard.pageSheet[i.page]||{}).sheetNumber || i.sheetNumber || ''}));
+    return {format:'tdd-se-markup', version:1, pdfName: smBoard.name, reviewer: document.getElementById('sm-reviewer').value || '', exportedAt: new Date().toISOString(), units:'pdf-points, origin top-left', pages, items};
+  }
+  function smDownload(){
+    if(!smItems.length){ alert('No markups yet.'); return; }
+    const missing = [...new Set(smItems.filter(i=> !((smBoard.pageSheet[i.page]||{}).sheetNumber)).map(i=>i.page))];
+    if(missing.length && !confirm('Page(s) ' + missing.join(', ') + ' have no sheet number, so Revit won\'t know which sheet they belong to. Save anyway? (Type the sheet # next to the page arrows to fix.)')) return;
+    const base = (smBoard.name||'markups').replace(/\.pdf$/i,'');
+    smDownloadJson(smExportObject(), `${base} - SE markups.json`);
+  }
+  async function smOpenMarkupFile(file){
+    if(!file) return;
+    try{
+      const d = JSON.parse(await file.text());
+      if(d.format!=='tdd-se-markup') throw new Error('Not an SE markup file.');
+      if(smBoard.name && d.pdfName && d.pdfName!==smBoard.name && !confirm(`This markup file was made on "${d.pdfName}", but "${smBoard.name}" is open. Load it anyway?`)) return;
+      smPushUndo();
+      smItems = d.items || [];
+      Object.keys(d.pages||{}).forEach(k=>{ smBoard.pageSheet[k] = Object.assign(smBoard.pageSheet[k]||{}, d.pages[k]); });
+      if(d.reviewer) document.getElementById('sm-reviewer').value = d.reviewer;
+      smCommit();
+      document.getElementById('sm-sheetnum').value = smBoard.sheetNumber();
+    }catch(e){ alert('Could not read that file: ' + e.message); }
+  }
+
+  // =====================================================================
+  // SNOW DRIFT (ASCE 7-16 Ch. 7)
+  // =====================================================================
+  let sdItems = [];
+  let sdTool = 'drift';
+  let sdPending = null;   // clicks collected for the current drift/measure/calibrate
+  let sdLastMeasure = null;
+  let sdPtsPerFt = 9;     // 1/8" = 1'-0" on a 100% print
+  let sdSelected = null;
+
+  const sdBoard = PdfBoard('sd', {
+    onLoad(){ sdLoadLocal(); },
+    onRender(){ document.getElementById('sd-sheetnum').value = sdBoard.sheetNumber(); sdUpdatePageInfo(); sdDraw(); },
+    onPointer: sdPointer,
+  });
+  (function sdInitToolbar(){
+    const tb = document.getElementById('sd-toolbar');
+    if(!tb) return;
+    const tools = [{id:'drift',label:'Add drift'},{id:'measure',label:'Measure'},{id:'select',label:'Select'}];
+    tb.innerHTML = tools.map(t=>`<button class="sm-tool" data-tool="${t.id}">${t.label}</button>`).join('') +
+      `<span style="flex:1"></span><button class="run secondary" onclick="sdDeleteSelected()">Delete selected</button>`;
+    tb.addEventListener('click', e=>{ const t = e.target.closest('[data-tool]'); if(t) sdSetTool(t.dataset.tool); });
+    sdSetTool('drift');
+    sdRecalcAll();
+  })();
+  function sdSetTool(id){
+    sdTool = id; sdPending = null;
+    document.querySelectorAll('#sd-toolbar .sm-tool').forEach(b=> b.classList.toggle('active', b.dataset.tool===id));
+    sdStatus(id==='drift' ? 'Click the first end of the wall / parapet / step edge.' : id==='measure' ? 'Click the first point.' : 'Click a drift to select it; double-click to edit.');
+    sdDraw();
+  }
+  function sdStatus(t){ const el = document.getElementById('sd-status'); if(el) el.textContent = t||''; }
+  function sdOnScale(){
+    const v = document.getElementById('sd-scale').value;
+    if(v==='cal'){ sdSetTool('calibrate'); sdStatus('Calibrate: click two points a known distance apart.'); return; }
+    sdPtsPerFt = parseFloat(v); sdRecalcAll();
+  }
+  async function sdOpenFile(file){
+    if(!file) return;
+    await sdBoard.load(file);
+    if(sdBoard.img){ document.getElementById('sd-scale').value = 'cal'; sdOnScale(); }
+  }
+  function sdSetSheetNumber(v){ sdBoard.setSheetNumber(v); sdItems.forEach(i=>{ if(i.page===sdBoard.pageNum) i.sheetNumber = sdBoard.sheetNumber(); }); sdSaveLocal(); }
+  function sdUpdatePageInfo(){
+    const el = document.getElementById('sd-pageinfo');
+    if(el) el.textContent = `${sdBoard.name} — page ${sdBoard.pageNum} of ${sdBoard.pageCount} · ${sdItems.filter(i=>i.page===sdBoard.pageNum).length} drift(s) here`;
+  }
+  function sdKey(){ return 'sdDrifts::' + sdBoard.name; }
+  function sdSaveLocal(){
+    if(!sdBoard.name) return;
+    try{ localStorage.setItem(sdKey(), JSON.stringify({items: sdItems, pageSheet: sdBoard.pageSheet, criteria: sdCriteriaInputs(), ptsPerFt: sdPtsPerFt, scaleSel: document.getElementById('sd-scale').value})); }catch(e){}
+  }
+  function sdLoadLocal(){
+    sdItems = []; sdSelected = null;
+    try{
+      const d = JSON.parse(localStorage.getItem(sdKey())||'null');
+      if(d){
+        sdItems = d.items||[]; sdBoard.pageSheet = d.pageSheet||{};
+        if(d.criteria) sdApplyCriteria(d.criteria);
+        if(d.ptsPerFt) sdPtsPerFt = d.ptsPerFt;
+        if(d.scaleSel) document.getElementById('sd-scale').value = d.scaleSel;
+      } else sdBoard.pageSheet = {};
+    }catch(e){ sdBoard.pageSheet = {}; }
+    sdRecalcAll();
+  }
+  function sdCriteriaInputs(){
+    const g = id=> parseFloat(document.getElementById(id).value);
+    return {code: document.getElementById('sd-code').value, pg: g('sd-pg'), Ce: g('sd-ce'), Ct: g('sd-ct'), Is: g('sd-is'), tagMode: document.getElementById('sd-tagmode').value};
+  }
+  function sdApplyCriteria(c){
+    const s = (id,v)=>{ const e=document.getElementById(id); if(e && v!=null) e.value = v; };
+    s('sd-code',c.code); s('sd-pg',c.pg); s('sd-ce',c.Ce); s('sd-ct',c.Ct); s('sd-is',c.Is); s('sd-tagmode',c.tagMode);
+  }
+  function sdCriteria(){
+    const c = sdCriteriaInputs();
+    const pg = c.pg||0, Is = c.Is||1;
+    let pf = 0.7*(c.Ce||1)*(c.Ct||1)*Is*pg;
+    const pm = pg<=20 ? Is*pg : 20*Is;        // minimum roof snow load (low-slope)
+    const gamma = Math.min(0.13*pg + 14, 30);   // Eq. 7.7-1
+    const pfDesign = Math.max(pf, pm);
+    const hb = pf / gamma;                        // balanced snow depth (uses pf, not the minimum)
+    return Object.assign(c, {pf, pm, pfDesign, gamma, hb});
+  }
+  // ASCE 7-16 Fig. 7.6-1 drift height (ft); lu in ft, pg in psf.
+  function sdHd(lu, pg){ const L = Math.max(lu||0, 20); return Math.max(0, 0.43*Math.cbrt(L)*Math.pow(pg+10, 0.25) - 1.5); }
+  function sdCompute(d, C){
+    const r = {notes: []};
+    const h = d.h || 0; // step height / parapet height / unit height (ft)
+    r.hc = Math.max(0, h - C.hb);
+    if(d.type==='step'){
+      const lee = sdHd(d.luUp, C.pg);
+      const wind = 0.75*sdHd(d.luLow, C.pg);
+      r.hdRaw = Math.max(lee, wind);
+      r.governs = lee >= wind ? `leeward (lᵤ = ${fmtFtIn(Math.max(d.luUp||0,20))})` : `windward (0.75 hᵈ, lᵤ = ${fmtFtIn(Math.max(d.luLow||0,20))})`;
+    } else {
+      r.hdRaw = 0.75*sdHd(d.luUp, C.pg);
+      r.governs = `windward (0.75 hᵈ, lᵤ = ${fmtFtIn(Math.max(d.luUp||0,20))})`;
+      if(d.type==='rtu' && (d.unitLen||0) < 15 && d.unitLen){ r.none = true; r.notes.push('Unit side < 15 ft: drift not required (§7.8)'); }
+    }
+    if(C.hb>0 && r.hc/C.hb < 0.2){ r.none = true; r.notes.push('hᶜ/hᵇ < 0.2: drift not required'); }
+    let hd = r.hdRaw, w;
+    if(hd <= r.hc || r.hc<=0){ w = 4*hd; }
+    else { w = Math.min(4*hd*hd/r.hc, 8*r.hc); hd = r.hc; r.notes.push('hᵈ > hᶜ: hᵈ = hᶜ, w = 4hᵈ²/hᶜ ≤ 8hᶜ'); }
+    r.hd = hd; r.w = w;
+    r.wDrawn = w;
+    if(d.type==='step' && d.luLow && w > d.luLow){ r.wDrawn = d.luLow; r.notes.push('w exceeds lower roof: drift truncated at far edge (§7.7.1)'); }
+    r.pd = hd*C.gamma;
+    r.total = C.pf + r.pd;
+    if(r.none){ r.hd = 0; r.w = 0; r.wDrawn = 0; r.pd = 0; r.total = C.pf; }
+    r.tag = Math.round(C.tagMode==='total' ? r.total : r.pd);
+    return r;
+  }
+  function fmtFtIn(ft){ let f = Math.floor(ft+1e-9), i = Math.round((ft-f)*12); if(i===12){ f++; i=0; } return `${f}'-${i}"`; }
+  function sdRecalcAll(){
+    const C = sdCriteria();
+    const el = document.getElementById('sd-criteria');
+    if(el) el.innerHTML = `p<sub>f</sub> = 0.7C<sub>e</sub>C<sub>t</sub>I<sub>s</sub>p<sub>g</sub> = <b>${C.pf.toFixed(1)} psf</b> (minimum p<sub>m</sub> = ${C.pm.toFixed(0)} psf${C.pm>C.pf?' governs for balanced load':''}) &nbsp;&middot;&nbsp; &gamma; = ${C.gamma.toFixed(1)} pcf &nbsp;&middot;&nbsp; h<sub>b</sub> = ${C.hb.toFixed(2)} ft`;
+    sdItems.forEach(it=>{ it.result = sdCompute(it, C); });
+    sdSaveLocal(); sdDraw(); sdUpdatePageInfo();
+  }
+  const SD_TYPE_LABEL = {step:'Roof step', parapet:'Parapet', rtu:'Rooftop unit / penthouse'};
+  async function sdDriftDialog(init){
+    return new Promise(resolve=>{
+      const back = document.createElement('div');
+      back.className = 'dc-modal-backdrop open';
+      back.innerHTML = `<div class="dc-modal" style="max-width:560px;">
+        <h3 style="margin:0 0 8px;">Drift at this edge</h3>
+        <div class="grid">
+          <div><label>Condition</label><select data-f="type"><option value="step">Roof step (lower roof)</option><option value="parapet">Parapet wall</option><option value="rtu">Rooftop unit / penthouse</option></select></div>
+          <div><label data-lbl="h">Height of step above lower roof (ft)</label><input data-f="h" type="number" step="0.25"></div>
+          <div><label data-lbl="luUp">Upper roof length upwind, l<sub>u</sub> (ft)</label><input data-f="luUp" type="number" step="1"></div>
+          <div data-row="luLow"><label>Lower roof length (windward drift, and truncation) (ft)</label><input data-f="luLow" type="number" step="1"></div>
+          <div data-row="unitLen"><label>Unit side length along this edge (ft)</label><input data-f="unitLen" type="number" step="1"></div>
+          <div><label>Label (optional)</label><input data-f="label" type="text"></div>
+        </div>
+        <div class="note" data-out style="margin-top:8px;"></div>
+        <div class="row" style="margin-top:10px;gap:8px;"><button class="run" data-act="ok">Save drift</button><button class="run secondary" data-act="cancel">Cancel</button></div>
+      </div>`;
+      document.body.appendChild(back);
+      const f = k=> back.querySelector(`[data-f="${k}"]`);
+      Object.keys(init).forEach(k=>{ if(f(k) && init[k]!=null) f(k).value = init[k]; });
+      const read = ()=>({type: f('type').value, h: parseFloat(f('h').value)||0, luUp: parseFloat(f('luUp').value)||0, luLow: parseFloat(f('luLow').value)||0, unitLen: parseFloat(f('unitLen').value)||0, label: f('label').value});
+      const refresh = ()=>{
+        const d = read();
+        back.querySelector('[data-lbl="h"]').textContent = d.type==='step' ? 'Height of step above lower roof (ft)' : d.type==='parapet' ? 'Parapet height above roof (ft)' : 'Unit height above roof (ft)';
+        back.querySelector('[data-lbl="luUp"]').innerHTML = d.type==='step' ? 'Upper roof length upwind, l<sub>u</sub> (ft)' : 'Roof length upwind of it, l<sub>u</sub> (ft)';
+        back.querySelector('[data-row="luLow"]').style.display = d.type==='step' ? '' : 'none';
+        back.querySelector('[data-row="unitLen"]').style.display = d.type==='rtu' ? '' : 'none';
+        const r = sdCompute(d, sdCriteria());
+        back.querySelector('[data-out]').innerHTML = r.none
+          ? `<b>No drift required.</b> ${r.notes.join('; ')}`
+          : `h<sub>c</sub> = ${r.hc.toFixed(2)} ft &middot; h<sub>d</sub> = <b>${r.hd.toFixed(2)} ft</b> (${r.governs}) &middot; w = <b>${fmtFtIn(r.w)}</b> &middot; p<sub>d</sub> = <b>${r.pd.toFixed(0)} psf</b> &middot; total at wall ${r.total.toFixed(0)} psf${r.notes.length?'<br>'+r.notes.join('; '):''}`;
+      };
+      back.addEventListener('input', refresh); back.addEventListener('change', refresh);
+      refresh();
+      back.addEventListener('click', e=>{
+        const act = e.target.dataset && e.target.dataset.act;
+        if(act==='ok'){ const d = read(); back.remove(); resolve(d); }
+        else if(act==='cancel' || e.target===back){ back.remove(); resolve(null); }
+      });
+    });
+  }
+  async function sdPointer(type, p){
+    if(type==='dbl'){ const hit = sdHit(p); if(hit) await sdEdit(hit); return; }
+    if(type!=='down') { if(type==='move' && sdPending){ sdPending.hover = p; sdDraw(); } return; }
+    if(sdTool==='select'){ const hit = sdHit(p); sdSelected = hit ? hit.id : null; sdDraw(); return; }
+    if(!sdPending) sdPending = {pts: []};
+    sdPending.pts.push(p);
+    const n = sdPending.pts.length;
+    if(sdTool==='measure' || sdTool==='calibrate'){
+      if(n===1){ sdStatus('Click the second point.'); sdDraw(); return; }
+      const [a,c] = sdPending.pts; sdPending = null;
+      const dist = Math.hypot(c.x-a.x, c.y-a.y);
+      if(sdTool==='calibrate'){
+        const v = await smEditDialog('Real distance between those two points, in feet (e.g. 61 or 61.5)', '', {rows:1, okLabel:'Set scale'});
+        const ft = parseFloat(v);
+        if(ft>0){ sdPtsPerFt = dist/ft; sdStatus(`Scale set: ${sdPtsPerFt.toFixed(2)} units per ft.`); sdRecalcAll(); }
+        sdSetTool('drift');
+        return;
+      }
+      sdLastMeasure = dist/sdPtsPerFt;
+      sdStatus(`Measured ${fmtFtIn(sdLastMeasure)} (${sdLastMeasure.toFixed(1)} ft) — pre-filled as lᵤ in the next drift.`);
+      sdDraw(); return;
+    }
+    if(sdTool==='drift'){
+      if(n===1){ sdStatus('Click the other end of the edge.'); sdDraw(); return; }
+      if(n===2){ sdStatus('Click on the side the snow drifts onto (the lower roof / roof side).'); sdDraw(); return; }
+      const [a,c,s] = sdPending.pts; sdPending = null;
+      const d = await sdDriftDialog({type:'step', h: 4, luUp: sdLastMeasure ? +sdLastMeasure.toFixed(1) : 50, luLow: 50});
+      sdStatus('Click the first end of the next edge.');
+      if(!d){ sdDraw(); return; }
+      const it = Object.assign(d, {id: 'd'+Date.now().toString(36), page: sdBoard.pageNum, sheetNumber: sdBoard.sheetNumber(), ax:a.x, ay:a.y, bx:c.x, by:c.y, sx:s.x, sy:s.y});
+      sdItems.push(it); sdRecalcAll();
+    }
+  }
+  async function sdEdit(it){
+    const d = await sdDriftDialog(it);
+    if(!d) return;
+    Object.assign(it, d); sdRecalcAll();
+  }
+  function sdDeleteSelected(){ if(!sdSelected) return; sdItems = sdItems.filter(i=>i.id!==sdSelected); sdSelected = null; sdRecalcAll(); }
+  function sdGeom(it){
+    const r = it.result || {};
+    const ux = it.bx-it.ax, uy = it.by-it.ay, L = Math.hypot(ux,uy) || 1;
+    const tx = ux/L, ty = uy/L;
+    let nx = -ty, ny = tx;
+    if(((it.sx-it.ax)*nx + (it.sy-it.ay)*ny) < 0){ nx = -nx; ny = -ny; }
+    const wP = (r.wDrawn||0) * sdPtsPerFt;
+    const band = [[it.ax,it.ay],[it.bx,it.by],[it.bx+nx*wP,it.by+ny*wP],[it.ax+nx*wP,it.ay+ny*wP]];
+    const mx = (it.ax+it.bx)/2, my = (it.ay+it.by)/2;
+    const half = Math.min(wP*0.18, L*0.25);
+    const tri = [[mx-tx*half,my-ty*half],[mx+tx*half,my+ty*half],[mx+nx*wP,my+ny*wP]];
+    const tagAnchor = [mx - nx*6, my - ny*6];
+    const tagPt = [mx - nx*28 + tx*18, my - ny*28 + ty*18];
+    const dimPt = [mx + nx*wP*0.5 + tx*(half+10), my + ny*wP*0.5 + ty*(half+10)];
+    return {band, tri, tagAnchor, tagPt, dimPt, nx, ny, tx, ty, wP};
+  }
+  function sdHit(p){
+    const here = sdItems.filter(i=>i.page===sdBoard.pageNum);
+    for(let k=here.length-1;k>=0;k--){
+      const g = sdGeom(here[k]);
+      const xs = g.band.map(q=>q[0]), ys = g.band.map(q=>q[1]);
+      const pad = 6*sdBoard.ptPerPx();
+      if(p.x>=Math.min(...xs)-pad && p.x<=Math.max(...xs)+pad && p.y>=Math.min(...ys)-pad && p.y<=Math.max(...ys)+pad) return here[k];
+    }
+    return null;
+  }
+  function sdDraw(){
+    const svg = document.getElementById('sd-svg');
+    if(!svg || !sdBoard.pageW) return;
+    let out = `<defs><pattern id="sd-hatch" patternUnits="userSpaceOnUse" width="4" height="4" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="4" stroke="#333" stroke-width="0.5"/></pattern></defs>`;
+    const pts = q=> q.map(v=>v.join(',')).join(' ');
+    sdItems.filter(i=>i.page===sdBoard.pageNum).forEach(it=>{
+      const r = it.result||{}, g = sdGeom(it);
+      const sel = it.id===sdSelected;
+      out += `<line x1="${it.ax}" y1="${it.ay}" x2="${it.bx}" y2="${it.by}" stroke="${sel?'#1565c0':'#d32f2f'}" stroke-width="2" vector-effect="non-scaling-stroke"/>`;
+      if(r.none){
+        out += `<text x="${g.tagPt[0]}" y="${g.tagPt[1]}" font-size="7" fill="#d32f2f" font-family="Arial">NO DRIFT</text>`;
+        return;
+      }
+      out += `<polygon points="${pts(g.band)}" fill="url(#sd-hatch)" stroke="#333" stroke-width="0.75" vector-effect="non-scaling-stroke"/>`;
+      out += `<polygon points="${pts(g.tri)}" fill="#111"/>`;
+      out += `<polyline points="${g.tagAnchor.join(',')} ${g.tagPt[0]},${g.tagPt[1]}" fill="none" stroke="#111" stroke-width="1" vector-effect="non-scaling-stroke"/>`;
+      out += `<text x="${g.tagPt[0]+2}" y="${g.tagPt[1]+2}" font-size="7" font-family="Arial" fill="#111">${r.tag} PSF</text>`;
+      out += `<text x="${g.dimPt[0]}" y="${g.dimPt[1]}" font-size="6" font-family="Arial" fill="#111">${fmtFtIn(r.wDrawn)}</text>`;
+      if(sel) out += `<polygon points="${pts(g.band)}" fill="none" stroke="#1565c0" stroke-width="2" stroke-dasharray="4 3" vector-effect="non-scaling-stroke"/>`;
+    });
+    if(sdPending && sdPending.pts.length){
+      const P = sdPending.pts.concat(sdPending.hover ? [sdPending.hover] : []);
+      out += `<polyline points="${P.map(q=>q.x+','+q.y).join(' ')}" fill="none" stroke="#1565c0" stroke-width="1.5" stroke-dasharray="4 3" vector-effect="non-scaling-stroke"/>`;
+      P.forEach(q=>{ out += `<circle cx="${q.x}" cy="${q.y}" r="${3*sdBoard.ptPerPx()}" fill="#1565c0"/>`; });
+    }
+    svg.innerHTML = out;
+    sdRenderList();
+  }
+  function sdRenderList(){
+    const el = document.getElementById('sd-list'); if(!el) return;
+    const here = sdItems.filter(i=>i.page===sdBoard.pageNum);
+    if(!here.length){ el.innerHTML = '<span class="note">None yet.</span>'; return; }
+    el.innerHTML = here.map((it,n)=>{
+      const r = it.result||{};
+      return `<div class="sm-listitem${it.id===sdSelected?' sel':''}" onclick="sdSelected='${it.id}';sdDraw();" ondblclick="sdEdit(sdItems.find(x=>x.id==='${it.id}'))"><b>${n+1}. ${SD_TYPE_LABEL[it.type]}${it.label?' — '+smEsc(it.label):''}</b><br>` +
+        (r.none ? `No drift (${smEsc(r.notes.join('; '))})` : `h<sub>d</sub> ${r.hd.toFixed(2)}' · w ${fmtFtIn(r.wDrawn)} · p<sub>d</sub> ${r.pd.toFixed(0)} psf · tag <b>${r.tag} PSF</b>`) + `</div>`;
+    }).join('');
+  }
+  function sdDownload(){
+    if(!sdItems.length){ alert('No drifts yet.'); return; }
+    const C = sdCriteria();
+    const pages = {};
+    sdItems.forEach(i=>{ const ps = sdBoard.pageSheet[i.page]||{}; pages[i.page] = {sheetNumber: ps.sheetNumber||i.sheetNumber||'', pageW: ps.pageW, pageH: ps.pageH}; });
+    const items = sdItems.map(it=>{
+      const g = sdGeom(it), r = it.result||{};
+      return {id: it.id, page: it.page, sheetNumber: (sdBoard.pageSheet[it.page]||{}).sheetNumber || it.sheetNumber || '', type: it.type, label: it.label,
+        inputs: {h: it.h, luUp: it.luUp, luLow: it.luLow, unitLen: it.unitLen},
+        edge: [[it.ax,it.ay],[it.bx,it.by]], side: [it.sx,it.sy], result: r,
+        band: r.none ? null : g.band, triangle: r.none ? null : g.tri, tagAnchor: g.tagAnchor, tagPoint: g.tagPt, dimPoint: g.dimPt,
+        tagText: r.none ? 'NO DRIFT' : `${r.tag} PSF`, widthText: r.none ? '' : fmtFtIn(r.wDrawn)};
+    });
+    const base = (sdBoard.name||'roof').replace(/\.(pdf|png|jpe?g)$/i,'');
+    smDownloadJson({format:'tdd-snow-drift', version:1, sourceName: sdBoard.name, isImage: !!sdBoard.img, exportedAt: new Date().toISOString(),
+      criteria: C, ptsPerFt: sdPtsPerFt, units:'pdf-points, origin top-left', pages, items}, `${base} - snow drifts.json`);
+  }
+  async function sdOpenDriftFile(file){
+    if(!file) return;
+    try{
+      const d = JSON.parse(await file.text());
+      if(d.format!=='tdd-snow-drift') throw new Error('Not a snow drift file.');
+      if(d.criteria) sdApplyCriteria(d.criteria);
+      if(d.ptsPerFt) sdPtsPerFt = d.ptsPerFt;
+      Object.keys(d.pages||{}).forEach(k=>{ sdBoard.pageSheet[k] = Object.assign(sdBoard.pageSheet[k]||{}, d.pages[k]); });
+      sdItems = (d.items||[]).map(x=> Object.assign({id:x.id, page:x.page, sheetNumber:x.sheetNumber, type:x.type, label:x.label,
+        ax:x.edge[0][0], ay:x.edge[0][1], bx:x.edge[1][0], by:x.edge[1][1], sx:x.side[0], sy:x.side[1]}, x.inputs||{}));
+      sdRecalcAll();
+      document.getElementById('sd-sheetnum').value = sdBoard.sheetNumber();
+    }catch(e){ alert('Could not read that file: ' + e.message); }
+  }
 </script>
 </body>
 </html>
