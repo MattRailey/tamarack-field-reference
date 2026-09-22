@@ -1206,6 +1206,7 @@
           <div class="row" style="align-items:center; gap:10px; flex-wrap:wrap;">
             <strong id="dc-batch-count">0 selected</strong>
             <button class="run" onclick="dcOpenBatchEditor()">Batch edit&hellip;</button>
+            <button class="run" onclick="dcAddSelectedToCart()">Add selected to cart</button>
             <button class="run secondary" onclick="dcSelectAllVisible()">Select all shown</button>
             <button class="run secondary" onclick="dcClearSelection()">Clear selection</button>
             <button class="run secondary" onclick="dcToggleSelectMode()">Done</button>
@@ -1690,6 +1691,27 @@
     dcRender();
   }
   function dcClearSelection(){ dcSelectedIds.clear(); dcUpdateBatchToolbar(); dcRender(); }
+  function dcAddSelectedToCart(){
+    if(!dcSelectedIds.size){ alert('Select at least one detail first.'); return; }
+    const existingIds = new Set(dcQueue.map(q=>q.id));
+    let added = 0, alreadyIn = 0;
+    dcSelectedIds.forEach(id=>{
+      if(existingIds.has(id)){ alreadyIn++; return; }
+      const d = DC_DATA.find(x=>x.id===id);
+      if(!d) return;
+      const s = dcSuggestSheetFor(d.id, d.category, dcCartProject);
+      dcQueue.push({
+        id: d.id, name: d.name, view: d.view, category: d.category||'',
+        sheetNumber: s.sheetNumber, sheetName: s.sheetName,
+        sheetManual: false
+      });
+      added++;
+    });
+    dcSaveQueue();
+    dcUpdateQueueBtn();
+    const msg = added + ' item(s) added to cart' + (alreadyIn ? ' (' + alreadyIn + ' were already in it)' : '') + '.';
+    if(typeof showLoadToast === 'function') showLoadToast(msg); else alert(msg);
+  }
   function dcSelectAllVisible(){ dcLastResults.forEach(d=>dcSelectedIds.add(d.id)); dcUpdateBatchToolbar(); dcRender(); }
   function dcToggleCardSelect(id){
     if(dcSelectedIds.has(id)) dcSelectedIds.delete(id); else dcSelectedIds.add(id);
@@ -1962,6 +1984,17 @@
     'General Notes': ['general','notes','index']
   };
   let dcCartProject = localStorage.getItem('dcCartProject') || '';
+  function dcSuggestSheetFor(detailId, category, project){
+    // Prefer an actual "you've sent this exact detail here before" match
+    // over the generic category-keyword guess.
+    const remembered = dcGuessSheetFromHistory(detailId, project);
+    if(remembered){
+      const store = loadSheetIndexStore();
+      const match = (Object.values(store.sheets||{})).find(s=>s.project===project && s.sheetNumber===remembered);
+      return {sheetNumber: remembered, sheetName: match ? match.sheetName : ''};
+    }
+    return dcSuggestSheetForCategory(category, project);
+  }
   function dcSuggestSheetForCategory(category, project){
     if(!project) return {sheetNumber:'', sheetName:''};
     const keywords = DC_CATEGORY_SHEET_KEYWORDS[category];
@@ -1979,7 +2012,7 @@
     localStorage.setItem('dcCartProject', dcCartProject);
     dcQueue.forEach(q=>{
       if(!q.sheetManual){
-        const s = dcSuggestSheetForCategory(q.category, dcCartProject);
+        const s = dcSuggestSheetFor(q.id, q.category, dcCartProject);
         q.sheetNumber = s.sheetNumber; q.sheetName = s.sheetName;
       }
     });
@@ -1991,7 +2024,7 @@
     const idx = dcQueue.findIndex(q=>q.id===dcModalId);
     if(idx>-1) dcQueue.splice(idx,1);
     else{
-      const s = dcSuggestSheetForCategory(d.category, dcCartProject);
+      const s = dcSuggestSheetFor(d.id, d.category, dcCartProject);
       dcQueue.push({
         id:d.id, name:d.name, view:d.view, category:d.category||'',
         sheetNumber: s.sheetNumber, sheetName: s.sheetName,
@@ -2078,12 +2111,16 @@
     document.getElementById('dc-place-detail-name').textContent = d.name + ' — view: ' + (d.view||'(not set)');
     const projects = dcProjectOptions();
     document.getElementById('dc-place-project-list').innerHTML = projects.map(p=>`<option value="${String(p).replace(/"/g,'&quot;')}">`).join('');
-    document.getElementById('dc-place-project').value = '';
+    // Only one project open in Revit right now? Just fill it in — that's
+    // the only thing you could actually import into anyway.
+    const defaultProject = projects.length===1 ? projects[0] : '';
+    document.getElementById('dc-place-project').value = defaultProject;
     document.getElementById('dc-place-sheet').value = '';
     document.getElementById('dc-place-sheet-list').innerHTML = '';
     const marker = document.getElementById('dc-place-marker');
     marker.style.display = 'none';
     dcInitPlaceRect();
+    if(defaultProject) dcPlacePopulateSheets();
     document.getElementById('dc-place-backdrop').classList.add('open');
   }
   function dcClosePlace(){
@@ -2097,6 +2134,37 @@
     document.getElementById('dc-place-sheet-list').innerHTML = sheets.map(s=>
       `<option value="${String(s.sheetNumber||'').replace(/"/g,'&quot;')}">${String(s.sheetNumber||'')} — ${String(s.sheetName||'').replace(/</g,'&lt;')}</option>`
     ).join('');
+    // Default the sheet field to whatever's typical for this detail: first,
+    // a sheet you've actually sent this exact detail to before (this project,
+    // then any project); failing that, fall back to the category-keyword
+    // guess the cart already uses (e.g. a Foundation detail -> a sheet whose
+    // name/number mentions "foundation"). Never overwrite something you've
+    // already typed by hand.
+    const sheetField = document.getElementById('dc-place-sheet');
+    if(sheetField.value.trim()) return;
+    const d = DC_DATA.find(x=>x.id===dcPlacingId);
+    if(!d || !project) return;
+    const guess = dcSuggestSheetFor(d.id, d.category, project);
+    if(guess.sheetNumber) sheetField.value = guess.sheetNumber;
+  }
+  // ---- "typical sheet" memory: remembers, per detail (and per project),
+  // the last sheet you actually sent it to, so the next time you place the
+  // same detail it's already filled in instead of you having to retype it
+  // or (worse) leaving a stale value from the last detail you placed. ----
+  const DC_SHEET_HISTORY_KEY = 'dcSheetHistory';
+  let dcSheetHistory = {};
+  try{ dcSheetHistory = JSON.parse(localStorage.getItem(DC_SHEET_HISTORY_KEY) || '{}'); }catch(e){ dcSheetHistory = {}; }
+  function dcRememberSheet(detailId, project, sheetNumber){
+    if(!detailId || !project || !sheetNumber) return;
+    dcSheetHistory[detailId] = dcSheetHistory[detailId] || {};
+    dcSheetHistory[detailId][project] = sheetNumber;
+    dcSheetHistory[detailId]._last = sheetNumber; // fallback across projects
+    try{ localStorage.setItem(DC_SHEET_HISTORY_KEY, JSON.stringify(dcSheetHistory)); }catch(e){}
+  }
+  function dcGuessSheetFromHistory(detailId, project){
+    const rec = dcSheetHistory[detailId];
+    if(!rec) return '';
+    return rec[project] || rec._last || '';
   }
   function dcInitPlaceRect(){
     const rect = document.getElementById('dc-place-rect');
@@ -2140,6 +2208,7 @@
       requestedAt: new Date().toISOString()
     };
     dcPullEntries.push(entry);
+    dcRememberSheet(d.id, project, sheetNumber);
     dcPersistPull();
     dcRenderPullQueue();
     dcRender();
@@ -2197,6 +2266,7 @@
           xFrac, yFrac,
           requestedAt: now
         });
+        dcRememberSheet(q.id, project, sheetNumber);
       });
     });
     dcPersistPull();
