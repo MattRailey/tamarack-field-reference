@@ -2757,6 +2757,13 @@
           </div>
           <div id="sd-criteria" class="note" style="margin-top:8px;"></div>
           <div class="row" style="flex-wrap:wrap;gap:8px;align-items:center;margin-top:10px;">
+            <label style="display:flex;align-items:center;gap:6px;margin:0;font-weight:600;">Project
+              <select id="sd-proj" style="min-width:320px" onchange="sdOpenProject(this.value)"><option value="">Connect the SE Review folder to list projects</option></select></label>
+            <button class="run secondary" id="sd-folderbtn" onclick="sdConnectFolder(true)" title="The shared Dropbox SE Review folder - asked once, then remembered">Connect SE Review folder&hellip;</button>
+            <button class="run secondary" onclick="sdListProjects()" title="Re-read the folder">Refresh</button>
+            <span class="note" id="sd-projstatus" style="margin:0"></span>
+          </div>
+          <div class="row" style="flex-wrap:wrap;gap:8px;align-items:center;margin-top:10px;">
             <button class="run" onclick="document.getElementById('fi78076').click()" title="Pick the PDF - and, from Export for Snow Drift, the snow model .json and iso .png files too (select them all together)">Open roof plan (PDF + Revit files)&hellip;</button><input id="fi78076" type="file" multiple accept="application/pdf,image/*,.json,application/json" style="display:none" onchange="sdOpenFiles(this.files); this.value='';">
             <button class="run secondary" onclick="document.getElementById('fi16440').click()">Open drift file&hellip;</button><input id="fi16440" type="file" accept=".json,application/json" style="display:none" onchange="sdOpenDriftFile(this.files[0])">
             <button class="run secondary" onclick="sdDownload()">Save drift file</button>
@@ -10497,6 +10504,69 @@
     await sdBoard.load(file);
     if(sdBoard.img){ document.getElementById('sd-scale').value = 'cal'; sdOnScale(); }
   }
+  // ---- Shared folder: SE Review\_snow drift\<project - sheet>\ written by Export for Snow Drift ----
+  var sdRoot = null, sdProjDir = null, sdSaveTimer = null;
+  function sdIdb(mode, fn){ return new Promise((res,rej)=>{ const r = indexedDB.open('tfr-snow-drift',1); r.onupgradeneeded = ()=> r.result.createObjectStore('h'); r.onsuccess = ()=>{ const tx = r.result.transaction('h', mode); const q = fn(tx.objectStore('h')); tx.oncomplete = ()=> res(q && q.result); tx.onerror = ()=> rej(tx.error); }; r.onerror = ()=> rej(r.error); }); }
+  async function sdConnectFolder(pick){
+    try{
+      if(!window.showDirectoryPicker){ document.getElementById('sd-projstatus').textContent = 'Use Chrome or Edge for the project list.'; return; }
+      if(pick){ sdRoot = await window.showDirectoryPicker({id:'se-review', mode:'readwrite'}); await sdIdb('readwrite', st=> st.put(sdRoot, 'root')); }
+      else sdRoot = sdRoot || await sdIdb('readonly', st=> st.get('root'));
+      if(!sdRoot) return;
+      let perm = await sdRoot.queryPermission({mode:'readwrite'});
+      if(perm!=='granted') perm = await sdRoot.requestPermission({mode:'readwrite'});
+      if(perm!=='granted'){ document.getElementById('sd-folderbtn').textContent = 'Reconnect SE Review folder'; return; }
+      document.getElementById('sd-folderbtn').textContent = 'Folder: ' + sdRoot.name;
+      await sdListProjects();
+    }catch(e){ if(e && e.name!=='AbortError') document.getElementById('sd-projstatus').textContent = 'Could not open the folder: ' + (e.message||e); }
+  }
+  async function sdListProjects(){
+    if(!sdRoot){ return sdConnectFolder(false); }
+    const sel = document.getElementById('sd-proj'), cur = sel.value, out = [];
+    try{
+      const base = await sdRoot.getDirectoryHandle('_snow drift');
+      for await (const [n,h] of base.entries()){
+        if(h.kind!=='directory') continue;
+        let t = 0; for await (const [fn, fh] of h.entries()){ if(fh.kind==='file' && /snow model\.json$/i.test(fn)) t = Math.max(t, (await fh.getFile()).lastModified); }
+        if(t) out.push({n, t});
+      }
+    }catch(e){}
+    out.sort((a,b)=> b.t-a.t);
+    sel.innerHTML = out.length ? '<option value="">Pick a project…</option>' + out.map(o=>`<option value="${smEsc(o.n)}">${smEsc(o.n)} (${new Date(o.t).toLocaleDateString()})</option>`).join('')
+      : '<option value="">No projects yet - run "Export for Snow Drift" in Revit</option>';
+    if(cur && out.some(o=>o.n===cur)) sel.value = cur;
+  }
+  async function sdOpenProject(n){
+    if(!n || !sdRoot) return;
+    const st = document.getElementById('sd-projstatus'); st.textContent = 'Opening…';
+    try{
+      const dir = await (await sdRoot.getDirectoryHandle('_snow drift')).getDirectoryHandle(n);
+      const files = []; let drifts = null;
+      for await (const [fn, fh] of dir.entries()){
+        if(fh.kind!=='file') continue;
+        if(/^snow drifts\.json$/i.test(fn)) drifts = await fh.getFile();
+        else if(/\.(pdf|json|png)$/i.test(fn)) files.push(await fh.getFile());
+      }
+      sdProjDir = null;                      // don't save while loading
+      sdModel = null; sdGeoCache = null; sdIsos = [];
+      await sdOpenFiles(files);
+      if(drifts) await sdOpenDriftFile(drifts);
+      sdProjDir = dir;
+      st.textContent = drifts ? 'Drifts saved here earlier are loaded. Changes save to the folder automatically.' : 'Ready. Drifts you add save to the folder automatically.';
+    }catch(e){ st.textContent = 'Could not open: ' + (e.message||e); }
+  }
+  function sdScheduleFolderSave(){ if(!sdProjDir) return; clearTimeout(sdSaveTimer); sdSaveTimer = setTimeout(sdSaveToFolder, 800); }
+  async function sdSaveToFolder(){
+    if(!sdProjDir) return;
+    try{
+      const w = await (await sdProjDir.getFileHandle('snow drifts.json', {create:true})).createWritable();
+      await w.write(JSON.stringify(sdExportObject(), null, 1)); await w.close();
+      document.getElementById('sd-projstatus').textContent = 'Saved to the folder ' + new Date().toLocaleTimeString();
+    }catch(e){ document.getElementById('sd-projstatus').textContent = 'Could not save to the folder: ' + (e.message||e); }
+  }
+  setTimeout(()=> sdConnectFolder(false).catch(()=>{}), 0);
+  document.addEventListener('click', e=>{ if(e.target.closest && e.target.closest('[data-panel="snowdrift"]') && sdRoot) sdListProjects(); });
+
   // PDF + (optional) snow model json + iso pictures from "Export for Snow Drift".
   var sdModel = null, sdIsos = [];
   async function sdOpenFiles(list){
@@ -10675,6 +10745,7 @@
   function sdKey(){ return 'sdDrifts::' + sdBoard.name; }
   function sdSaveLocal(){
     if(!sdBoard.name) return;
+    sdScheduleFolderSave();
     try{ localStorage.setItem(sdKey(), JSON.stringify({items: sdItems, pageSheet: sdBoard.pageSheet, criteria: sdCriteriaInputs(), ptsPerFt: sdPtsPerFt, scaleSel: document.getElementById('sd-scale').value})); }catch(e){}
   }
   function sdLoadLocal(){
@@ -11057,6 +11128,10 @@
   }
   function sdDownload(){
     if(!sdItems.length){ alert('No drifts yet.'); return; }
+    const base = (sdBoard.name||'roof').replace(/\.(pdf|png|jpe?g)$/i,'');
+    smDownloadJson(sdExportObject(), `${base} - snow drifts.json`);
+  }
+  function sdExportObject(){
     const C = sdCriteria();
     const pages = {};
     sdItems.forEach(i=>{ const ps = sdBoard.pageSheet[i.page]||{}; pages[i.page] = {sheetNumber: ps.sheetNumber||i.sheetNumber||'', pageW: ps.pageW, pageH: ps.pageH}; });
@@ -11068,9 +11143,8 @@
         band: r.none ? null : g.band, triangle: r.none ? null : g.tri, tagAnchor: g.tagAnchor, tagPoint: g.tagPt, dimPoint: g.dimPt,
         tagText: r.none ? 'NO DRIFT' : `${r.tag} PSF`, widthText: r.none ? '' : fmtFtIn(r.wDrawn)};
     });
-    const base = (sdBoard.name||'roof').replace(/\.(pdf|png|jpe?g)$/i,'');
-    smDownloadJson({format:'tdd-snow-drift', version:1, sourceName: sdBoard.name, isImage: !!sdBoard.img, exportedAt: new Date().toISOString(),
-      criteria: C, ptsPerFt: sdPtsPerFt, units:'pdf-points, origin top-left', pages, items}, `${base} - snow drifts.json`);
+    return {format:'tdd-snow-drift', version:1, sourceName: sdBoard.name, isImage: !!sdBoard.img, exportedAt: new Date().toISOString(),
+      criteria: C, ptsPerFt: sdPtsPerFt, units:'pdf-points, origin top-left', pages, items};
   }
   async function sdOpenDriftFile(file){
     if(!file) return;
