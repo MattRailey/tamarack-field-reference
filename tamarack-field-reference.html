@@ -1406,35 +1406,832 @@
 
       <!-- SE MARKUP -->
       <section class="panel" id="semarkup">
-        <h2>SE Markup</h2>
-        <p class="sub">Open the PDF set and mark it up directly: change or delete existing note text, add new notes, callouts, clouds, X's and arrows. Save the markup file and send it back; in Revit, <b>Apply SE Markups</b> shows every change for review, then applies it to the model. Text edits and deletions go straight into the actual text notes, new text and callouts become text notes on the sheet, clouds become revision clouds, and the rest (X's, arrows, checks, pen) come in as red markup lines for pick-up.</p>
-        <div class="card">
-          <div class="row" style="flex-wrap:wrap;gap:8px;align-items:center;">
-            <button class="run" onclick="document.getElementById('sm-pdf-input').click()">Open PDF set&hellip;</button><input type="file" accept="application/pdf" id="sm-pdf-input" style="display:none" onchange="smOpenPdf(this.files[0])">
-            <button class="run secondary" onclick="document.getElementById('sm-json-input').click()">Open markup file&hellip;</button><input type="file" accept=".json,application/json" id="sm-json-input" style="display:none" onchange="smOpenMarkupFile(this.files[0])">
-            <button class="run secondary" onclick="smDownload()">Save markup file</button>
-            <label style="display:flex;align-items:center;gap:6px;margin:0;font-weight:normal;">Reviewer <input id="sm-reviewer" type="text" style="width:140px;" placeholder="Name / initials" oninput="smSaveLocal()"></label>
-          </div>
-          <div id="sm-toolbar" class="sm-toolbar" style="margin-top:10px;"></div>
-          <div class="row" style="margin-top:8px;gap:8px;align-items:center;flex-wrap:wrap;">
-            <button class="run secondary" onclick="smBoard.go(-1)">&larr; Prev</button>
-            <span id="sm-pageinfo" style="font-size:.9rem;">No PDF open</span>
-            <button class="run secondary" onclick="smBoard.go(1)">Next &rarr;</button>
-            <label style="display:flex;align-items:center;gap:6px;margin:0;font-weight:normal;">Sheet # <input id="sm-sheetnum" type="text" style="width:90px;" onchange="smSetSheetNumber(this.value)"></label>
-            <button class="run secondary" onclick="smBoard.zoomBy(1/1.25)">&minus;</button>
-            <button class="run secondary" onclick="smBoard.zoomBy(1.25)">+</button>
-            <button class="run secondary" onclick="smBoard.fit()">Fit</button>
-            <span class="note" id="sm-status" style="margin:0;"></span>
-          </div>
-        </div>
-        <div class="sm-layout">
-          <div class="sm-viewer" id="sm-viewer"><div class="sm-page" id="sm-page"><canvas id="sm-canvas"></canvas><svg id="sm-svg" xmlns="http://www.w3.org/2000/svg"></svg></div></div>
-          <div class="card sm-side">
-            <strong>Markups on this sheet</strong>
-            <div id="sm-list" style="margin-top:6px;font-size:.85rem;"></div>
-            <p class="note" style="margin-top:10px;">Tip: pick a tool, then click or drag on the sheet. <b>Edit text</b>: click a line of existing text to change it (use "+ next line" for multi-line notes). <b>X</b> drawn over text marks that text for deletion. <b>Select</b> a markup to move it, double-click to edit its text, Delete key to remove. Ctrl+Z undoes. Markups autosave in this browser for this PDF; use <b>Save markup file</b> to send them.</p>
-          </div>
-        </div>
+        <iframe id="se-review-frame" title="SE Redline Review" style="width:100%;height:calc(100vh - 40px);min-height:720px;border:0;border-radius:8px;background:transparent;" srcdoc="&lt;!doctype html&gt;
+&lt;html lang=&quot;en&quot;&gt;
+&lt;head&gt;
+&lt;title&gt;SE Redline Review&lt;/title&gt;
+&lt;meta charset=&quot;utf-8&quot;&gt;&lt;meta name=&quot;viewport&quot; content=&quot;width=device-width, initial-scale=1&quot;&gt;
+&lt;link rel=&quot;preconnect&quot; href=&quot;https://fonts.googleapis.com&quot;&gt;
+&lt;link rel=&quot;stylesheet&quot; href=&quot;https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600&amp;family=Barlow+Condensed:wght@500;600&amp;display=swap&quot;&gt;
+&lt;style&gt;
+  :root{
+    --ground:#eef0f2; --panel:#ffffff; --ink:#1d2329; --muted:#5f6b76; --line:#d4d9de;
+    --red:#c8281e; --red-soft:#fbe9e7; --blue:#1f5f99; --blue-soft:#e6eef7; --ok:#2e7d32; --sheet:#7d858e;
+    --font:&#x27;Barlow&#x27;, system-ui, -apple-system, &#x27;Segoe UI&#x27;, sans-serif;
+    --cond:&#x27;Barlow Condensed&#x27;, &#x27;Arial Narrow&#x27;, system-ui, sans-serif;
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme=&quot;light&quot;]){ color-scheme:dark;
+      --ground:#161a1e; --panel:#1f252b; --ink:#e7eaed; --muted:#9aa5af; --line:#343d46;
+      --red:#ff6b5e; --red-soft:#3a2220; --blue:#7fb3e6; --blue-soft:#1e2f40; --ok:#7bc47f; --sheet:#0d1013; }
+  }
+  :root[data-theme=&quot;dark&quot;]{ color-scheme:dark;
+    --ground:#161a1e; --panel:#1f252b; --ink:#e7eaed; --muted:#9aa5af; --line:#343d46;
+    --red:#ff6b5e; --red-soft:#3a2220; --blue:#7fb3e6; --blue-soft:#1e2f40; --ok:#7bc47f; --sheet:#0d1013; }
+  html,body{ height:100%; }
+  body{ background:var(--ground); color:var(--ink); font-family:var(--font); font-size:15px; }
+  .wrap{ padding-inline:16px; padding-block:14px; max-width:1800px; margin:0 auto; display:flex; flex-direction:column; gap:12px; min-height:100%; box-sizing:border-box; }
+  header{ display:flex; flex-wrap:wrap; align-items:baseline; gap:6px 14px; }
+  h1{ font-family:var(--cond); font-weight:600; font-size:1.7rem; letter-spacing:.02em; margin:0; text-transform:uppercase; }
+  h1 span{ color:var(--red); }
+  .sub{ color:var(--muted); margin:0; font-size:.92rem; max-width:70ch; }
+  .bar{ background:var(--panel); border:1px solid var(--line); border-radius:8px; padding:10px 12px; display:flex; flex-wrap:wrap; gap:8px; align-items:center; }
+  .label{ font-family:var(--cond); text-transform:uppercase; letter-spacing:.06em; font-size:.8rem; color:var(--muted); }
+  button, select, input{ font:inherit; color:var(--ink); }
+  .btn{ border:1px solid var(--line); background:var(--panel); border-radius:6px; padding:6px 11px; cursor:pointer; white-space:nowrap; }
+  .btn:hover{ border-color:var(--blue); }
+  .btn:focus-visible, .tool:focus-visible, select:focus-visible, input:focus-visible{ outline:2px solid var(--blue); outline-offset:1px; }
+  .btn.primary{ background:var(--blue); border-color:var(--blue); color:#fff; }
+  .btn.danger{ color:var(--red); border-color:var(--red); }
+  .btn:disabled{ opacity:.45; cursor:default; }
+  select, input[type=text]{ border:1px solid var(--line); border-radius:6px; padding:6px 8px; background:var(--panel); }
+  .tools{ display:flex; flex-wrap:wrap; gap:5px; }
+  .tool{ border:1px solid var(--line); background:var(--panel); border-radius:6px; padding:6px 10px; cursor:pointer; font-weight:500; }
+  .tool kbd{ font-family:var(--cond); font-size:.75rem; color:var(--muted); margin-left:4px; }
+  .tool.active{ background:var(--red); border-color:var(--red); color:#fff; }
+  .tool.active kbd{ color:#fde; }
+  .spacer{ flex:1; }
+  .main{ display:flex; gap:12px; flex:1; min-height:0; }
+  .viewer{ flex:1; min-width:0; height:74vh; overflow:auto; background:var(--sheet); border-radius:8px; padding:12px; position:relative; }
+  .page{ position:relative; margin:0 auto; background:#fff; box-shadow:0 2px 12px rgba(0,0,0,.35); }
+  .page canvas, .page svg{ position:absolute; left:0; top:0; }
+  .page svg{ touch-action:none; }
+  .empty{ color:#fff; text-align:center; padding:60px 20px; font-size:1.05rem; }
+  .side{ width:320px; flex:none; display:flex; flex-direction:column; gap:10px; max-height:74vh; overflow:auto; }
+  .card{ background:var(--panel); border:1px solid var(--line); border-radius:8px; padding:10px 12px; }
+  .card h2{ font-family:var(--cond); font-weight:600; text-transform:uppercase; letter-spacing:.05em; font-size:.95rem; margin:0 0 6px; }
+  .item{ border:1px solid var(--line); border-radius:6px; padding:6px 8px; margin-top:6px; cursor:pointer; font-size:.88rem; }
+  .item.sel{ border-color:var(--blue); background:var(--blue-soft); }
+  .item b{ font-weight:600; }
+  .item .who{ color:var(--muted); font-size:.78rem; }
+  s{ color:var(--muted); }
+  .chip{ display:inline-block; font-family:var(--cond); font-size:.75rem; letter-spacing:.05em; text-transform:uppercase; padding:1px 7px; border-radius:10px; background:var(--blue-soft); color:var(--blue); }
+  .chip.red{ background:var(--red-soft); color:var(--red); }
+  .chip.ok{ background:var(--ok); color:#fff; }
+  .status{ color:var(--muted); font-size:.88rem; }
+  .textbox{ fill:rgba(31,95,153,0.06); stroke:rgba(31,95,153,0.35); stroke-width:0.4; cursor:text; }
+  .textbox:hover{ fill:rgba(31,95,153,0.25); }
+  .notebox{ fill:rgba(31,95,153,0.05); stroke:rgba(31,95,153,0.55); stroke-width:1; vector-effect:non-scaling-stroke; cursor:pointer; }
+  .notebox:hover{ fill:rgba(31,95,153,0.18); stroke:#1f5f99; }
+  .modal-back{ position:fixed; inset:0; background:rgba(0,0,0,.45); display:flex; align-items:center; justify-content:center; padding:16px; z-index:50; }
+  .modal{ background:var(--panel); color:var(--ink); border-radius:10px; padding:16px; width:min(560px,100%); box-shadow:0 10px 40px rgba(0,0,0,.4); display:flex; flex-direction:column; gap:10px; }
+  .modal h3{ margin:0; font-family:var(--cond); text-transform:uppercase; letter-spacing:.04em; }
+  .modal textarea{ width:100%; box-sizing:border-box; border:1px solid var(--line); border-radius:6px; padding:8px; font:inherit; background:var(--panel); color:var(--ink); }
+  .orig{ background:var(--ground); border-radius:6px; padding:6px 8px; white-space:pre-wrap; font-size:.9rem; }
+  .row{ display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
+  .toast{ position:fixed; left:50%; bottom:calc(20px + env(safe-area-inset-bottom, 0px)); transform:translateX(-50%); background:var(--ink); color:var(--panel); padding:8px 14px; border-radius:6px; font-size:.9rem; z-index:60; }
+  @media (max-width: 900px){ .main{ flex-direction:column; } .side{ width:auto; max-height:none; } .viewer{ height:65vh; } }
+  @media (prefers-reduced-motion: reduce){ *{ transition:none!important; } }
+  [hidden]{ display:none!important; }
+  body{ margin:0; }
+&lt;/style&gt;
+&lt;/head&gt;
+&lt;body&gt;
+
+&lt;div class=&quot;wrap&quot;&gt;
+  &lt;header&gt;
+    &lt;h1&gt;SE &lt;span&gt;Redline&lt;/span&gt; Review&lt;/h1&gt;
+    &lt;p class=&quot;sub&quot;&gt;Drawing sets exported from Revit show up here automatically from the shared Dropbox &lt;b&gt;SE Review&lt;/b&gt; folder. Pick a set, mark it up right on the sheets, and press &lt;b&gt;Done &amp;ndash; send back&lt;/b&gt;. Everything saves into that folder as you go; nothing to download or email. Use Chrome or Edge.&lt;/p&gt;
+  &lt;/header&gt;
+
+  &lt;div class=&quot;bar&quot; id=&quot;setbar&quot;&gt;
+    &lt;span class=&quot;label&quot;&gt;Drawing set&lt;/span&gt;
+    &lt;select id=&quot;setSelect&quot; aria-label=&quot;Drawing set&quot;&gt;&lt;option value=&quot;&quot;&gt;Loading sets&amp;hellip;&lt;/option&gt;&lt;/select&gt;
+    &lt;span id=&quot;setStatus&quot;&gt;&lt;/span&gt;
+    &lt;span class=&quot;spacer&quot;&gt;&lt;/span&gt;
+    &lt;label class=&quot;label&quot; for=&quot;reviewer&quot;&gt;Your initials&lt;/label&gt;
+    &lt;input type=&quot;text&quot; id=&quot;reviewer&quot; size=&quot;6&quot;&gt;
+    &lt;button class=&quot;btn&quot; id=&quot;folderBtn&quot;&gt;Connect SE Review folder&amp;hellip;&lt;/button&gt;
+    &lt;button class=&quot;btn&quot; id=&quot;refreshBtn&quot; title=&quot;Re-read the folder (new sets, or changes saved from another computer)&quot;&gt;Refresh&lt;/button&gt;
+    &lt;button class=&quot;btn primary&quot; id=&quot;doneBtn&quot; disabled&gt;Done &amp;ndash; send back&lt;/button&gt;
+  &lt;/div&gt;
+
+  &lt;div class=&quot;bar&quot;&gt;
+    &lt;div class=&quot;tools&quot; id=&quot;tools&quot;&gt;&lt;/div&gt;
+    &lt;span class=&quot;spacer&quot;&gt;&lt;/span&gt;
+    &lt;button class=&quot;btn&quot; id=&quot;undoBtn&quot; title=&quot;Ctrl+Z&quot;&gt;Undo&lt;/button&gt;
+    &lt;button class=&quot;btn danger&quot; id=&quot;delBtn&quot;&gt;Delete selected&lt;/button&gt;
+  &lt;/div&gt;
+
+  &lt;div class=&quot;bar&quot;&gt;
+    &lt;button class=&quot;btn&quot; id=&quot;prevBtn&quot;&gt;&amp;larr; Prev sheet&lt;/button&gt;
+    &lt;select id=&quot;pageSelect&quot; aria-label=&quot;Sheet&quot;&gt;&lt;/select&gt;
+    &lt;button class=&quot;btn&quot; id=&quot;nextBtn&quot;&gt;Next sheet &amp;rarr;&lt;/button&gt;
+    &lt;span class=&quot;label&quot;&gt;Sheet #&lt;/span&gt;
+    &lt;input type=&quot;text&quot; id=&quot;sheetNum&quot; size=&quot;7&quot; aria-label=&quot;Sheet number&quot;&gt;
+    &lt;button class=&quot;btn&quot; id=&quot;zoomOut&quot; aria-label=&quot;Zoom out&quot;&gt;&amp;minus;&lt;/button&gt;
+    &lt;button class=&quot;btn&quot; id=&quot;zoomIn&quot; aria-label=&quot;Zoom in&quot;&gt;+&lt;/button&gt;
+    &lt;button class=&quot;btn&quot; id=&quot;fitBtn&quot;&gt;Fit&lt;/button&gt;
+    &lt;span class=&quot;status&quot; id=&quot;status&quot;&gt;&lt;/span&gt;
+  &lt;/div&gt;
+
+  &lt;div class=&quot;main&quot;&gt;
+    &lt;div class=&quot;viewer&quot; id=&quot;viewer&quot;&gt;
+      &lt;div class=&quot;empty&quot; id=&quot;emptyMsg&quot;&gt;Pick a drawing set above to start.&lt;/div&gt;
+      &lt;div class=&quot;page&quot; id=&quot;page&quot; hidden&gt;&lt;canvas id=&quot;canvas&quot;&gt;&lt;/canvas&gt;&lt;svg id=&quot;svg&quot; xmlns=&quot;http://www.w3.org/2000/svg&quot;&gt;&lt;/svg&gt;&lt;/div&gt;
+    &lt;/div&gt;
+    &lt;div class=&quot;side&quot;&gt;
+      &lt;div class=&quot;card&quot;&gt;
+        &lt;h2&gt;Markups on this sheet&lt;/h2&gt;
+        &lt;div id=&quot;list&quot;&gt;&lt;span class=&quot;status&quot;&gt;None yet.&lt;/span&gt;&lt;/div&gt;
+      &lt;/div&gt;
+      &lt;div class=&quot;card&quot;&gt;
+        &lt;h2&gt;Whole set&lt;/h2&gt;
+        &lt;div id=&quot;summary&quot; class=&quot;status&quot;&gt;&amp;mdash;&lt;/div&gt;
+      &lt;/div&gt;
+      &lt;div class=&quot;card status&quot;&gt;
+        &lt;b&gt;How to&lt;/b&gt;&lt;br&gt;
+        &lt;b&gt;Edit text&lt;/b&gt;: each Revit note is a blue box. Click it to rewrite the whole note (Enter adds a line, empty deletes it); drag it to move it.
+        &lt;b&gt;X&lt;/b&gt;: drag over text to delete it, or anywhere to mark &quot;remove&quot;.
+        &lt;b&gt;Select&lt;/b&gt; to move; double-click to change; Delete key removes. Ctrl+Z undoes. Letters in the tool buttons are keyboard shortcuts.
+      &lt;/div&gt;
+    &lt;/div&gt;
+  &lt;/div&gt;
+&lt;/div&gt;
+
+&lt;script src=&quot;https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js&quot;&gt;&lt;/script&gt;
+&lt;script src=&quot;https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js&quot;&gt;&lt;/script&gt;
+&lt;script&gt;
+(function(){
+  const $ = id =&gt; document.getElementById(id);
+  const RED = &#x27;#c8281e&#x27;;
+  const esc = s =&gt; String(s==null?&#x27;&#x27;:s).replace(/&amp;/g,&#x27;&amp;amp;&#x27;).replace(/&lt;/g,&#x27;&amp;lt;&#x27;).replace(/&gt;/g,&#x27;&amp;gt;&#x27;).replace(/&quot;/g,&#x27;&amp;quot;&#x27;);
+  if(window.pdfjsLib) pdfjsLib.GlobalWorkerOptions.workerSrc = &#x27;https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js&#x27;;
+
+  let db = null, assets = null, dl = null, user = null, me = {id:&#x27;&#x27;, name:&#x27;&#x27;}, isOwner = false;
+  let sets = [], curSet = null;
+  let docs = [];          // [{pdf, pages}] per part of the current set
+  let pages = [];         // [{part, n}] global page list (1-based index in UI)
+  let pageInfo = {};      // global page -&gt; {sheetNumber, pageW, pageH}
+  let pageNum = 1, zoom = 1, pageW = 0, pageH = 0, texts = [], renderTask = null;
+  let items = [];         // markups for the current set
+  let noteMaps = {};      // sheetNumber -&gt; {outline:[u0,v0,u1,v1], notes:[...]}
+  let pageNotes = [];     // Revit text notes on the current page, in page coords
+  let unsubMarkups = null, unsubPages = null;
+  let tool = &#x27;edit&#x27;, drag = null, selected = null, undo = [];
+
+  function toast(msg){ const t = document.createElement(&#x27;div&#x27;); t.className=&#x27;toast&#x27;; t.textContent = msg; document.body.appendChild(t); setTimeout(()=&gt;t.remove(), 2600); }
+  function status(msg){ $(&#x27;status&#x27;).textContent = msg||&#x27;&#x27;; }
+
+  // ---------- dialog ----------
+  function dialog(title, initial, opts){
+    opts = opts||{};
+    return new Promise(res=&gt;{
+      const back = document.createElement(&#x27;div&#x27;); back.className=&#x27;modal-back&#x27;;
+      back.innerHTML = `&lt;div class=&quot;modal&quot; role=&quot;dialog&quot; aria-label=&quot;${esc(title)}&quot;&gt;&lt;h3&gt;${esc(title)}&lt;/h3&gt;
+        ${opts.original!=null ? `&lt;div&gt;&lt;span class=&quot;label&quot;&gt;Current text&lt;/span&gt;&lt;div class=&quot;orig&quot;&gt;&lt;/div&gt;&lt;/div&gt;` : &#x27;&#x27;}
+        ${opts.extra ? `&lt;div&gt;&lt;button class=&quot;btn&quot; data-a=&quot;extra&quot;&gt;${esc(opts.extra)}&lt;/button&gt;&lt;/div&gt;` : &#x27;&#x27;}
+        ${opts.noText ? &#x27;&#x27; : `&lt;textarea rows=&quot;${opts.rows||4}&quot;&gt;&lt;/textarea&gt;`}
+        ${opts.message ? `&lt;p class=&quot;status&quot; style=&quot;margin:0&quot;&gt;${esc(opts.message)}&lt;/p&gt;` : &#x27;&#x27;}
+        &lt;div class=&quot;row&quot;&gt;&lt;button class=&quot;btn primary&quot; data-a=&quot;ok&quot;&gt;${esc(opts.ok||&#x27;OK&#x27;)}&lt;/button&gt;&lt;button class=&quot;btn&quot; data-a=&quot;cancel&quot;&gt;Cancel&lt;/button&gt;&lt;/div&gt;&lt;/div&gt;`;
+      document.body.appendChild(back);
+      const ta = back.querySelector(&#x27;textarea&#x27;), orig = back.querySelector(&#x27;.orig&#x27;);
+      if(orig) orig.textContent = opts.original;
+      if(ta){ ta.value = initial||&#x27;&#x27;; setTimeout(()=&gt;{ ta.focus(); ta.select(); }, 20); }
+      const done = v=&gt;{ back.remove(); res(v); };
+      back.addEventListener(&#x27;click&#x27;, e=&gt;{
+        const a = e.target.dataset &amp;&amp; e.target.dataset.a;
+        if(a===&#x27;ok&#x27;) done(ta ? ta.value : true);
+        else if(a===&#x27;cancel&#x27; || e.target===back) done(null);
+        else if(a===&#x27;extra&#x27; &amp;&amp; opts.onExtra){ const r = opts.onExtra(); if(r){ if(orig) orig.textContent = r.original; ta.value = r.value; } }
+      });
+      back.addEventListener(&#x27;keydown&#x27;, e=&gt;{ if(e.key===&#x27;Escape&#x27;) done(null); if(e.key===&#x27;Enter&#x27; &amp;&amp; (e.ctrlKey||e.metaKey)) done(ta ? ta.value : true); });
+    });
+  }
+
+
+  // =================================================================
+  // Dropbox-folder storage. The page is opened from the shared Dropbox
+  // &quot;SE Review&quot; folder; each subfolder is one drawing set:
+  //   &lt;set&gt;/&lt;name&gt;.pdf  (+ more PDFs)     from Export for SE Review
+  //   &lt;set&gt;/&lt;name&gt; - text map.json        Revit text note boxes
+  //   &lt;set&gt;/markups.json                  written here, read by Revit
+  //   &lt;set&gt;/status.json                   new / in review / reviewed
+  // Mimics the small slice of the shared-db API the tool code uses.
+  // =================================================================
+  const IDB = &#x27;se-review-dropbox&#x27;, IDB_STORE = &#x27;h&#x27;;
+  function idb(mode, fn){ return new Promise((res,rej)=&gt;{ const r = indexedDB.open(IDB,1); r.onupgradeneeded = ()=&gt; r.result.createObjectStore(IDB_STORE); r.onsuccess = ()=&gt;{ const tx = r.result.transaction(IDB_STORE, mode); const q = fn(tx.objectStore(IDB_STORE)); tx.oncomplete = ()=&gt; res(q &amp;&amp; q.result); tx.onerror = ()=&gt; rej(tx.error); }; r.onerror = ()=&gt; rej(r.error); }); }
+  let root = null;
+  const setDirs = {};      // set id -&gt; {dir, pdfs:[File], maps:[obj], status}
+  const cache = {markups:{}, pages:{}};   // setId -&gt; {docId: data}
+  const listeners = [];    // {col, setId, fn}
+  const saveTimers = {};
+  const newId = ()=&gt; &#x27;m&#x27; + Date.now().toString(36) + Math.random().toString(36).slice(2,7);
+
+  async function readJson(dir, name){ try{ const f = await (await dir.getFileHandle(name)).getFile(); return JSON.parse(await f.text()); }catch(e){ return null; } }
+  async function writeJson(dir, name, obj){ const h = await dir.getFileHandle(name, {create:true}); const w = await h.createWritable(); await w.write(JSON.stringify(obj, null, 2)); await w.close(); }
+
+  async function scanSets(){
+    const out = [];
+    for await (const [name, h] of root.entries()){
+      if(h.kind!==&#x27;directory&#x27;) continue;
+      const pdfs = [], maps = [];
+      for await (const [fn, fh] of h.entries()){
+        if(fh.kind!==&#x27;file&#x27;) continue;
+        if(/\.pdf$/i.test(fn)) pdfs.push(await fh.getFile());
+        else if(/text map\.json$/i.test(fn)){ try{ const d = JSON.parse(await (await fh.getFile()).text()); if(d.format===&#x27;tdd-text-map&#x27;) maps.push(d); }catch(e){} }
+      }
+      if(!pdfs.length) continue;
+      pdfs.sort((a,b)=&gt; a.name.localeCompare(b.name, undefined, {numeric:true}));
+      const st = (await readJson(h, &#x27;status.json&#x27;)) || {};
+      setDirs[name] = {dir:h, pdfs, maps, status: st};
+      const when = st.createdAt || new Date(Math.min(...pdfs.map(f=&gt;f.lastModified))).toISOString();
+      out.push(Object.assign({id:name, title:name, uploadedAt: when, status:&#x27;new&#x27;, note:&#x27;&#x27;}, st, {parts: pdfs.map(f=&gt;({name:f.name, file:f})), hasTextMap: maps.length&gt;0}));
+    }
+    out.sort((a,b)=&gt; String(b.uploadedAt).localeCompare(String(a.uploadedAt)));
+    return out;
+  }
+  async function loadSetData(setId){
+    const sd = setDirs[setId]; if(!sd) return;
+    const m = (await readJson(sd.dir, &#x27;markups.json&#x27;)) || {};
+    cache.markups[setId] = {}; cache.pages[setId] = {};
+    (m.items||[]).forEach(it=&gt;{ const d = Object.assign({}, it, {setId}); const id = d.id || newId(); delete d.id; cache.markups[setId][id] = d; });
+    Object.keys(m.pages||{}).forEach(k=&gt;{ cache.pages[setId][setId+&#x27;_&#x27;+k] = Object.assign({setId, page:+k}, m.pages[k]); });
+  }
+  function scheduleSave(setId){
+    clearTimeout(saveTimers[setId]);
+    saveTimers[setId] = setTimeout(()=&gt; saveSet(setId), 500);
+  }
+  async function saveSet(setId){
+    const sd = setDirs[setId]; if(!sd) return;
+    const pagesOut = {};
+    Object.values(cache.pages[setId]||{}).forEach(p=&gt;{ pagesOut[p.page] = {sheetNumber: p.sheetNumber||&#x27;&#x27;, pageW: p.pageW, pageH: p.pageH}; });
+    const items = Object.entries(cache.markups[setId]||{}).map(([id,d])=&gt;{ const c = Object.assign({id}, d); c.sheetNumber = ((cache.pages[setId]||{})[setId+&#x27;_&#x27;+d.page]||{}).sheetNumber || &#x27;&#x27;; c.author = d.authorName||&#x27;&#x27;; delete c.setId; return c; });
+    try{
+      await writeJson(sd.dir, &#x27;markups.json&#x27;, {format:&#x27;tdd-se-markup&#x27;, version:1, pdfName:setId, setId, exportedAt:new Date().toISOString(), units:&#x27;pdf-points, origin top-left&#x27;, pages: pagesOut, items});
+      status(&#x27;Saved to Dropbox&#x27;);
+      setTimeout(()=&gt;{ if($(&#x27;status&#x27;).textContent===&#x27;Saved to Dropbox&#x27;) status(&#x27;&#x27;); }, 1500);
+    }catch(err){ toast(&#x27;Could not save to the folder: &#x27; + (err.message||err)); }
+  }
+  function fire(colName, setId){
+    listeners.filter(l=&gt; l.col===colName &amp;&amp; l.setId===setId).forEach(l=&gt; l.fn(snapOf(colName, setId)));
+  }
+  function snapOf(colName, setId){
+    const src = (colName===&#x27;sets&#x27;) ? Object.fromEntries(sets.map(s=&gt;[s.id, s])) : (cache[colName][setId]||{});
+    const docs = Object.entries(src).map(([id,d])=&gt;({id, exists:true, data:()=&gt; Object.assign({}, d)}));
+    return {docs, size:docs.length, empty:!docs.length};
+  }
+  function docRef(colName, id, setIdHint){
+    return {
+      id,
+      async set(data){
+        const sid = data.setId || setIdHint; if(!cache[colName][sid]) cache[colName][sid] = {};
+        cache[colName][sid][id] = Object.assign({}, data); fire(colName, sid); scheduleSave(sid);
+      },
+      async update(patch){
+        if(colName===&#x27;sets&#x27;){
+          const sd = setDirs[id]; if(!sd) return;
+          sd.status = Object.assign({}, sd.status, patch);
+          await writeJson(sd.dir, &#x27;status.json&#x27;, sd.status);
+          const s = sets.find(x=&gt;x.id===id); if(s) Object.assign(s, patch);
+          renderSetSelect(); if(curSet &amp;&amp; curSet.id===id){ Object.assign(curSet, patch); renderSetStatus(); }
+          return;
+        }
+        const sid = setIdHint; Object.assign(cache[colName][sid][id], patch); fire(colName, sid); scheduleSave(sid);
+      },
+      async delete(){
+        const sid = setIdHint || (curSet &amp;&amp; curSet.id);
+        if(cache[colName][sid]) delete cache[colName][sid][id];
+        fire(colName, sid); scheduleSave(sid);
+      },
+    };
+  }
+  const localDb = {
+    collection(colName){
+      let setId = null;
+      const q = {
+        where(f, op, v){ if(f===&#x27;setId&#x27;) setId = v; return q; },
+        orderBy(){ return q; },
+        async get(){
+          if(colName===&#x27;notes&#x27;){
+            const sd = setDirs[setId]; const docs = [];
+            (sd ? sd.maps : []).forEach(m=&gt; m.sheets.forEach(sh=&gt; docs.push({id: sh.sheetNumber, data:()=&gt; ({setId, sheetNumber: sh.sheetNumber, outline: sh.outline, notes: sh.notes})})));
+            return {docs, size:docs.length, empty:!docs.length};
+          }
+          return snapOf(colName, setId);
+        },
+        onSnapshot(fn){ const l = {col:colName, setId: colName===&#x27;sets&#x27; ? null : setId, fn}; listeners.push(l); fn(snapOf(colName, l.setId)); return ()=&gt;{ const i = listeners.indexOf(l); if(i&gt;=0) listeners.splice(i,1); }; },
+        doc(id){ return docRef(colName, id || newId(), curSet &amp;&amp; curSet.id); },
+      };
+      return q;
+    },
+  };
+
+  async function connectFolder(pick){
+    try{
+      if(pick){ root = await window.showDirectoryPicker({id:&#x27;se-review&#x27;, mode:&#x27;readwrite&#x27;}); await idb(&#x27;readwrite&#x27;, st=&gt; st.put(root, &#x27;root&#x27;)); }
+      else { root = await idb(&#x27;readonly&#x27;, st=&gt; st.get(&#x27;root&#x27;)); }
+      if(!root) return false;
+      let perm = await root.queryPermission({mode:&#x27;readwrite&#x27;});
+      if(perm!==&#x27;granted&#x27; &amp;&amp; pick) perm = await root.requestPermission({mode:&#x27;readwrite&#x27;});
+      if(perm!==&#x27;granted&#x27;){ $(&#x27;folderBtn&#x27;).textContent = &#x27;Reconnect SE Review folder&#x27;; return false; }
+      $(&#x27;folderBtn&#x27;).textContent = &#x27;Folder: &#x27; + root.name;
+      await refreshSets();
+      return true;
+    }catch(err){ if(err &amp;&amp; err.name!==&#x27;AbortError&#x27;) toast(&#x27;Could not open the folder: &#x27; + (err.message||err)); return false; }
+  }
+  async function refreshSets(){
+    if(!root) return;
+    $(&#x27;setSelect&#x27;).innerHTML = &#x27;&lt;option&gt;Reading the folder…&lt;/option&gt;&#x27;;
+    sets = await scanSets();
+    renderSetSelect();
+    fire(&#x27;sets&#x27;, null);
+    if(curSet &amp;&amp; sets.some(s=&gt;s.id===curSet.id)){ const keep = curSet.id; curSet = null; $(&#x27;setSelect&#x27;).value = keep; openSet(keep); }
+  }
+
+  // ---------- boot ----------
+  async function boot(){
+    buildTools();
+    db = localDb;
+    try{ $(&#x27;reviewer&#x27;).value = localStorage.getItem(&#x27;seReviewer&#x27;) || &#x27;&#x27;; }catch(e){}
+    $(&#x27;reviewer&#x27;).onchange = e=&gt;{ try{ localStorage.setItem(&#x27;seReviewer&#x27;, e.target.value.trim()); }catch(x){} };
+    $(&#x27;folderBtn&#x27;).onclick = ()=&gt; connectFolder(true);
+    $(&#x27;refreshBtn&#x27;).onclick = ()=&gt; root ? refreshSets() : connectFolder(true);
+    if(!window.showDirectoryPicker){ $(&#x27;setSelect&#x27;).innerHTML = &#x27;&lt;option&gt;Open this page in Chrome or Edge.&lt;/option&gt;&#x27;; $(&#x27;folderBtn&#x27;).disabled = true; return; }
+    $(&#x27;setSelect&#x27;).innerHTML = &#x27;&lt;option value=&quot;&quot;&gt;Click &quot;Connect SE Review folder&quot; to load drawing sets&lt;/option&gt;&#x27;;
+    const ok = await connectFolder(false);
+    if(!ok &amp;&amp; root) $(&#x27;setSelect&#x27;).innerHTML = &#x27;&lt;option value=&quot;&quot;&gt;Click &quot;Reconnect SE Review folder&quot; to load drawing sets&lt;/option&gt;&#x27;;
+  }
+  async function reviewerName(){ return ($(&#x27;reviewer&#x27;).value||&#x27;&#x27;).trim(); }
+
+  function renderSetSelect(){
+    const sel = $(&#x27;setSelect&#x27;), cur = curSet ? curSet.id : sel.value;
+    if(!sets.length){ sel.innerHTML = `&lt;option value=&quot;&quot;&gt;No drawing sets in this folder yet — run &quot;Export for SE Review&quot; in Revit&lt;/option&gt;`; return; }
+    sel.innerHTML = &#x27;&lt;option value=&quot;&quot;&gt;Pick a drawing set…&lt;/option&gt;&#x27; + sets.map(s=&gt;{
+      const d = s.uploadedAt ? new Date(s.uploadedAt).toLocaleDateString() : &#x27;&#x27;;
+      const st = s.status===&#x27;reviewed&#x27; ? &#x27; — reviewed&#x27; : s.status===&#x27;in-review&#x27; ? &#x27; — in review&#x27; : &#x27;&#x27;;
+      return `&lt;option value=&quot;${esc(s.id)}&quot;&gt;${esc(s.title||&#x27;Untitled set&#x27;)} (${d})${st}&lt;/option&gt;`;
+    }).join(&#x27;&#x27;);
+    if(cur &amp;&amp; sets.some(s=&gt;s.id===cur)) sel.value = cur;
+    if(curSet){ curSet = sets.find(s=&gt;s.id===curSet.id) || curSet; renderSetStatus(); }
+  }
+  function renderSetStatus(){
+    const s = curSet; if(!s){ $(&#x27;setStatus&#x27;).innerHTML=&#x27;&#x27;; $(&#x27;doneBtn&#x27;).disabled = true; return; }
+    const chip = s.status===&#x27;reviewed&#x27; ? &#x27;&lt;span class=&quot;chip ok&quot;&gt;Reviewed&lt;/span&gt;&#x27; : s.status===&#x27;in-review&#x27; ? &#x27;&lt;span class=&quot;chip red&quot;&gt;In review&lt;/span&gt;&#x27; : &#x27;&lt;span class=&quot;chip&quot;&gt;New&lt;/span&gt;&#x27;;
+    $(&#x27;setStatus&#x27;).innerHTML = chip + (s.note ? ` &lt;span class=&quot;status&quot;&gt;${esc(s.note)}&lt;/span&gt;` : &#x27;&#x27;);
+    $(&#x27;doneBtn&#x27;).disabled = false;
+    $(&#x27;doneBtn&#x27;).textContent = s.status===&#x27;reviewed&#x27; ? &#x27;Reopen for review&#x27; : &#x27;Done – send back&#x27;;
+  }
+
+  // ---------- open a set ----------
+  $(&#x27;setSelect&#x27;).onchange = e=&gt; openSet(e.target.value);
+  async function openSet(id){
+    if(unsubMarkups){ unsubMarkups(); unsubMarkups = null; }
+    if(unsubPages){ unsubPages(); unsubPages = null; }
+    curSet = sets.find(s=&gt;s.id===id) || null;
+    items = []; selected = null; undo = []; docs = []; pages = []; pageInfo = {}; noteMaps = {}; pageNotes = [];
+    renderSetStatus();
+    if(!curSet){ $(&#x27;page&#x27;).hidden = true; $(&#x27;emptyMsg&#x27;).hidden = false; $(&#x27;emptyMsg&#x27;).textContent = &#x27;Pick a drawing set above to start.&#x27;; renderList(); return; }
+    $(&#x27;emptyMsg&#x27;).hidden = false; $(&#x27;emptyMsg&#x27;).textContent = &#x27;Opening the set…&#x27;; $(&#x27;page&#x27;).hidden = true;
+    await loadSetData(curSet.id);
+    try{
+      for(let i=0;i&lt;curSet.parts.length;i++){
+        const p = curSet.parts[i];
+        const buf = await p.file.arrayBuffer();
+        const pdf = await pdfjsLib.getDocument({data: buf}).promise;
+        docs.push(pdf);
+        for(let n=1;n&lt;=pdf.numPages;n++) pages.push({part:i, n});
+      }
+    }catch(err){ $(&#x27;emptyMsg&#x27;).textContent = &#x27;Could not open this set: &#x27; + (err.message||err); return; }
+    try{
+      const ns = await db.collection(&#x27;notes&#x27;).where(&#x27;setId&#x27;,&#x27;==&#x27;,curSet.id).get();
+      ns.docs.forEach(d=&gt;{ const v = d.data(); noteMaps[String(v.sheetNumber).trim().toUpperCase()] = v; });
+    }catch(err){}
+    $(&#x27;pageSelect&#x27;).innerHTML = pages.map((_,i)=&gt;`&lt;option value=&quot;${i+1}&quot;&gt;Sheet ${i+1}&lt;/option&gt;`).join(&#x27;&#x27;);
+    unsubMarkups = db.collection(&#x27;markups&#x27;).where(&#x27;setId&#x27;,&#x27;==&#x27;,curSet.id).onSnapshot(snap=&gt;{
+      items = snap.docs.map(d=&gt; Object.assign({id:d.id}, d.data()));
+      draw(); renderList(); renderSummary();
+    });
+    unsubPages = db.collection(&#x27;pages&#x27;).where(&#x27;setId&#x27;,&#x27;==&#x27;,curSet.id).onSnapshot(snap=&gt;{
+      snap.docs.forEach(d=&gt;{ const v = d.data(); pageInfo[v.page] = Object.assign(pageInfo[v.page]||{}, v); });
+      refreshPageLabels();
+      if(pageInfo[pageNum] &amp;&amp; document.activeElement!==$(&#x27;sheetNum&#x27;)) $(&#x27;sheetNum&#x27;).value = pageInfo[pageNum].sheetNumber||&#x27;&#x27;;
+    });
+    if(curSet.status===&#x27;new&#x27;){ db.collection(&#x27;sets&#x27;).doc(curSet.id).update({status:&#x27;in-review&#x27;}).catch(()=&gt;{}); }
+    pageNum = 1; $(&#x27;emptyMsg&#x27;).hidden = true; $(&#x27;page&#x27;).hidden = false;
+    await fit();
+  }
+  function refreshPageLabels(){
+    const opts = $(&#x27;pageSelect&#x27;).options;
+    for(let i=0;i&lt;opts.length;i++){ const inf = pageInfo[i+1]; opts[i].textContent = (inf &amp;&amp; inf.sheetNumber) ? `${inf.sheetNumber}  (${i+1} of ${pages.length})` : `Sheet ${i+1} of ${pages.length}`; }
+    $(&#x27;pageSelect&#x27;).value = String(pageNum);
+  }
+
+  // ---------- render ----------
+  async function dims(){ const pg = pages[pageNum-1]; const page = await docs[pg.part].getPage(pg.n); const v = page.getViewport({scale:1}); return {w:v.width, h:v.height}; }
+  async function fit(){ if(!pages.length) return; const d = await dims(); zoom = Math.max(0.15, ($(&#x27;viewer&#x27;).clientWidth-24)/d.w); await render(); }
+  async function render(){
+    if(!pages.length) return;
+    const pg = pages[pageNum-1], page = await docs[pg.part].getPage(pg.n);
+    const v1 = page.getViewport({scale:1}); pageW = v1.width; pageH = v1.height;
+    const dpr = window.devicePixelRatio||1, vp = page.getViewport({scale: zoom*dpr});
+    const c = $(&#x27;canvas&#x27;); c.width = Math.round(vp.width); c.height = Math.round(vp.height);
+    if(renderTask){ try{ renderTask.cancel(); }catch(e){} }
+    renderTask = page.render({canvasContext: c.getContext(&#x27;2d&#x27;), viewport: vp});
+    try{ await renderTask.promise; }catch(e){ if(e &amp;&amp; e.name===&#x27;RenderingCancelledException&#x27;) return; }
+    texts = [];
+    try{
+      const tc = await page.getTextContent();
+      tc.items.forEach(it=&gt;{
+        if(!it.str || !it.str.trim()) return;
+        const t = pdfjsLib.Util.transform(v1.transform, it.transform);
+        const h = Math.hypot(t[2], t[3]), vert = Math.abs(t[1]) &gt; Math.abs(t[0]);
+        const box = vert ? {x:t[4]-h, y:t[5]-it.width, w:h, h:it.width} : {x:t[4], y:t[5]-h, w:it.width, h:h};
+        texts.push(Object.assign({str: it.str, fontH: h, vert}, box));
+      });
+    }catch(e){}
+    const W = pageW*zoom, H = pageH*zoom;
+    [c, $(&#x27;svg&#x27;), $(&#x27;page&#x27;)].forEach(el=&gt;{ el.style.width = W+&#x27;px&#x27;; el.style.height = H+&#x27;px&#x27;; });
+    $(&#x27;svg&#x27;).setAttribute(&#x27;viewBox&#x27;, `0 0 ${pageW} ${pageH}`);
+    const inf = pageInfo[pageNum] || {};
+    if(!inf.sheetNumber || !inf.pageW){
+      const sn = inf.sheetNumber || detectSheet();
+      savePageInfo({sheetNumber: sn});
+    }
+    $(&#x27;sheetNum&#x27;).value = (pageInfo[pageNum]||{}).sheetNumber || &#x27;&#x27;;
+    refreshPageLabels();
+    buildPageNotes();
+    draw(); renderList();
+  }
+  // Revit text notes for this page, mapped from sheet feet to PDF points.
+  function curMap(){ const sn = ((pageInfo[pageNum]||{}).sheetNumber||&#x27;&#x27;).trim().toUpperCase(); return sn ? noteMaps[sn] : null; }
+  function buildPageNotes(){
+    pageNotes = [];
+    const m = curMap(); if(!m || !pageW) return;
+    const [u0,v0,u1,v1] = m.outline;
+    const X = u=&gt; (u-u0)/(u1-u0)*pageW, Y = v=&gt; (v1-v)/(v1-v0)*pageH;
+    m.notes.forEach(n=&gt;{
+      const xs = n.corners.map(c=&gt;X(c[0])), ys = n.corners.map(c=&gt;Y(c[1]));
+      const x = Math.min(...xs), y = Math.min(...ys);
+      pageNotes.push({uid:n.uid, id:n.id, text:n.text, where:n.where, box:{x, y, w:Math.max(...xs)-x, h:Math.max(...ys)-y}});
+    });
+  }
+  function ftPerPt(){ const m = curMap(); if(!m) return {x:0,y:0}; const [u0,v0,u1,v1] = m.outline; return {x:(u1-u0)/pageW, y:(v1-v0)/pageH}; }
+  function noteDocId(uid){ return (curSet.id + &#x27;_&#x27; + uid).replace(/[^A-Za-z0-9_\-.~:@+]/g,&#x27;_&#x27;).slice(0,200); }
+  const noteEdit = uid=&gt; items.find(i=&gt; i.kind===&#x27;note&#x27; &amp;&amp; i.uid===uid);
+  const noteAt = p=&gt;{ for(let k=pageNotes.length-1;k&gt;=0;k--){ const n = pageNotes[k], e = noteEdit(n.uid), dx = e?e.dx:0, dy = e?e.dy:0, b = n.box; if(p.x&gt;=b.x+dx-2 &amp;&amp; p.x&lt;=b.x+b.w+dx+2 &amp;&amp; p.y&gt;=b.y+dy-2 &amp;&amp; p.y&lt;=b.y+b.h+dy+2) return n; } return null; };
+  async function saveNote(n, patch){
+    const prev = noteEdit(n.uid);
+    const before = prev ? JSON.parse(JSON.stringify(prev)) : null;
+    const it = Object.assign(prev ? Object.assign({}, prev) : {kind:&#x27;note&#x27;, uid:n.uid, elementId:n.id, original:n.text, replacement:n.text, deleted:false, dx:0, dy:0, box:n.box, where:n.where, page:pageNum, setId:curSet.id}, patch);
+    const f = ftPerPt(); it.dxFt = it.dx*f.x; it.dyFt = -it.dy*f.y;
+    it.authorId = me.id; it.authorName = await reviewerName(); it.at = new Date().toISOString();
+    const docId = noteDocId(n.uid); it.id = docId;
+    const unchanged = !it.deleted &amp;&amp; it.replacement===it.original &amp;&amp; Math.abs(it.dx)&lt;0.01 &amp;&amp; Math.abs(it.dy)&lt;0.01;
+    items = items.filter(i=&gt; i.id!==docId); if(!unchanged) items.push(it);
+    draw(); renderList(); renderSummary();
+    undo.push({id: docId, before});
+    try{
+      if(unchanged) await col().doc(docId).delete();
+      else { const d = Object.assign({}, it); delete d.id; await col().doc(docId).set(d); }
+    }catch(err){ toast(&#x27;Could not save: &#x27; + (err.code||err.message)); }
+  }
+  async function editNote(n){
+    const e = noteEdit(n.uid);
+    const cur = e ? e.replacement : n.text;
+    const v = await dialog(&#x27;Edit note&#x27;, cur, {original: n.text, rows: Math.min(14, Math.max(4, cur.split(&#x27;\n&#x27;).length+2)), ok:&#x27;Save&#x27;, extra:&#x27;Delete this note&#x27;, onExtra(){ return {original:n.text, value:&#x27;&#x27;}; },
+      message: n.where &amp;&amp; n.where!==&#x27;sheet&#x27; ? `In view: ${n.where}. Enter starts a new line. Leave it empty to delete the note.` : &#x27;Enter starts a new line. Leave it empty to delete the note.&#x27;});
+    if(v===null) return;
+    const t = v.replace(/\s+$/,&#x27;&#x27;);
+    saveNote(n, t ? {replacement:t, deleted:false} : {deleted:true});
+  }
+  function detectSheet(){
+    const re = /^[A-Z]{1,3}[-.]?\d{1,3}(\.\d{1,2})?[A-Z]?$/;
+    const c = texts.filter(t=&gt; re.test(t.str.trim()) &amp;&amp; t.x &gt; pageW*0.6 &amp;&amp; t.y &gt; pageH*0.5);
+    c.sort((a,b)=&gt; b.fontH-a.fontH || (b.x+b.y)-(a.x+a.y));
+    return c.length ? c[0].str.trim() : &#x27;&#x27;;
+  }
+  function savePageInfo(patch){
+    if(!curSet) return;
+    const v = Object.assign(pageInfo[pageNum]||{}, patch, {setId: curSet.id, page: pageNum, pageW, pageH});
+    pageInfo[pageNum] = v;
+    db.collection(&#x27;pages&#x27;).doc(`${curSet.id}_${pageNum}`).set(v).catch(()=&gt;{});
+  }
+  $(&#x27;sheetNum&#x27;).onchange = e=&gt; savePageInfo({sheetNumber: e.target.value.trim()});
+  $(&#x27;prevBtn&#x27;).onclick = ()=&gt; go(-1);
+  $(&#x27;nextBtn&#x27;).onclick = ()=&gt; go(1);
+  $(&#x27;pageSelect&#x27;).onchange = e=&gt;{ pageNum = +e.target.value; selected = null; render(); };
+  function go(d){ if(!pages.length) return; const n = Math.min(pages.length, Math.max(1, pageNum+d)); if(n!==pageNum){ pageNum = n; selected = null; render(); } }
+  $(&#x27;zoomIn&#x27;).onclick = ()=&gt;{ zoom = Math.min(8, zoom*1.25); render(); };
+  $(&#x27;zoomOut&#x27;).onclick = ()=&gt;{ zoom = Math.max(0.1, zoom/1.25); render(); };
+  $(&#x27;fitBtn&#x27;).onclick = fit;
+
+  // ---------- tools ----------
+  const TOOLS = [
+    [&#x27;select&#x27;,&#x27;Select&#x27;,&#x27;V&#x27;],[&#x27;edit&#x27;,&#x27;Edit text&#x27;,&#x27;E&#x27;],[&#x27;text&#x27;,&#x27;Add text&#x27;,&#x27;T&#x27;],[&#x27;callout&#x27;,&#x27;Callout&#x27;,&#x27;C&#x27;],[&#x27;x&#x27;,&#x27;X / delete&#x27;,&#x27;X&#x27;],
+    [&#x27;cloud&#x27;,&#x27;Cloud&#x27;,&#x27;K&#x27;],[&#x27;arrow&#x27;,&#x27;Arrow&#x27;,&#x27;A&#x27;],[&#x27;line&#x27;,&#x27;Line&#x27;,&#x27;L&#x27;],[&#x27;check&#x27;,&#x27;✓ OK&#x27;,&#x27;O&#x27;],[&#x27;highlight&#x27;,&#x27;Highlight&#x27;,&#x27;H&#x27;],[&#x27;pen&#x27;,&#x27;Pen&#x27;,&#x27;P&#x27;],
+  ];
+  function buildTools(){
+    $(&#x27;tools&#x27;).innerHTML = TOOLS.map(([id,l,k])=&gt;`&lt;button class=&quot;tool&quot; data-t=&quot;${id}&quot; title=&quot;${l} (${k})&quot;&gt;${l}&lt;kbd&gt;${k}&lt;/kbd&gt;&lt;/button&gt;`).join(&#x27;&#x27;);
+    $(&#x27;tools&#x27;).onclick = e=&gt;{ const b = e.target.closest(&#x27;[data-t]&#x27;); if(b) setTool(b.dataset.t); };
+    setTool(&#x27;edit&#x27;);
+  }
+  function setTool(t){
+    tool = t; drag = null; if(t!==&#x27;select&#x27;) selected = null;
+    document.querySelectorAll(&#x27;.tool&#x27;).forEach(b=&gt; b.classList.toggle(&#x27;active&#x27;, b.dataset.t===t));
+    $(&#x27;svg&#x27;).style.cursor = t===&#x27;select&#x27; ? &#x27;default&#x27; : t===&#x27;edit&#x27; ? &#x27;text&#x27; : &#x27;crosshair&#x27;;
+    draw(); renderList();
+  }
+  document.addEventListener(&#x27;keydown&#x27;, e=&gt;{
+    if(document.querySelector(&#x27;.modal-back&#x27;)) return;
+    if([&#x27;INPUT&#x27;,&#x27;TEXTAREA&#x27;,&#x27;SELECT&#x27;].includes((document.activeElement||{}).tagName)) return;
+    if((e.ctrlKey||e.metaKey) &amp;&amp; e.key.toLowerCase()===&#x27;z&#x27;){ e.preventDefault(); doUndo(); return; }
+    if((e.key===&#x27;Delete&#x27;||e.key===&#x27;Backspace&#x27;) &amp;&amp; selected){ e.preventDefault(); delSelected(); return; }
+    if(e.key===&#x27;ArrowRight&#x27; &amp;&amp; e.altKey){ go(1); return; }
+    if(e.key===&#x27;ArrowLeft&#x27; &amp;&amp; e.altKey){ go(-1); return; }
+    const t = TOOLS.find(x=&gt; x[2].toLowerCase()===e.key.toLowerCase());
+    if(t &amp;&amp; !e.ctrlKey &amp;&amp; !e.metaKey &amp;&amp; !e.altKey) setTool(t[0]);
+  });
+  $(&#x27;undoBtn&#x27;).onclick = doUndo;
+  $(&#x27;delBtn&#x27;).onclick = delSelected;
+
+  // ---------- data writes ----------
+  function col(){ return db.collection(&#x27;markups&#x27;); }
+  async function addItem(it){
+    if(!curSet) return;
+    const ref = col().doc();
+    const name = await reviewerName();
+    Object.assign(it, {setId: curSet.id, page: pageNum, authorId: me.id, authorName: name, at: new Date().toISOString()});
+    items.push(Object.assign({id: ref.id}, it)); draw(); renderList();
+    undo.push({id: ref.id, before: null});
+    try{ await ref.set(it); }catch(err){ toast(&#x27;Could not save: &#x27; + (err.code||err.message)); }
+  }
+  async function saveItem(it, before){
+    undo.push({id: it.id, before});
+    const data = Object.assign({}, it); delete data.id;
+    try{ await col().doc(it.id).set(data); }catch(err){ toast(&#x27;Could not save: &#x27; + (err.code||err.message)); }
+  }
+  async function delSelected(){
+    const it = items.find(i=&gt;i.id===selected); if(!it) return;
+    if(it.kind===&#x27;note&#x27;){ const n = pageNotes.find(x=&gt;x.uid===it.uid) || {uid:it.uid, id:it.elementId, text:it.original, box:it.box, where:it.where}; selected = null; saveNote(n, {replacement:it.original, deleted:false, dx:0, dy:0}); toast(&#x27;Change undone - note back to original&#x27;); return; }
+    undo.push({id: it.id, before: JSON.parse(JSON.stringify(it))});
+    items = items.filter(i=&gt;i!==it); selected = null; draw(); renderList();
+    try{ await col().doc(it.id).delete(); }catch(err){ toast(&#x27;Could not delete: &#x27; + (err.code||err.message)); }
+  }
+  async function doUndo(){
+    const u = undo.pop(); if(!u) return;
+    try{
+      if(u.before===null) await col().doc(u.id).delete();
+      else { const d = Object.assign({}, u.before); delete d.id; await col().doc(u.id).set(d); }
+    }catch(err){ toast(&#x27;Undo failed: &#x27; + (err.code||err.message)); }
+  }
+
+  // ---------- pointer ----------
+  const svg = $(&#x27;svg&#x27;);
+  const toPage = ev=&gt;{ const r = svg.getBoundingClientRect(); return {x:(ev.clientX-r.left)/r.width*pageW, y:(ev.clientY-r.top)/r.height*pageH}; };
+  const ppx = ()=&gt; pageW / svg.getBoundingClientRect().width;
+  svg.addEventListener(&#x27;pointerdown&#x27;, ev=&gt;{ if(!pages.length) return; svg.setPointerCapture(ev.pointerId); pointer(&#x27;down&#x27;, toPage(ev)); });
+  svg.addEventListener(&#x27;pointermove&#x27;, ev=&gt;{ if(pages.length) pointer(&#x27;move&#x27;, toPage(ev)); });
+  svg.addEventListener(&#x27;pointerup&#x27;, ev=&gt;{ if(pages.length) pointer(&#x27;up&#x27;, toPage(ev)); });
+  svg.addEventListener(&#x27;dblclick&#x27;, ev=&gt;{ if(pages.length) pointer(&#x27;dbl&#x27;, toPage(ev)); });
+
+  const here = ()=&gt; items.filter(i=&gt; i.page===pageNum);
+  const textAt = p=&gt; texts.find(t=&gt; p.x&gt;=t.x-1 &amp;&amp; p.x&lt;=t.x+t.w+1 &amp;&amp; p.y&gt;=t.y-1 &amp;&amp; p.y&lt;=t.y+t.h+1);
+  function lineBelow(t){
+    let best=null, bd=Infinity;
+    texts.forEach(o=&gt;{
+      if(o===t || o.vert!==t.vert) return;
+      const dy = o.y-(t.y+t.h); if(dy &lt; -t.h*0.3 || dy &gt; t.h*1.8) return;
+      const ov = Math.min(o.x+o.w, t.x+t.w) - Math.max(o.x, t.x);
+      if(ov&lt;=0 &amp;&amp; Math.abs(o.x-t.x) &gt; t.h*2) return;
+      const d = dy + Math.abs(o.x-t.x)*0.1; if(d&lt;bd){ bd=d; best=o; }
+    });
+    return best;
+  }
+  const union = bs=&gt;{ const x0=Math.min(...bs.map(b=&gt;b.x)), y0=Math.min(...bs.map(b=&gt;b.y)), x1=Math.max(...bs.map(b=&gt;b.x+b.w)), y1=Math.max(...bs.map(b=&gt;b.y+b.h)); return {x:x0,y:y0,w:x1-x0,h:y1-y0}; };
+
+  async function pointer(type, p){
+    if(type===&#x27;dbl&#x27;){ const h = hit(p); if(h){ if(h.kind===&#x27;note&#x27;){ const n = pageNotes.find(x=&gt;x.uid===h.uid); if(n) await editNote(n); } else await editItem(h); } return; }
+    if(tool===&#x27;select&#x27;){
+      if(type===&#x27;down&#x27;){ const h = hit(p); selected = h ? h.id : null; if(h) drag = {start:p, item:h, orig: JSON.parse(JSON.stringify(h))}; draw(); renderList(); }
+      else if(type===&#x27;move&#x27; &amp;&amp; drag){ moveItem(drag.item, drag.orig, p.x-drag.start.x, p.y-drag.start.y); draw(); }
+      else if(type===&#x27;up&#x27; &amp;&amp; drag){ const d = drag; drag = null; if(Math.hypot(p.x-d.start.x, p.y-d.start.y) &gt; 0.5) saveItem(d.item, d.orig); }
+      return;
+    }
+    if(tool===&#x27;edit&#x27; &amp;&amp; pageNotes.length){
+      if(type===&#x27;down&#x27;){ const n = noteAt(p); if(!n){ status(&#x27;Click a text box to edit it, or drag it to move it.&#x27;); return; } status(&#x27;&#x27;); const e = noteEdit(n.uid); drag = {note:n, start:p, dx0: e?e.dx:0, dy0: e?e.dy:0, moved:false}; return; }
+      if(type===&#x27;move&#x27; &amp;&amp; drag &amp;&amp; drag.note){ const dx = p.x-drag.start.x, dy = p.y-drag.start.y; if(Math.hypot(dx,dy) &gt; 3*ppx()) drag.moved = true; if(drag.moved){ drag.live = {dx: drag.dx0+dx, dy: drag.dy0+dy}; draw(); } return; }
+      if(type===&#x27;up&#x27; &amp;&amp; drag &amp;&amp; drag.note){ const d = drag; drag = null; if(d.moved &amp;&amp; d.live) saveNote(d.note, {dx:d.live.dx, dy:d.live.dy}); else editNote(d.note); return; }
+      return;
+    }
+    if(tool===&#x27;edit&#x27;){
+      if(type!==&#x27;down&#x27;) return;
+      const h = textAt(p);
+      if(!h){ status(&#x27;Click directly on a line of text to edit it.&#x27;); return; }
+      status(&#x27;&#x27;);
+      const lines = [h];
+      const v = await dialog(&#x27;Edit text&#x27;, h.str, {original: h.str, ok:&#x27;Save edit&#x27;, extra:&#x27;+ next line&#x27;, onExtra(){ const n = lineBelow(lines[lines.length-1]); if(!n) return null; lines.push(n); const o = lines.map(l=&gt;l.str.trim()).join(&#x27; &#x27;); return {original:o, value:o}; }});
+      if(v===null) return;
+      const original = lines.map(l=&gt;l.str.trim()).join(&#x27; &#x27;);
+      if(v.trim()===original.trim()) return;
+      addItem({kind: v.trim() ? &#x27;edit&#x27; : &#x27;delete&#x27;, original, replacement: v.trim(), boxes: lines.map(l=&gt;({x:l.x,y:l.y,w:l.w,h:l.h}))});
+      return;
+    }
+    if(tool===&#x27;text&#x27;){
+      if(type!==&#x27;down&#x27;) return;
+      const v = await dialog(&#x27;New note&#x27;, &#x27;&#x27;, {ok:&#x27;Add note&#x27;});
+      if(v &amp;&amp; v.trim()) addItem({kind:&#x27;text&#x27;, x:p.x, y:p.y, text:v.trim(), size: Math.max(6, 12*ppx())});
+      return;
+    }
+    if(tool===&#x27;check&#x27;){ if(type===&#x27;down&#x27;) addItem({kind:&#x27;check&#x27;, x:p.x, y:p.y, s: 10*ppx()}); return; }
+    if(tool===&#x27;pen&#x27;){
+      if(type===&#x27;down&#x27;) drag = {pts:[[p.x,p.y]]};
+      else if(type===&#x27;move&#x27; &amp;&amp; drag){ const l = drag.pts[drag.pts.length-1]; if(Math.hypot(p.x-l[0], p.y-l[1]) &gt; 1.5*ppx()) drag.pts.push([p.x,p.y]); draw(); }
+      else if(type===&#x27;up&#x27; &amp;&amp; drag){ const pts = drag.pts; drag = null; if(pts.length&gt;1) addItem({kind:&#x27;pen&#x27;, pts}); else draw(); }
+      return;
+    }
+    if(type===&#x27;down&#x27;){ drag = {x0:p.x, y0:p.y, x1:p.x, y1:p.y}; return; }
+    if(type===&#x27;move&#x27; &amp;&amp; drag){ drag.x1 = p.x; drag.y1 = p.y; draw(); return; }
+    if(type!==&#x27;up&#x27; || !drag) return;
+    const d = drag; drag = null;
+    const tiny = Math.hypot(d.x1-d.x0, d.y1-d.y0) &lt; 4*ppx();
+    if(tool===&#x27;x&#x27;){
+      let {x0,y0,x1,y1} = d;
+      if(tiny){ const s = 8*ppx(); x0=p.x-s; y0=p.y-s; x1=p.x+s; y1=p.y+s; }
+      const r = {x:Math.min(x0,x1), y:Math.min(y0,y1), w:Math.abs(x1-x0), h:Math.abs(y1-y0)};
+      let lines = texts.filter(t=&gt;{ const cx=t.x+t.w/2, cy=t.y+t.h/2; return cx&gt;=r.x &amp;&amp; cx&lt;=r.x+r.w &amp;&amp; cy&gt;=r.y &amp;&amp; cy&lt;=r.y+r.h; });
+      if(!lines.length &amp;&amp; tiny){ const s = textAt(p); if(s) lines = [s]; }
+      if(lines.length){
+        lines.sort((a,b)=&gt; a.y-b.y || a.x-b.x);
+        addItem({kind:&#x27;delete&#x27;, original: lines.map(l=&gt;l.str.trim()).join(&#x27; &#x27;), replacement:&#x27;&#x27;, boxes: lines.map(l=&gt;({x:l.x,y:l.y,w:l.w,h:l.h}))});
+      } else {
+        const note = await dialog(&#x27;What should be removed? (optional)&#x27;, &#x27;&#x27;, {rows:2, ok:&#x27;Add X&#x27;});
+        if(note===null){ draw(); return; }
+        addItem({kind:&#x27;x&#x27;, x0,y0,x1,y1, comment:(note||&#x27;&#x27;).trim()});
+      }
+      return;
+    }
+    if(tiny){ draw(); return; }
+    if(tool===&#x27;cloud&#x27;){
+      const note = await dialog(&#x27;Cloud comment (optional)&#x27;, &#x27;&#x27;, {rows:3, ok:&#x27;Add cloud&#x27;});
+      if(note===null){ draw(); return; }
+      addItem({kind:&#x27;cloud&#x27;, x0:d.x0, y0:d.y0, x1:d.x1, y1:d.y1, comment:(note||&#x27;&#x27;).trim()});
+    } else if(tool===&#x27;callout&#x27;){
+      const v = await dialog(&#x27;Callout text&#x27;, &#x27;&#x27;, {ok:&#x27;Add callout&#x27;});
+      if(v &amp;&amp; v.trim()) addItem({kind:&#x27;callout&#x27;, x0:d.x0, y0:d.y0, x1:d.x1, y1:d.y1, text:v.trim(), size: Math.max(6, 12*ppx())});
+      else draw();
+    } else addItem({kind:tool, x0:d.x0, y0:d.y0, x1:d.x1, y1:d.y1});
+  }
+
+  function bbox(i){
+    if(i.kind===&#x27;note&#x27;) return {x:i.box.x+i.dx, y:i.box.y+i.dy, w:i.box.w, h:i.box.h};
+    if(i.boxes) return union(i.boxes);
+    if(i.kind===&#x27;text&#x27;){ const ls = String(i.text).split(&#x27;\n&#x27;); return {x:i.x, y:i.y-i.size, w:Math.max(...ls.map(l=&gt;l.length))*i.size*0.55, h:ls.length*i.size*1.25}; }
+    if(i.kind===&#x27;check&#x27;) return {x:i.x-i.s, y:i.y-i.s, w:2*i.s, h:2*i.s};
+    if(i.kind===&#x27;pen&#x27;){ const xs=i.pts.map(q=&gt;q[0]), ys=i.pts.map(q=&gt;q[1]); return {x:Math.min(...xs), y:Math.min(...ys), w:Math.max(...xs)-Math.min(...xs), h:Math.max(...ys)-Math.min(...ys)}; }
+    if(i.kind===&#x27;callout&#x27;){ const ls = String(i.text).split(&#x27;\n&#x27;); const w = Math.max(...ls.map(l=&gt;l.length))*i.size*0.55; const xs=[i.x0,i.x1,i.x1+w], ys=[i.y0,i.y1-i.size,i.y1+ls.length*i.size*1.25]; return {x:Math.min(...xs), y:Math.min(...ys), w:Math.max(...xs)-Math.min(...xs), h:Math.max(...ys)-Math.min(...ys)}; }
+    return {x:Math.min(i.x0,i.x1), y:Math.min(i.y0,i.y1), w:Math.abs(i.x1-i.x0), h:Math.abs(i.y1-i.y0)};
+  }
+  function hit(p){ const pad = 4*ppx(), h = here(); for(let k=h.length-1;k&gt;=0;k--){ const b = bbox(h[k]); if(p.x&gt;=b.x-pad &amp;&amp; p.x&lt;=b.x+b.w+pad &amp;&amp; p.y&gt;=b.y-pad &amp;&amp; p.y&lt;=b.y+b.h+pad) return h[k]; } return null; }
+  function moveItem(it, o, dx, dy){
+    if(it.kind===&#x27;note&#x27;){ it.dx = o.dx+dx; it.dy = o.dy+dy; const f = ftPerPt(); it.dxFt = it.dx*f.x; it.dyFt = -it.dy*f.y; return; }
+    if(o.boxes) it.boxes = o.boxes.map(b=&gt;({x:b.x+dx, y:b.y+dy, w:b.w, h:b.h}));
+    [&#x27;x&#x27;,&#x27;x0&#x27;,&#x27;x1&#x27;].forEach(k=&gt;{ if(o[k]!=null) it[k] = o[k]+dx; });
+    [&#x27;y&#x27;,&#x27;y0&#x27;,&#x27;y1&#x27;].forEach(k=&gt;{ if(o[k]!=null) it[k] = o[k]+dy; });
+    if(o.pts) it.pts = o.pts.map(q=&gt;[q[0]+dx, q[1]+dy]);
+  }
+  async function editItem(it){
+    const before = JSON.parse(JSON.stringify(it));
+    if(it.kind===&#x27;edit&#x27; || it.kind===&#x27;delete&#x27;){
+      const v = await dialog(&#x27;Edit text&#x27;, it.replacement, {original: it.original, ok:&#x27;Save edit&#x27;}); if(v===null) return;
+      it.replacement = v.trim(); it.kind = it.replacement ? &#x27;edit&#x27; : &#x27;delete&#x27;;
+    } else if(it.kind===&#x27;text&#x27; || it.kind===&#x27;callout&#x27;){
+      const v = await dialog(&#x27;Change text&#x27;, it.text); if(v===null) return;
+      if(!v.trim()){ selected = it.id; delSelected(); return; }
+      it.text = v.trim();
+    } else { const v = await dialog(&#x27;Comment&#x27;, it.comment||&#x27;&#x27;, {rows:3}); if(v===null) return; it.comment = v.trim(); }
+    draw(); renderList(); saveItem(it, before);
+  }
+
+  // ---------- drawing ----------
+  function cloudPath(x0,y0,x1,y1){
+    const xa=Math.min(x0,x1), xb=Math.max(x0,x1), ya=Math.min(y0,y1), yb=Math.max(y0,y1);
+    const r = Math.max(3, Math.min(xb-xa, yb-ya)/6), pts=[];
+    const edge=(ax,ay,bx,by)=&gt;{ const L=Math.hypot(bx-ax,by-ay), n=Math.max(1,Math.round(L/(2*r))); for(let i=0;i&lt;n;i++) pts.push([ax+(bx-ax)*i/n, ay+(by-ay)*i/n]); };
+    edge(xa,ya,xb,ya); edge(xb,ya,xb,yb); edge(xb,yb,xa,yb); edge(xa,yb,xa,ya); pts.push(pts[0]);
+    let d = `M ${pts[0][0]} ${pts[0][1]}`;
+    for(let i=1;i&lt;pts.length;i++){ const [px,py]=pts[i-1],[qx,qy]=pts[i]; const rr=Math.hypot(qx-px,qy-py)/2; d += ` A ${rr} ${rr} 0 0 1 ${qx} ${qy}`; }
+    return d;
+  }
+  const tsvg = (x,y,t,s,c)=&gt; `&lt;text x=&quot;${x}&quot; y=&quot;${y}&quot; font-size=&quot;${s}&quot; fill=&quot;${c}&quot; font-family=&quot;Arial, sans-serif&quot;&gt;${String(t).split(&#x27;\n&#x27;).map((l,i)=&gt;`&lt;tspan x=&quot;${x}&quot; dy=&quot;${i?s*1.25:0}&quot;&gt;${esc(l)}&lt;/tspan&gt;`).join(&#x27;&#x27;)}&lt;/text&gt;`;
+  const head = (x0,y0,x1,y1,L)=&gt;{ const a=Math.atan2(y1-y0,x1-x0); return `&lt;path d=&quot;M ${x1-L*Math.cos(a-0.4)} ${y1-L*Math.sin(a-0.4)} L ${x1} ${y1} L ${x1-L*Math.cos(a+0.4)} ${y1-L*Math.sin(a+0.4)}&quot; fill=&quot;none&quot;/&gt;`; };
+  function itemSvg(i, sel){
+    const st = `stroke=&quot;${RED}&quot; stroke-width=&quot;2&quot; vector-effect=&quot;non-scaling-stroke&quot; fill=&quot;none&quot;`;
+    let g = &#x27;&#x27;;
+    switch(i.kind){
+      case &#x27;note&#x27;: {
+        const b = i.box, nx = b.x+i.dx, ny = b.y+i.dy;
+        const lines = String(i.deleted ? i.original : i.replacement).split(&#x27;\n&#x27;);
+        const origLines = Math.max(1, String(i.original).split(&#x27;\n&#x27;).length);
+        const sz = Math.max(4, Math.min(b.h/origLines/1.25, 14));
+        if(i.deleted){
+          g += `&lt;line x1=&quot;${b.x}&quot; y1=&quot;${b.y}&quot; x2=&quot;${b.x+b.w}&quot; y2=&quot;${b.y+b.h}&quot; ${st}/&gt;&lt;line x1=&quot;${b.x+b.w}&quot; y1=&quot;${b.y}&quot; x2=&quot;${b.x}&quot; y2=&quot;${b.y+b.h}&quot; ${st}/&gt;&lt;rect x=&quot;${b.x}&quot; y=&quot;${b.y}&quot; width=&quot;${b.w}&quot; height=&quot;${b.h}&quot; ${st} stroke-dasharray=&quot;3 2&quot;/&gt;`;
+          break;
+        }
+        const changed = i.replacement!==i.original;
+        if(changed || i.dx || i.dy) g += `&lt;rect x=&quot;${b.x-1}&quot; y=&quot;${b.y-1}&quot; width=&quot;${b.w+2}&quot; height=&quot;${b.h+2}&quot; fill=&quot;#fff&quot;/&gt;`;
+        if(!changed) g += `&lt;rect x=&quot;${b.x}&quot; y=&quot;${b.y}&quot; width=&quot;${b.w}&quot; height=&quot;${b.h}&quot; fill=&quot;none&quot; stroke=&quot;${RED}&quot; stroke-width=&quot;1&quot; stroke-dasharray=&quot;2 3&quot; vector-effect=&quot;non-scaling-stroke&quot; opacity=&quot;0.6&quot;/&gt;`;
+        const h = Math.max(b.h, lines.length*sz*1.25);
+        g += `&lt;rect x=&quot;${nx}&quot; y=&quot;${ny}&quot; width=&quot;${b.w}&quot; height=&quot;${h}&quot; fill=&quot;#fff&quot; opacity=&quot;0.92&quot;/&gt;`;
+        g += tsvg(nx, ny + sz, lines.join(&#x27;\n&#x27;), sz, RED);
+        g += `&lt;rect x=&quot;${nx-1}&quot; y=&quot;${ny-1}&quot; width=&quot;${b.w+2}&quot; height=&quot;${h+2}&quot; ${st} stroke-dasharray=&quot;4 2&quot;/&gt;`;
+        if(i.dx || i.dy) g += `&lt;line x1=&quot;${b.x+b.w/2}&quot; y1=&quot;${b.y+b.h/2}&quot; x2=&quot;${nx+b.w/2}&quot; y2=&quot;${ny+h/2}&quot; ${st} stroke-dasharray=&quot;2 3&quot; opacity=&quot;0.7&quot;/&gt;`;
+        break;
+      }
+      case &#x27;edit&#x27;: case &#x27;delete&#x27;: {
+        i.boxes.forEach(b=&gt;{ g += `&lt;line x1=&quot;${b.x}&quot; y1=&quot;${b.y+b.h*0.55}&quot; x2=&quot;${b.x+b.w}&quot; y2=&quot;${b.y+b.h*0.55}&quot; ${st}/&gt;`; });
+        const u = union(i.boxes);
+        if(i.kind===&#x27;edit&#x27;){
+          const sz = Math.max(6, i.boxes[0].h*0.95), n = String(i.replacement).split(&#x27;\n&#x27;).length;
+          g += `&lt;rect x=&quot;${u.x-1}&quot; y=&quot;${u.y-1}&quot; width=&quot;${u.w+2}&quot; height=&quot;${u.h+2}&quot; ${st} stroke-dasharray=&quot;3 2&quot;/&gt;`;
+          g += `&lt;rect x=&quot;${u.x}&quot; y=&quot;${u.y-sz*1.35*n-2}&quot; width=&quot;${Math.max(u.w, String(i.replacement).length*sz*0.5)}&quot; height=&quot;${sz*1.35*n}&quot; fill=&quot;#fff&quot; opacity=&quot;0.88&quot;/&gt;`;
+          g += tsvg(u.x, u.y - sz*1.35*(n-1) - sz*0.45, i.replacement, sz, RED);
+        } else g += `&lt;line x1=&quot;${u.x}&quot; y1=&quot;${u.y}&quot; x2=&quot;${u.x+u.w}&quot; y2=&quot;${u.y+u.h}&quot; ${st}/&gt;&lt;line x1=&quot;${u.x+u.w}&quot; y1=&quot;${u.y}&quot; x2=&quot;${u.x}&quot; y2=&quot;${u.y+u.h}&quot; ${st}/&gt;`;
+        break;
+      }
+      case &#x27;text&#x27;: g += tsvg(i.x, i.y, i.text, i.size, RED); break;
+      case &#x27;callout&#x27;: g += `&lt;line x1=&quot;${i.x1}&quot; y1=&quot;${i.y1}&quot; x2=&quot;${i.x0}&quot; y2=&quot;${i.y0}&quot; ${st}/&gt;&lt;g ${st}&gt;${head(i.x1,i.y1,i.x0,i.y0,6*ppx())}&lt;/g&gt;` + tsvg(i.x1+2, i.y1+i.size*0.35, i.text, i.size, RED); break;
+      case &#x27;x&#x27;: g += `&lt;line x1=&quot;${i.x0}&quot; y1=&quot;${i.y0}&quot; x2=&quot;${i.x1}&quot; y2=&quot;${i.y1}&quot; ${st}/&gt;&lt;line x1=&quot;${i.x1}&quot; y1=&quot;${i.y0}&quot; x2=&quot;${i.x0}&quot; y2=&quot;${i.y1}&quot; ${st}/&gt;`; break;
+      case &#x27;cloud&#x27;: g += `&lt;path d=&quot;${cloudPath(i.x0,i.y0,i.x1,i.y1)}&quot; ${st}/&gt;`; break;
+      case &#x27;arrow&#x27;: g += `&lt;line x1=&quot;${i.x0}&quot; y1=&quot;${i.y0}&quot; x2=&quot;${i.x1}&quot; y2=&quot;${i.y1}&quot; ${st}/&gt;&lt;g ${st}&gt;${head(i.x0,i.y0,i.x1,i.y1,6*ppx())}&lt;/g&gt;`; break;
+      case &#x27;line&#x27;: g += `&lt;line x1=&quot;${i.x0}&quot; y1=&quot;${i.y0}&quot; x2=&quot;${i.x1}&quot; y2=&quot;${i.y1}&quot; ${st}/&gt;`; break;
+      case &#x27;check&#x27;: g += `&lt;path d=&quot;M ${i.x-i.s} ${i.y} L ${i.x-i.s*0.3} ${i.y+i.s*0.7} L ${i.x+i.s} ${i.y-i.s}&quot; stroke=&quot;#2e7d32&quot; stroke-width=&quot;2.5&quot; vector-effect=&quot;non-scaling-stroke&quot; fill=&quot;none&quot;/&gt;`; break;
+      case &#x27;highlight&#x27;: g += `&lt;rect x=&quot;${Math.min(i.x0,i.x1)}&quot; y=&quot;${Math.min(i.y0,i.y1)}&quot; width=&quot;${Math.abs(i.x1-i.x0)}&quot; height=&quot;${Math.abs(i.y1-i.y0)}&quot; fill=&quot;#ffe14d&quot; opacity=&quot;0.42&quot;/&gt;`; break;
+      case &#x27;pen&#x27;: g += `&lt;path d=&quot;M ${i.pts.map(q=&gt;q.join(&#x27; &#x27;)).join(&#x27; L &#x27;)}&quot; ${st}/&gt;`; break;
+    }
+    if(i.comment){ const b = bbox(i); g += tsvg(b.x+b.w+3, b.y+6*ppx(), i.comment, Math.max(5, 10*ppx()), RED); }
+    if(sel){ const b = bbox(i); g += `&lt;rect x=&quot;${b.x-3}&quot; y=&quot;${b.y-3}&quot; width=&quot;${b.w+6}&quot; height=&quot;${b.h+6}&quot; fill=&quot;none&quot; stroke=&quot;#1f5f99&quot; stroke-width=&quot;1.5&quot; vector-effect=&quot;non-scaling-stroke&quot; stroke-dasharray=&quot;4 3&quot;/&gt;`; }
+    return g;
+  }
+  function draw(){
+    if(!pageW){ svg.innerHTML=&#x27;&#x27;; return; }
+    let o = &#x27;&#x27;;
+    if(pageNotes.length){
+      if(tool===&#x27;edit&#x27;) o += pageNotes.filter(n=&gt;!noteEdit(n.uid)).map(n=&gt;`&lt;rect class=&quot;notebox&quot; x=&quot;${n.box.x-1}&quot; y=&quot;${n.box.y-1}&quot; width=&quot;${n.box.w+2}&quot; height=&quot;${n.box.h+2}&quot;/&gt;`).join(&#x27;&#x27;);
+    } else if(tool===&#x27;edit&#x27; || tool===&#x27;x&#x27;) o += texts.map(t=&gt;`&lt;rect class=&quot;textbox&quot; x=&quot;${t.x}&quot; y=&quot;${t.y}&quot; width=&quot;${t.w}&quot; height=&quot;${t.h}&quot;/&gt;`).join(&#x27;&#x27;);
+    if(drag &amp;&amp; drag.note &amp;&amp; drag.live){
+      const b = drag.note.box;
+      o += `&lt;rect x=&quot;${b.x+drag.live.dx}&quot; y=&quot;${b.y+drag.live.dy}&quot; width=&quot;${b.w}&quot; height=&quot;${b.h}&quot; fill=&quot;none&quot; stroke=&quot;${RED}&quot; stroke-width=&quot;1.5&quot; stroke-dasharray=&quot;4 3&quot; vector-effect=&quot;non-scaling-stroke&quot;/&gt;`;
+    }
+    here().forEach(i=&gt;{ o += itemSvg(i, i.id===selected); });
+    if(drag &amp;&amp; !drag.item){
+      const st = `stroke=&quot;${RED}&quot; stroke-width=&quot;1.5&quot; vector-effect=&quot;non-scaling-stroke&quot; fill=&quot;none&quot; stroke-dasharray=&quot;4 3&quot;`;
+      if(drag.pts) o += `&lt;path d=&quot;M ${drag.pts.map(q=&gt;q.join(&#x27; &#x27;)).join(&#x27; L &#x27;)}&quot; ${st}/&gt;`;
+      else if(tool===&#x27;cloud&#x27;) o += `&lt;path d=&quot;${cloudPath(drag.x0,drag.y0,drag.x1,drag.y1)}&quot; ${st}/&gt;`;
+      else if([&#x27;arrow&#x27;,&#x27;line&#x27;,&#x27;callout&#x27;].includes(tool)) o += `&lt;line x1=&quot;${drag.x0}&quot; y1=&quot;${drag.y0}&quot; x2=&quot;${drag.x1}&quot; y2=&quot;${drag.y1}&quot; ${st}/&gt;`;
+      else o += `&lt;rect x=&quot;${Math.min(drag.x0,drag.x1)}&quot; y=&quot;${Math.min(drag.y0,drag.y1)}&quot; width=&quot;${Math.abs(drag.x1-drag.x0)}&quot; height=&quot;${Math.abs(drag.y1-drag.y0)}&quot; ${st}/&gt;`;
+    }
+    svg.innerHTML = o;
+  }
+  const KIND = {note:&#x27;Note&#x27;, edit:&#x27;Text change&#x27;, delete:&#x27;Delete text&#x27;, text:&#x27;New note&#x27;, callout:&#x27;Callout&#x27;, x:&#x27;X / remove&#x27;, cloud:&#x27;Cloud&#x27;, arrow:&#x27;Arrow&#x27;, line:&#x27;Line&#x27;, check:&#x27;OK&#x27;, highlight:&#x27;Highlight&#x27;, pen:&#x27;Pen&#x27;};
+  function renderList(){
+    const h = here().sort((a,b)=&gt; (a.at||&#x27;&#x27;).localeCompare(b.at||&#x27;&#x27;));
+    if(!h.length){ $(&#x27;list&#x27;).innerHTML = &#x27;&lt;span class=&quot;status&quot;&gt;None yet.&lt;/span&gt;&#x27;; return; }
+    $(&#x27;list&#x27;).innerHTML = h.map((i,n)=&gt;{
+      let d = &#x27;&#x27;;
+      if(i.kind===&#x27;note&#x27;){
+        const parts = [];
+        if(i.deleted) parts.push(&#x27;deleted&#x27;);
+        else if(i.replacement!==i.original) parts.push(&#x27;text changed&#x27;);
+        if(i.dx || i.dy) parts.push(&#x27;moved&#x27;);
+        d = `&lt;span class=&quot;chip red&quot;&gt;${parts.join(&#x27;, &#x27;)}&lt;/span&gt;&lt;br&gt;` + (i.deleted ? `&lt;s&gt;${esc(i.original)}&lt;/s&gt;` : (i.replacement!==i.original ? `&lt;s&gt;${esc(i.original)}&lt;/s&gt;&lt;br&gt;&lt;b style=&quot;white-space:pre-wrap&quot;&gt;${esc(i.replacement)}&lt;/b&gt;` : esc(i.original)));
+      }
+      else if(i.kind===&#x27;edit&#x27;) d = `&lt;s&gt;${esc(i.original)}&lt;/s&gt; &amp;rarr; &lt;b&gt;${esc(i.replacement)}&lt;/b&gt;`;
+      else if(i.kind===&#x27;delete&#x27;) d = `&lt;s&gt;${esc(i.original)}&lt;/s&gt;`;
+      else if(i.text) d = esc(i.text);
+      if(i.comment) d += (d?&#x27;&lt;br&gt;&#x27;:&#x27;&#x27;) + &#x27;&lt;i&gt;&#x27; + esc(i.comment) + &#x27;&lt;/i&gt;&#x27;;
+      return `&lt;div class=&quot;item${i.id===selected?&#x27; sel&#x27;:&#x27;&#x27;}&quot; data-id=&quot;${esc(i.id)}&quot;&gt;&lt;b&gt;${n+1}. ${KIND[i.kind]||i.kind}&lt;/b&gt;${d?&#x27;&lt;br&gt;&#x27;+d:&#x27;&#x27;}${i.authorName?`&lt;div class=&quot;who&quot;&gt;${esc(i.authorName)}&lt;/div&gt;`:&#x27;&#x27;}&lt;/div&gt;`;
+    }).join(&#x27;&#x27;);
+  }
+  $(&#x27;list&#x27;).onclick = e=&gt;{ const el = e.target.closest(&#x27;[data-id]&#x27;); if(!el) return; setTool(&#x27;select&#x27;); selected = el.dataset.id; draw(); renderList(); };
+  function renderSummary(){
+    if(!curSet){ $(&#x27;summary&#x27;).textContent = &#x27;—&#x27;; return; }
+    const byPage = {};
+    items.forEach(i=&gt;{ byPage[i.page] = (byPage[i.page]||0)+1; });
+    const keys = Object.keys(byPage).map(Number).sort((a,b)=&gt;a-b);
+    $(&#x27;summary&#x27;).innerHTML = keys.length ? `${items.length} markup(s) on ${keys.length} sheet(s): ` + keys.map(k=&gt;`&lt;a href=&quot;#&quot; data-p=&quot;${k}&quot;&gt;${esc((pageInfo[k]||{}).sheetNumber || (&#x27;sheet &#x27;+k))}&lt;/a&gt; (${byPage[k]})`).join(&#x27;, &#x27;) : &#x27;No markups yet.&#x27;;
+  }
+  $(&#x27;summary&#x27;).onclick = e=&gt;{ const a = e.target.closest(&#x27;[data-p]&#x27;); if(!a) return; e.preventDefault(); pageNum = +a.dataset.p; render(); };
+
+  // ---------- done / reopen ----------
+  $(&#x27;doneBtn&#x27;).onclick = async ()=&gt;{
+    if(!curSet) return;
+    if(curSet.status===&#x27;reviewed&#x27;){ await db.collection(&#x27;sets&#x27;).doc(curSet.id).update({status:&#x27;in-review&#x27;}); toast(&#x27;Reopened for review&#x27;); return; }
+    const missing = [...new Set(items.map(i=&gt;i.page))].filter(p=&gt; !(pageInfo[p]||{}).sheetNumber);
+    const note = await dialog(&#x27;Send back to Matt&#x27;, &#x27;&#x27;, {rows:3, ok:&#x27;Mark reviewed&#x27;, message: `${items.length} markup(s). ${missing.length ? &#x27;Sheet number missing on sheet(s) &#x27; + missing.join(&#x27;, &#x27;) + &#x27; — type it in the Sheet # box so Revit can find them. &#x27; : &#x27;&#x27;}Add a note for Matt (optional):`});
+    if(note===null) return;
+    await db.collection(&#x27;sets&#x27;).doc(curSet.id).update({status:&#x27;reviewed&#x27;, note: (note||&#x27;&#x27;).trim(), reviewedAt: new Date().toISOString(), reviewedBy: me.id});
+    toast(&#x27;Marked reviewed — saved to the Dropbox folder for Revit&#x27;);
+  };
+
+  window.addEventListener(&#x27;resize&#x27;, ()=&gt;{ if(pages.length) draw(); });
+  boot();
+})();
+&lt;/script&gt;
+
+&lt;/body&gt;
+&lt;/html&gt;
+"></iframe>
       </section>
 
       <!-- SNOW DRIFT -->
