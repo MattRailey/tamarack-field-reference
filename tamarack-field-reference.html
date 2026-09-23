@@ -71,7 +71,7 @@
   body.tfr-fullbleed header{ flex:none; }
   body.tfr-fullbleed .layout{ flex:1; min-height:0; min-width:0; height:auto; margin:0; width:auto; }
   body.tfr-fullbleed nav{ height:auto; overflow-y:auto; box-sizing:border-box; }
-  body.tfr-fullbleed main{ height:auto; flex:1; min-height:0; min-width:0; overflow:hidden; display:flex; flex-direction:column; box-sizing:border-box; padding-bottom:16px; }
+  body.tfr-fullbleed main{ height:auto; flex:1; min-height:0; min-width:0; overflow:hidden; display:flex; flex-direction:column; box-sizing:border-box; padding:8px 10px 8px 6px; }
   body.tfr-fullbleed .panel.active{ display:flex; flex-direction:column; min-height:0; min-width:0; flex:1; width:100%; box-sizing:border-box; overflow:hidden; }
   body.tfr-fullbleed .panel.active > *{ flex:none; }
   /* trim the header chrome on the fullbleed sheet tools so more of the
@@ -1717,15 +1717,19 @@
   .tool.active{ background:var(--red); border-color:var(--red); color:#fff; }
   .tool.active kbd{ color:#fde; }
   .spacer{ flex:1; }
-  .main{ display:flex; gap:12px; flex:1; min-height:0; }
-  .viewer{ flex:1; min-width:0; height:calc(100vh - 190px); min-height:420px; overflow:auto; overscroll-behavior:contain; background:var(--sheet); border-radius:8px; padding:min(15vh,150px) min(15vw,250px); position:relative; border:3px solid var(--ground); box-sizing:border-box; }
+  /* .shell replaces the old header-then-.main stack: the markup list docks
+     flush at the far left (full height, right under the tab menu in the
+     parent page), with the toolbars+sheet in a column beside it. */
+  .shell{ display:flex; gap:10px; flex:1; min-height:0; }
+  .viewercol{ display:flex; flex-direction:column; flex:1; min-width:0; gap:6px; min-height:0; }
+  .viewer{ flex:1; min-width:0; min-height:0; height:auto; overflow:auto; overscroll-behavior:contain; background:var(--sheet); border-radius:8px; padding:min(15vh,150px) min(15vw,250px); position:relative; border:3px solid var(--ground); box-sizing:border-box; }
   .page{ position:relative; margin:0 auto; background:#fff; box-shadow:0 2px 12px rgba(0,0,0,.35); }
   .page canvas, .page svg{ position:absolute; left:0; top:0; }
   #hires{ pointer-events:none; }
   .page svg{ touch-action:none; }
   .empty{ color:#fff; text-align:center; padding:60px 20px; font-size:1.05rem; }
-  .side{ width:320px; flex:none; display:flex; flex-direction:column; gap:10px; max-height:calc(100vh - 190px); overflow:auto; overscroll-behavior:contain; }
-  .main.noside .side{ display:none; }
+  .side{ width:260px; flex:none; display:flex; flex-direction:column; gap:8px; height:auto; max-height:none; overflow:auto; overscroll-behavior:contain; }
+  .shell.noside .side{ display:none; }
   .card{ background:var(--panel); border:1px solid var(--line); border-radius:8px; padding:10px 12px; }
   .card h2{ font-family:var(--cond); font-weight:600; text-transform:uppercase; letter-spacing:.05em; font-size:.95rem; margin:0 0 6px; }
   .item{ border:1px solid var(--line); border-radius:6px; padding:6px 8px; margin-top:6px; cursor:pointer; font-size:.88rem; }
@@ -1748,7 +1752,7 @@
   .orig{ background:var(--ground); border-radius:6px; padding:6px 8px; white-space:pre-wrap; font-size:.9rem; }
   .row{ display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
   .toast{ position:fixed; left:50%; bottom:calc(20px + env(safe-area-inset-bottom, 0px)); transform:translateX(-50%); background:var(--ink); color:var(--panel); padding:8px 14px; border-radius:6px; font-size:.9rem; z-index:60; }
-  @media (max-width: 900px){ .main{ flex-direction:column; } .side{ width:auto; max-height:none; } .viewer{ height:65vh; } }
+  @media (max-width: 900px){ .shell{ flex-direction:column; } .side{ width:auto; max-height:none; } .viewer{ height:65vh; } }
   @media (prefers-reduced-motion: reduce){ *{ transition:none!important; } }
   [hidden]{ display:none!important; }
   body{ margin:0; }
@@ -1757,55 +1761,7 @@
 &lt;body&gt;
 
 &lt;div class=&quot;wrap&quot;&gt;
-  &lt;header&gt;
-    &lt;h1&gt;SE &lt;span&gt;Redline&lt;/span&gt; Review&lt;/h1&gt;
-    &lt;p class=&quot;sub&quot;&gt;Drawing sets exported from Revit show up here automatically from the shared Dropbox &lt;b&gt;SE Review&lt;/b&gt; folder. Pick a set, mark it up right on the sheets, and press &lt;b&gt;Done &amp;ndash; send back&lt;/b&gt;. Everything saves into that folder as you go; nothing to download or email. Use Chrome or Edge.&lt;/p&gt;
-  &lt;/header&gt;
-
-  &lt;div class=&quot;bar&quot; id=&quot;setbar&quot;&gt;
-    &lt;span class=&quot;label&quot;&gt;Drawing set&lt;/span&gt;
-    &lt;select id=&quot;setSelect&quot; aria-label=&quot;Drawing set&quot;&gt;&lt;option value=&quot;&quot;&gt;Loading sets&amp;hellip;&lt;/option&gt;&lt;/select&gt;
-    &lt;span id=&quot;setStatus&quot;&gt;&lt;/span&gt;
-    &lt;span class=&quot;spacer&quot;&gt;&lt;/span&gt;
-    &lt;label class=&quot;label&quot; for=&quot;reviewer&quot;&gt;Your initials&lt;/label&gt;
-    &lt;input type=&quot;text&quot; id=&quot;reviewer&quot; size=&quot;6&quot;&gt;
-    &lt;button class=&quot;btn&quot; id=&quot;folderBtn&quot;&gt;Connect SE Review folder&amp;hellip;&lt;/button&gt;
-    &lt;button class=&quot;btn&quot; id=&quot;manageBtn&quot; title=&quot;Clear markups, archive or restore review sets&quot;&gt;Manage sets&amp;hellip;&lt;/button&gt;
-    &lt;button class=&quot;btn&quot; id=&quot;refreshBtn&quot; title=&quot;Re-read the folder (new sets, or changes saved from another computer)&quot;&gt;Refresh&lt;/button&gt;
-    &lt;button class=&quot;btn primary&quot; id=&quot;doneBtn&quot; disabled&gt;Done &amp;ndash; send back&lt;/button&gt;
-  &lt;/div&gt;
-
-  &lt;div class=&quot;bar&quot;&gt;
-    &lt;div class=&quot;tools&quot; id=&quot;tools&quot;&gt;&lt;/div&gt;
-    &lt;span class=&quot;spacer&quot;&gt;&lt;/span&gt;
-    &lt;label class=&quot;label&quot; for=&quot;measScale&quot;&gt;Scale&lt;/label&gt;
-    &lt;select id=&quot;measScale&quot; title=&quot;Drawing scale used by the measure tools&quot;&gt;
-      &lt;option value=&quot;0.0625&quot;&gt;1/16&amp;quot; = 1&#x27;-0&amp;quot;&lt;/option&gt;&lt;option value=&quot;0.09375&quot;&gt;3/32&amp;quot; = 1&#x27;-0&amp;quot;&lt;/option&gt;&lt;option value=&quot;0.125&quot;&gt;1/8&amp;quot; = 1&#x27;-0&amp;quot;&lt;/option&gt;&lt;option value=&quot;0.1875&quot;&gt;3/16&amp;quot; = 1&#x27;-0&amp;quot;&lt;/option&gt;&lt;option value=&quot;0.25&quot; selected&gt;1/4&amp;quot; = 1&#x27;-0&amp;quot;&lt;/option&gt;&lt;option value=&quot;0.375&quot;&gt;3/8&amp;quot; = 1&#x27;-0&amp;quot;&lt;/option&gt;&lt;option value=&quot;0.5&quot;&gt;1/2&amp;quot; = 1&#x27;-0&amp;quot;&lt;/option&gt;&lt;option value=&quot;0.75&quot;&gt;3/4&amp;quot; = 1&#x27;-0&amp;quot;&lt;/option&gt;&lt;option value=&quot;1&quot;&gt;1&amp;quot; = 1&#x27;-0&amp;quot;&lt;/option&gt;&lt;option value=&quot;1.5&quot;&gt;1 1/2&amp;quot; = 1&#x27;-0&amp;quot;&lt;/option&gt;&lt;option value=&quot;3&quot;&gt;3&amp;quot; = 1&#x27;-0&amp;quot;&lt;/option&gt;&lt;option value=&quot;0.1&quot;&gt;1&amp;quot; = 10&#x27;&lt;/option&gt;&lt;option value=&quot;0.05&quot;&gt;1&amp;quot; = 20&#x27;&lt;/option&gt;&lt;option value=&quot;0.0333333&quot;&gt;1&amp;quot; = 30&#x27;&lt;/option&gt;&lt;option value=&quot;0.025&quot;&gt;1&amp;quot; = 40&#x27;&lt;/option&gt;
-    &lt;/select&gt;
-    &lt;button class=&quot;btn&quot; id=&quot;undoBtn&quot; title=&quot;Ctrl+Z&quot;&gt;Undo&lt;/button&gt;
-    &lt;button class=&quot;btn danger&quot; id=&quot;delBtn&quot;&gt;Delete selected&lt;/button&gt;
-  &lt;/div&gt;
-
-  &lt;div class=&quot;bar&quot;&gt;
-    &lt;button class=&quot;btn&quot; id=&quot;prevBtn&quot;&gt;&amp;larr; Prev sheet&lt;/button&gt;
-    &lt;select id=&quot;pageSelect&quot; aria-label=&quot;Sheet&quot;&gt;&lt;/select&gt;
-    &lt;button class=&quot;btn&quot; id=&quot;nextBtn&quot;&gt;Next sheet &amp;rarr;&lt;/button&gt;
-    &lt;span class=&quot;label&quot;&gt;Sheet #&lt;/span&gt;
-    &lt;input type=&quot;text&quot; id=&quot;sheetNum&quot; size=&quot;7&quot; aria-label=&quot;Sheet number&quot;&gt;
-    &lt;button class=&quot;btn&quot; id=&quot;zoomOut&quot; aria-label=&quot;Zoom out&quot;&gt;&amp;minus;&lt;/button&gt;
-    &lt;button class=&quot;btn&quot; id=&quot;zoomIn&quot; aria-label=&quot;Zoom in&quot;&gt;+&lt;/button&gt;
-    &lt;button class=&quot;btn&quot; id=&quot;fitBtn&quot; title=&quot;Fit the sheet to the window (F)&quot;&gt;Fit&lt;/button&gt;
-    &lt;span class=&quot;find&quot;&gt;&lt;input type=&quot;text&quot; id=&quot;findBox&quot; placeholder=&quot;Find text (Ctrl+F)&quot; aria-label=&quot;Find text&quot;&gt;&lt;button class=&quot;btn&quot; id=&quot;findPrev&quot; title=&quot;Previous match (Shift+Enter)&quot;&gt;&amp;uarr;&lt;/button&gt;&lt;button class=&quot;btn&quot; id=&quot;findNext&quot; title=&quot;Next match (Enter)&quot;&gt;&amp;darr;&lt;/button&gt;&lt;span class=&quot;status&quot; id=&quot;findCount&quot;&gt;&lt;/span&gt;&lt;/span&gt;
-    &lt;span class=&quot;spacer&quot;&gt;&lt;/span&gt;
-    &lt;button class=&quot;btn&quot; id=&quot;sideBtn&quot; title=&quot;Show / hide the markup list&quot;&gt;Hide list&lt;/button&gt;
-    &lt;span class=&quot;status&quot; id=&quot;status&quot;&gt;&lt;/span&gt;
-  &lt;/div&gt;
-
-  &lt;div class=&quot;main&quot;&gt;
-    &lt;div class=&quot;viewer&quot; id=&quot;viewer&quot;&gt;
-      &lt;div class=&quot;empty&quot; id=&quot;emptyMsg&quot;&gt;Pick a drawing set above to start.&lt;/div&gt;
-      &lt;div class=&quot;page&quot; id=&quot;page&quot; hidden&gt;&lt;canvas id=&quot;canvas&quot;&gt;&lt;/canvas&gt;&lt;canvas id=&quot;hires&quot;&gt;&lt;/canvas&gt;&lt;svg id=&quot;svg&quot; xmlns=&quot;http://www.w3.org/2000/svg&quot;&gt;&lt;/svg&gt;&lt;/div&gt;
-    &lt;/div&gt;
+  &lt;div class=&quot;shell&quot;&gt;
     &lt;div class=&quot;side&quot;&gt;
       &lt;div class=&quot;card&quot;&gt;
         &lt;h2&gt;Markups on this sheet&lt;/h2&gt;
@@ -1822,6 +1778,51 @@
         &lt;b&gt;Select&lt;/b&gt;: click or drag a box around several things (Revit notes too), then drag to move them together, or use the arrow keys (Shift = bigger steps). Moving notes snap to line up with other notes; hold Alt to turn snapping off. Double-click to change; Delete removes. Ctrl+Z undoes.&lt;br&gt;
         &lt;b&gt;Zoom&lt;/b&gt; with the mouse wheel; &lt;b&gt;pan&lt;/b&gt; by holding the wheel button (or Space) and dragging.&lt;br&gt;
         &lt;b&gt;Measure&lt;/b&gt; tools use the Scale picked above the sheet. Poly-length and Area: click the points, double-click (or Enter) to finish.
+      &lt;/div&gt;
+    &lt;/div&gt;
+    &lt;div class=&quot;viewercol&quot;&gt;
+      &lt;div class=&quot;bar&quot; id=&quot;setbar&quot;&gt;
+        &lt;span class=&quot;label&quot;&gt;Drawing set&lt;/span&gt;
+        &lt;select id=&quot;setSelect&quot; aria-label=&quot;Drawing set&quot;&gt;&lt;option value=&quot;&quot;&gt;Loading sets&amp;hellip;&lt;/option&gt;&lt;/select&gt;
+        &lt;span id=&quot;setStatus&quot;&gt;&lt;/span&gt;
+        &lt;span class=&quot;spacer&quot;&gt;&lt;/span&gt;
+        &lt;label class=&quot;label&quot; for=&quot;reviewer&quot;&gt;Your initials&lt;/label&gt;
+        &lt;input type=&quot;text&quot; id=&quot;reviewer&quot; size=&quot;6&quot;&gt;
+        &lt;button class=&quot;btn&quot; id=&quot;folderBtn&quot;&gt;Connect SE Review folder&amp;hellip;&lt;/button&gt;
+        &lt;button class=&quot;btn&quot; id=&quot;manageBtn&quot; title=&quot;Clear markups, archive or restore review sets&quot;&gt;Manage sets&amp;hellip;&lt;/button&gt;
+        &lt;button class=&quot;btn&quot; id=&quot;refreshBtn&quot; title=&quot;Re-read the folder (new sets, or changes saved from another computer)&quot;&gt;Refresh&lt;/button&gt;
+        &lt;button class=&quot;btn primary&quot; id=&quot;doneBtn&quot; disabled&gt;Done &amp;ndash; send back&lt;/button&gt;
+      &lt;/div&gt;
+
+      &lt;div class=&quot;bar&quot;&gt;
+        &lt;div class=&quot;tools&quot; id=&quot;tools&quot;&gt;&lt;/div&gt;
+        &lt;span class=&quot;spacer&quot;&gt;&lt;/span&gt;
+        &lt;label class=&quot;label&quot; for=&quot;measScale&quot;&gt;Scale&lt;/label&gt;
+        &lt;select id=&quot;measScale&quot; title=&quot;Drawing scale used by the measure tools&quot;&gt;
+          &lt;option value=&quot;0.0625&quot;&gt;1/16&amp;quot; = 1&#x27;-0&amp;quot;&lt;/option&gt;&lt;option value=&quot;0.09375&quot;&gt;3/32&amp;quot; = 1&#x27;-0&amp;quot;&lt;/option&gt;&lt;option value=&quot;0.125&quot;&gt;1/8&amp;quot; = 1&#x27;-0&amp;quot;&lt;/option&gt;&lt;option value=&quot;0.1875&quot;&gt;3/16&amp;quot; = 1&#x27;-0&amp;quot;&lt;/option&gt;&lt;option value=&quot;0.25&quot; selected&gt;1/4&amp;quot; = 1&#x27;-0&amp;quot;&lt;/option&gt;&lt;option value=&quot;0.375&quot;&gt;3/8&amp;quot; = 1&#x27;-0&amp;quot;&lt;/option&gt;&lt;option value=&quot;0.5&quot;&gt;1/2&amp;quot; = 1&#x27;-0&amp;quot;&lt;/option&gt;&lt;option value=&quot;0.75&quot;&gt;3/4&amp;quot; = 1&#x27;-0&amp;quot;&lt;/option&gt;&lt;option value=&quot;1&quot;&gt;1&amp;quot; = 1&#x27;-0&amp;quot;&lt;/option&gt;&lt;option value=&quot;1.5&quot;&gt;1 1/2&amp;quot; = 1&#x27;-0&amp;quot;&lt;/option&gt;&lt;option value=&quot;3&quot;&gt;3&amp;quot; = 1&#x27;-0&amp;quot;&lt;/option&gt;&lt;option value=&quot;0.1&quot;&gt;1&amp;quot; = 10&#x27;&lt;/option&gt;&lt;option value=&quot;0.05&quot;&gt;1&amp;quot; = 20&#x27;&lt;/option&gt;&lt;option value=&quot;0.0333333&quot;&gt;1&amp;quot; = 30&#x27;&lt;/option&gt;&lt;option value=&quot;0.025&quot;&gt;1&amp;quot; = 40&#x27;&lt;/option&gt;
+        &lt;/select&gt;
+        &lt;button class=&quot;btn&quot; id=&quot;undoBtn&quot; title=&quot;Ctrl+Z&quot;&gt;Undo&lt;/button&gt;
+        &lt;button class=&quot;btn danger&quot; id=&quot;delBtn&quot;&gt;Delete selected&lt;/button&gt;
+      &lt;/div&gt;
+
+      &lt;div class=&quot;bar&quot;&gt;
+        &lt;button class=&quot;btn&quot; id=&quot;prevBtn&quot;&gt;&amp;larr; Prev sheet&lt;/button&gt;
+        &lt;select id=&quot;pageSelect&quot; aria-label=&quot;Sheet&quot;&gt;&lt;/select&gt;
+        &lt;button class=&quot;btn&quot; id=&quot;nextBtn&quot;&gt;Next sheet &amp;rarr;&lt;/button&gt;
+        &lt;span class=&quot;label&quot;&gt;Sheet #&lt;/span&gt;
+        &lt;input type=&quot;text&quot; id=&quot;sheetNum&quot; size=&quot;7&quot; aria-label=&quot;Sheet number&quot;&gt;
+        &lt;button class=&quot;btn&quot; id=&quot;zoomOut&quot; aria-label=&quot;Zoom out&quot;&gt;&amp;minus;&lt;/button&gt;
+        &lt;button class=&quot;btn&quot; id=&quot;zoomIn&quot; aria-label=&quot;Zoom in&quot;&gt;+&lt;/button&gt;
+        &lt;button class=&quot;btn&quot; id=&quot;fitBtn&quot; title=&quot;Fit the sheet to the window (F)&quot;&gt;Fit&lt;/button&gt;
+        &lt;span class=&quot;find&quot;&gt;&lt;input type=&quot;text&quot; id=&quot;findBox&quot; placeholder=&quot;Find text (Ctrl+F)&quot; aria-label=&quot;Find text&quot;&gt;&lt;button class=&quot;btn&quot; id=&quot;findPrev&quot; title=&quot;Previous match (Shift+Enter)&quot;&gt;&amp;uarr;&lt;/button&gt;&lt;button class=&quot;btn&quot; id=&quot;findNext&quot; title=&quot;Next match (Enter)&quot;&gt;&amp;darr;&lt;/button&gt;&lt;span class=&quot;status&quot; id=&quot;findCount&quot;&gt;&lt;/span&gt;&lt;/span&gt;
+        &lt;span class=&quot;spacer&quot;&gt;&lt;/span&gt;
+        &lt;button class=&quot;btn&quot; id=&quot;sideBtn&quot; title=&quot;Show / hide the markup list&quot;&gt;Hide list&lt;/button&gt;
+        &lt;span class=&quot;status&quot; id=&quot;status&quot;&gt;&lt;/span&gt;
+      &lt;/div&gt;
+
+      &lt;div class=&quot;viewer&quot; id=&quot;viewer&quot;&gt;
+        &lt;div class=&quot;empty&quot; id=&quot;emptyMsg&quot;&gt;Pick a drawing set above to start.&lt;/div&gt;
+        &lt;div class=&quot;page&quot; id=&quot;page&quot; hidden&gt;&lt;canvas id=&quot;canvas&quot;&gt;&lt;/canvas&gt;&lt;canvas id=&quot;hires&quot;&gt;&lt;/canvas&gt;&lt;svg id=&quot;svg&quot; xmlns=&quot;http://www.w3.org/2000/svg&quot;&gt;&lt;/svg&gt;&lt;/div&gt;
       &lt;/div&gt;
     &lt;/div&gt;
   &lt;/div&gt;
@@ -2328,8 +2329,8 @@
   $(&#x27;zoomIn&#x27;).onclick = ()=&gt; zoomAt(zoom*1.25);
   $(&#x27;zoomOut&#x27;).onclick = ()=&gt; zoomAt(zoom/1.25);
   $(&#x27;fitBtn&#x27;).onclick = fit;
-  $(&#x27;sideBtn&#x27;).onclick = ()=&gt;{ const m = document.querySelector(&#x27;.main&#x27;); m.classList.toggle(&#x27;noside&#x27;); $(&#x27;sideBtn&#x27;).textContent = m.classList.contains(&#x27;noside&#x27;) ? &#x27;Show list&#x27; : &#x27;Hide list&#x27;; try{ localStorage.setItem(&#x27;seNoSide&#x27;, m.classList.contains(&#x27;noside&#x27;)?&#x27;1&#x27;:&#x27;&#x27;); }catch(e){} scheduleHires(); };
-  try{ if(localStorage.getItem(&#x27;seNoSide&#x27;)){ document.querySelector(&#x27;.main&#x27;).classList.add(&#x27;noside&#x27;); $(&#x27;sideBtn&#x27;).textContent = &#x27;Show list&#x27;; } }catch(e){}
+  $(&#x27;sideBtn&#x27;).onclick = ()=&gt;{ const m = document.querySelector(&#x27;.shell&#x27;); m.classList.toggle(&#x27;noside&#x27;); $(&#x27;sideBtn&#x27;).textContent = m.classList.contains(&#x27;noside&#x27;) ? &#x27;Show list&#x27; : &#x27;Hide list&#x27;; try{ localStorage.setItem(&#x27;seNoSide&#x27;, m.classList.contains(&#x27;noside&#x27;)?&#x27;1&#x27;:&#x27;&#x27;); }catch(e){} scheduleHires(); };
+  try{ if(localStorage.getItem(&#x27;seNoSide&#x27;)){ document.querySelector(&#x27;.shell&#x27;).classList.add(&#x27;noside&#x27;); $(&#x27;sideBtn&#x27;).textContent = &#x27;Show list&#x27;; } }catch(e){}
 
   // ---------- wheel zoom + pan ----------
   const viewerEl = $(&#x27;viewer&#x27;);
@@ -2996,17 +2997,18 @@
               </div>
               <div class="grp">
                 <p class="grp-label">Project &amp; files (shared SE Review folder)</p>
-                <div class="row" style="flex-wrap:wrap;gap:5px;align-items:center;">
-                  <label style="display:flex;align-items:center;gap:6px;margin:0;font-weight:600;">Project
-                    <select id="sd-proj" style="min-width:200px" onchange="sdOpenProject(this.value)"><option value="">Connect the SE Review folder to list projects</option></select></label>
-                  <button class="pv-btn" id="sd-folderbtn" onclick="sdConnectFolder(true)" title="The shared Dropbox SE Review folder - asked once, then remembered">Connect folder&hellip;</button>
+                <div class="row" style="flex-wrap:wrap;gap:4px;align-items:center;">
+                  <label style="display:flex;align-items:center;gap:5px;margin:0;font-weight:600;flex:none;">Project
+                    <select id="sd-proj" style="width:150px" onchange="sdOpenProject(this.value)"><option value="">Connect the SE Review folder to list projects</option></select></label>
+                  <button class="pv-btn" id="sd-folderbtn" onclick="sdConnectFolder(true)" title="The shared Dropbox SE Review folder - asked once, then remembered">Folder&hellip;</button>
                   <button class="pv-btn" onclick="sdListProjects()" title="Re-read the folder">Refresh</button>
-                  <button class="pv-btn" style="color:#c62828;border-color:#c62828;" onclick="sdDeleteProject()" title="Move the selected project to _archive (nothing is permanently destroyed)">Delete project&hellip;</button>
+                  <button class="pv-btn" style="color:#c62828;border-color:#c62828;" onclick="sdDeleteProject()" title="Move the selected project to _archive (nothing is permanently destroyed)">Delete&hellip;</button>
                   <div class="sep"></div>
-                  <button class="pv-btn" onclick="document.getElementById('fi78076').click()" title="Pick the PDF - and, from Export for Snow Drift, the snow model .json and iso .png files too (select them all together)">Open roof plan&hellip;</button><input id="fi78076" type="file" multiple accept="application/pdf,image/*,.json,application/json" style="display:none" onchange="sdOpenFiles(this.files); this.value='';">
-                  <button class="pv-btn" onclick="document.getElementById('fi16440').click()">Open drift file&hellip;</button><input id="fi16440" type="file" accept=".json,application/json" style="display:none" onchange="sdOpenDriftFile(this.files[0])">
-                  <button class="pv-btn" onclick="sdDownload()">Save drift file</button>
-                  <button class="pv-btn" onclick="sdExportCalcPdf()" title="Roof plan + a loading diagram and ASCE 7 calc for each drift on this sheet - for the truss manufacturer or plan reviewer">Export calc PDF</button>
+                  <button class="pv-btn" onclick="document.getElementById('fi78076').click()" title="Pick the PDF - and, from Export for Snow Drift, the snow model .json and iso .png files too (select them all together)">Open plan&hellip;</button><input id="fi78076" type="file" multiple accept="application/pdf,image/*,.json,application/json" style="display:none" onchange="sdOpenFiles(this.files); this.value='';">
+                  <button class="pv-btn" onclick="document.getElementById('fi16440').click()" title="Open a previously saved drift file">Open file&hellip;</button><input id="fi16440" type="file" accept=".json,application/json" style="display:none" onchange="sdOpenDriftFile(this.files[0])">
+                  <button class="pv-btn" onclick="sdDownload()" title="Save the drift file">Save</button>
+                  <button class="pv-btn" onclick="sdExportCalcPdf()" title="Roof plan + a loading diagram and ASCE 7 calc for each drift on this sheet - for the truss manufacturer or plan reviewer">Export PDF</button>
+                  <div class="sep"></div>
                   <div class="pv-field">Scale
                     <select id="sd-scale" onchange="sdOnScale()">
                       <option value="4.5">1/16" = 1'-0"</option><option value="6.75">3/32" = 1'-0"</option><option value="9" selected>1/8" = 1'-0"</option><option value="13.5">3/16" = 1'-0"</option><option value="18">1/4" = 1'-0"</option><option value="cal">Calibrated (2 clicks)</option><option value="revit" disabled>From Revit</option>
