@@ -2861,6 +2861,32 @@
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script>/* polygon-clipping 0.15.7 (MIT) - merges overlapping drift hatches */
+!function(t,e){"object"==typeof exports&&"undefined"!=typeof module?module.exports=e():"function"==typeof define&&define.amd?define(e):(t="undefined"!=typeof globalThis?globalThis:t||self).polygonClipping=e()}(this,(function(){"use strict";
+/**
+     * splaytree v3.1.2
+     * Fast Splay tree for Node and browser
+     *
+     * @author Alexander Milevski <info@w8r.name>
+     * @license MIT
+     * @preserve
+     */
+/*! *****************************************************************************
+    Copyright (c) Microsoft Corporation. All rights reserved.
+    Licensed under the Apache License, Version 2.0 (the "License"); you may not use
+    this file except in compliance with the License. You may obtain a copy of the
+    License at http://www.apache.org/licenses/LICENSE-2.0
+
+    THIS CODE IS PROVIDED ON AN *AS IS* BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, EITHER EXPRESS OR IMPLIED, INCLUDING WITHOUT LIMITATION ANY IMPLIED
+    WARRANTIES OR CONDITIONS OF TITLE, FITNESS FOR A PARTICULAR PURPOSE,
+    MERCHANTABLITY OR NON-INFRINGEMENT.
+
+    See the Apache Version 2.0 License for specific language governing permissions
+    and limitations under the License.
+    ***************************************************************************** */function t(t,e){var n,r,i,o,s={label:0,sent:function(){if(1&i[0])throw i[1];return i[1]},trys:[],ops:[]};return o={next:l(0),throw:l(1),return:l(2)},"function"==typeof Symbol&&(o[Symbol.iterator]=function(){return this}),o;function l(o){return function(l){return function(o){if(n)throw new TypeError("Generator is already executing.");for(;s;)try{if(n=1,r&&(i=2&o[0]?r.return:o[0]?r.throw||((i=r.return)&&i.call(r),0):r.next)&&!(i=i.call(r,o[1])).done)return i;switch(r=0,i&&(o=[2&o[0],i.value]),o[0]){case 0:case 1:i=o;break;case 4:return s.label++,{value:o[1],done:!1};case 5:s.label++,r=o[1],o=[0];continue;case 7:o=s.ops.pop(),s.trys.pop();continue;default:if(!(i=s.trys,(i=i.length>0&&i[i.length-1])||6!==o[0]&&2!==o[0])){s=0;continue}if(3===o[0]&&(!i||o[1]>i[0]&&o[1]<i[3])){s.label=o[1];break}if(6===o[0]&&s.label<i[1]){s.label=i[1],i=o;break}if(i&&s.label<i[2]){s.label=i[2],s.ops.push(o);break}i[2]&&s.ops.pop(),s.trys.pop();continue}o=e.call(t,s)}catch(t){o=[6,t],r=0}finally{n=i=0}if(5&o[0])throw o[1];return{value:o[0]?o[1]:void 0,done:!0}}([o,l])}}}var e=function(t,e){this.next=null,this.key=t,this.data=e,this.left=null,this.right=null};function n(t,e){return t>e?1:t<e?-1:0}function r(t,n,r){for(var i=new e(null,null),o=i,s=i;;){var l=r(t,n.key);if(l<0){if(null===n.left)break;if(r(t,n.left.key)<0){var h=n.left;if(n.left=h.right,h.right=n,null===(n=h).left)break}s.left=n,s=n,n=n.left}else{if(!(l>0))break;if(null===n.right)break;if(r(t,n.right.key)>0){h=n.right;if(n.right=h.left,h.left=n,null===(n=h).right)break}o.right=n,o=n,n=n.right}}return o.right=n.left,s.left=n.right,n.left=i.right,n.right=i.left,n}function i(t,n,i,o){var s=new e(t,n);if(null===i)return s.left=s.right=null,s;var l=o(t,(i=r(t,i,o)).key);return l<0?(s.left=i.left,s.right=i,i.left=null):l>=0&&(s.right=i.right,s.left=i,i.right=null),s}function o(t,e,n){var i=null,o=null;if(e){var s=n((e=r(t,e,n)).key,t);0===s?(i=e.left,o=e.right):s<0?(o=e.right,e.right=null,i=e):(i=e.left,e.left=null,o=e)}return{left:i,right:o}}function s(t,e,n,r,i){if(t){r(e+(n?"└── ":"├── ")+i(t)+"\n");var o=e+(n?"    ":"│   ");t.left&&s(t.left,o,!1,r,i),t.right&&s(t.right,o,!0,r,i)}}var l=function(){function l(t){void 0===t&&(t=n),this._root=null,this._size=0,this._comparator=t}return l.prototype.insert=function(t,e){return this._size++,this._root=i(t,e,this._root,this._comparator)},l.prototype.add=function(t,n){var i=new e(t,n);null===this._root&&(i.left=i.right=null,this._size++,this._root=i);var o=this._comparator,s=r(t,this._root,o),l=o(t,s.key);return 0===l?this._root=s:(l<0?(i.left=s.left,i.right=s,s.left=null):l>0&&(i.right=s.right,i.left=s,s.right=null),this._size++,this._root=i),this._root},l.prototype.remove=function(t){this._root=this._remove(t,this._root,this._comparator)},l.prototype._remove=function(t,e,n){var i;return null===e?null:0===n(t,(e=r(t,e,n)).key)?(null===e.left?i=e.right:(i=r(t,e.left,n)).right=e.right,this._size--,i):e},l.prototype.pop=function(){var t=this._root;if(t){for(;t.left;)t=t.left;return this._root=r(t.key,this._root,this._comparator),this._root=this._remove(t.key,this._root,this._comparator),{key:t.key,data:t.data}}return null},l.prototype.findStatic=function(t){for(var e=this._root,n=this._comparator;e;){var r=n(t,e.key);if(0===r)return e;e=r<0?e.left:e.right}return null},l.prototype.find=function(t){return this._root&&(this._root=r(t,this._root,this._comparator),0!==this._comparator(t,this._root.key))?null:this._root},l.prototype.contains=function(t){for(var e=this._root,n=this._comparator;e;){var r=n(t,e.key);if(0===r)return!0;e=r<0?e.left:e.right}return!1},l.prototype.forEach=function(t,e){for(var n=this._root,r=[],i=!1;!i;)null!==n?(r.push(n),n=n.left):0!==r.length?(n=r.pop(),t.call(e,n),n=n.right):i=!0;return this},l.prototype.range=function(t,e,n,r){for(var i=[],o=this._comparator,s=this._root;0!==i.length||s;)if(s)i.push(s),s=s.left;else{if(o((s=i.pop()).key,e)>0)break;if(o(s.key,t)>=0&&n.call(r,s))return this;s=s.right}return this},l.prototype.keys=function(){var t=[];return this.forEach((function(e){var n=e.key;return t.push(n)})),t},l.prototype.values=function(){var t=[];return this.forEach((function(e){var n=e.data;return t.push(n)})),t},l.prototype.min=function(){return this._root?this.minNode(this._root).key:null},l.prototype.max=function(){return this._root?this.maxNode(this._root).key:null},l.prototype.minNode=function(t){if(void 0===t&&(t=this._root),t)for(;t.left;)t=t.left;return t},l.prototype.maxNode=function(t){if(void 0===t&&(t=this._root),t)for(;t.right;)t=t.right;return t},l.prototype.at=function(t){for(var e=this._root,n=!1,r=0,i=[];!n;)if(e)i.push(e),e=e.left;else if(i.length>0){if(e=i.pop(),r===t)return e;r++,e=e.right}else n=!0;return null},l.prototype.next=function(t){var e=this._root,n=null;if(t.right){for(n=t.right;n.left;)n=n.left;return n}for(var r=this._comparator;e;){var i=r(t.key,e.key);if(0===i)break;i<0?(n=e,e=e.left):e=e.right}return n},l.prototype.prev=function(t){var e=this._root,n=null;if(null!==t.left){for(n=t.left;n.right;)n=n.right;return n}for(var r=this._comparator;e;){var i=r(t.key,e.key);if(0===i)break;i<0?e=e.left:(n=e,e=e.right)}return n},l.prototype.clear=function(){return this._root=null,this._size=0,this},l.prototype.toList=function(){return function(t){var n=t,r=[],i=!1,o=new e(null,null),s=o;for(;!i;)n?(r.push(n),n=n.left):r.length>0?n=(n=s=s.next=r.pop()).right:i=!0;return s.next=null,o.next}(this._root)},l.prototype.load=function(t,n,r){void 0===n&&(n=[]),void 0===r&&(r=!1);var i=t.length,o=this._comparator;if(r&&f(t,n,0,i-1,o),null===this._root)this._root=h(t,n,0,i),this._size=i;else{var s=function(t,n,r){var i=new e(null,null),o=i,s=t,l=n;for(;null!==s&&null!==l;)r(s.key,l.key)<0?(o.next=s,s=s.next):(o.next=l,l=l.next),o=o.next;null!==s?o.next=s:null!==l&&(o.next=l);return i.next}(this.toList(),function(t,n){for(var r=new e(null,null),i=r,o=0;o<t.length;o++)i=i.next=new e(t[o],n[o]);return i.next=null,r.next}(t,n),o);i=this._size+i,this._root=u({head:s},0,i)}return this},l.prototype.isEmpty=function(){return null===this._root},Object.defineProperty(l.prototype,"size",{get:function(){return this._size},enumerable:!0,configurable:!0}),Object.defineProperty(l.prototype,"root",{get:function(){return this._root},enumerable:!0,configurable:!0}),l.prototype.toString=function(t){void 0===t&&(t=function(t){return String(t.key)});var e=[];return s(this._root,"",!0,(function(t){return e.push(t)}),t),e.join("")},l.prototype.update=function(t,e,n){var s=this._comparator,l=o(t,this._root,s),h=l.left,u=l.right;s(t,e)<0?u=i(e,n,u,s):h=i(e,n,h,s),this._root=function(t,e,n){return null===e?t:(null===t||((e=r(t.key,e,n)).left=t),e)}(h,u,s)},l.prototype.split=function(t){return o(t,this._root,this._comparator)},l.prototype[Symbol.iterator]=function(){var e,n,r;return t(this,(function(t){switch(t.label){case 0:e=this._root,n=[],r=!1,t.label=1;case 1:return r?[3,6]:null===e?[3,2]:(n.push(e),e=e.left,[3,5]);case 2:return 0===n.length?[3,4]:[4,e=n.pop()];case 3:return t.sent(),e=e.right,[3,5];case 4:r=!0,t.label=5;case 5:return[3,1];case 6:return[2]}}))},l}();function h(t,n,r,i){var o=i-r;if(o>0){var s=r+Math.floor(o/2),l=t[s],u=n[s],f=new e(l,u);return f.left=h(t,n,r,s),f.right=h(t,n,s+1,i),f}return null}function u(t,e,n){var r=n-e;if(r>0){var i=e+Math.floor(r/2),o=u(t,e,i),s=t.head;return s.left=o,t.head=t.head.next,s.right=u(t,i+1,n),s}return null}function f(t,e,n,r,i){if(!(n>=r)){for(var o=t[n+r>>1],s=n-1,l=r+1;;){do{s++}while(i(t[s],o)<0);do{l--}while(i(t[l],o)>0);if(s>=l)break;var h=t[s];t[s]=t[l],t[l]=h,h=e[s],e[s]=e[l],e[l]=h}f(t,e,n,l,i),f(t,e,l+1,r,i)}}const c=(t,e)=>t.ll.x<=e.x&&e.x<=t.ur.x&&t.ll.y<=e.y&&e.y<=t.ur.y,p=(t,e)=>{if(e.ur.x<t.ll.x||t.ur.x<e.ll.x||e.ur.y<t.ll.y||t.ur.y<e.ll.y)return null;const n=t.ll.x<e.ll.x?e.ll.x:t.ll.x,r=t.ur.x<e.ur.x?t.ur.x:e.ur.x;return{ll:{x:n,y:t.ll.y<e.ll.y?e.ll.y:t.ll.y},ur:{x:r,y:t.ur.y<e.ur.y?t.ur.y:e.ur.y}}};let g=Number.EPSILON;void 0===g&&(g=Math.pow(2,-52));const a=g*g,y=(t,e)=>{if(-g<t&&t<g&&-g<e&&e<g)return 0;const n=t-e;return n*n<a*t*e?0:t<e?-1:1};class x{constructor(){this.tree=new l,this.round(0)}round(t){const e=this.tree.add(t),n=this.tree.prev(e);if(null!==n&&0===y(e.key,n.key))return this.tree.remove(t),n.key;const r=this.tree.next(e);return null!==r&&0===y(e.key,r.key)?(this.tree.remove(t),r.key):t}}const b=new class{constructor(){this.reset()}reset(){this.xRounder=new x,this.yRounder=new x}round(t,e){return{x:this.xRounder.round(t),y:this.yRounder.round(e)}}},v=11102230246251565e-32,d=134217729,m=(3+8*v)*v;function E(t,e,n,r,i){let o,s,l,h,u=e[0],f=r[0],c=0,p=0;f>u==f>-u?(o=u,u=e[++c]):(o=f,f=r[++p]);let g=0;if(c<t&&p<n)for(f>u==f>-u?(s=u+o,l=o-(s-u),u=e[++c]):(s=f+o,l=o-(s-f),f=r[++p]),o=s,0!==l&&(i[g++]=l);c<t&&p<n;)f>u==f>-u?(s=o+u,h=s-o,l=o-(s-h)+(u-h),u=e[++c]):(s=o+f,h=s-o,l=o-(s-h)+(f-h),f=r[++p]),o=s,0!==l&&(i[g++]=l);for(;c<t;)s=o+u,h=s-o,l=o-(s-h)+(u-h),u=e[++c],o=s,0!==l&&(i[g++]=l);for(;p<n;)s=o+f,h=s-o,l=o-(s-h)+(f-h),f=r[++p],o=s,0!==l&&(i[g++]=l);return 0===o&&0!==g||(i[g++]=o),g}function S(t){return new Float64Array(t)}const _=22204460492503146e-32,w=11093356479670487e-47,k=S(4),R=S(8),I=S(12),P=S(16),N=S(4);function A(t,e,n,r,i,o){const s=(e-o)*(n-i),l=(t-i)*(r-o),h=s-l,u=Math.abs(s+l);return Math.abs(h)>=33306690738754716e-32*u?h:-function(t,e,n,r,i,o,s){let l,h,u,f,c,p,g,a,y,x,b,v,S,A,O,L,$,M;const z=t-i,B=n-i,G=e-o,T=r-o;A=z*T,p=d*z,g=p-(p-z),a=z-g,p=d*T,y=p-(p-T),x=T-y,O=a*x-(A-g*y-a*y-g*x),L=G*B,p=d*G,g=p-(p-G),a=G-g,p=d*B,y=p-(p-B),x=B-y,$=a*x-(L-g*y-a*y-g*x),b=O-$,c=O-b,k[0]=O-(b+c)+(c-$),v=A+b,c=v-A,S=A-(v-c)+(b-c),b=S-L,c=S-b,k[1]=S-(b+c)+(c-L),M=v+b,c=M-v,k[2]=v-(M-c)+(b-c),k[3]=M;let q=function(t,e){let n=e[0];for(let r=1;r<t;r++)n+=e[r];return n}(4,k),C=_*s;if(q>=C||-q>=C)return q;if(c=t-z,l=t-(z+c)+(c-i),c=n-B,u=n-(B+c)+(c-i),c=e-G,h=e-(G+c)+(c-o),c=r-T,f=r-(T+c)+(c-o),0===l&&0===h&&0===u&&0===f)return q;if(C=w*s+m*Math.abs(q),q+=z*f+T*l-(G*u+B*h),q>=C||-q>=C)return q;A=l*T,p=d*l,g=p-(p-l),a=l-g,p=d*T,y=p-(p-T),x=T-y,O=a*x-(A-g*y-a*y-g*x),L=h*B,p=d*h,g=p-(p-h),a=h-g,p=d*B,y=p-(p-B),x=B-y,$=a*x-(L-g*y-a*y-g*x),b=O-$,c=O-b,N[0]=O-(b+c)+(c-$),v=A+b,c=v-A,S=A-(v-c)+(b-c),b=S-L,c=S-b,N[1]=S-(b+c)+(c-L),M=v+b,c=M-v,N[2]=v-(M-c)+(b-c),N[3]=M;const F=E(4,k,4,N,R);A=z*f,p=d*z,g=p-(p-z),a=z-g,p=d*f,y=p-(p-f),x=f-y,O=a*x-(A-g*y-a*y-g*x),L=G*u,p=d*G,g=p-(p-G),a=G-g,p=d*u,y=p-(p-u),x=u-y,$=a*x-(L-g*y-a*y-g*x),b=O-$,c=O-b,N[0]=O-(b+c)+(c-$),v=A+b,c=v-A,S=A-(v-c)+(b-c),b=S-L,c=S-b,N[1]=S-(b+c)+(c-L),M=v+b,c=M-v,N[2]=v-(M-c)+(b-c),N[3]=M;const j=E(F,R,4,N,I);A=l*f,p=d*l,g=p-(p-l),a=l-g,p=d*f,y=p-(p-f),x=f-y,O=a*x-(A-g*y-a*y-g*x),L=h*u,p=d*h,g=p-(p-h),a=h-g,p=d*u,y=p-(p-u),x=u-y,$=a*x-(L-g*y-a*y-g*x),b=O-$,c=O-b,N[0]=O-(b+c)+(c-$),v=A+b,c=v-A,S=A-(v-c)+(b-c),b=S-L,c=S-b,N[1]=S-(b+c)+(c-L),M=v+b,c=M-v,N[2]=v-(M-c)+(b-c),N[3]=M;const U=E(j,I,4,N,P);return P[U-1]}(t,e,n,r,i,o,u)}const O=(t,e)=>t.x*e.y-t.y*e.x,L=(t,e)=>t.x*e.x+t.y*e.y,$=(t,e,n)=>{const r=A(t.x,t.y,e.x,e.y,n.x,n.y);return r>0?-1:r<0?1:0},M=t=>Math.sqrt(L(t,t)),z=(t,e,n)=>{const r={x:e.x-t.x,y:e.y-t.y},i={x:n.x-t.x,y:n.y-t.y};return O(i,r)/M(i)/M(r)},B=(t,e,n)=>{const r={x:e.x-t.x,y:e.y-t.y},i={x:n.x-t.x,y:n.y-t.y};return L(i,r)/M(i)/M(r)},G=(t,e,n)=>0===e.y?null:{x:t.x+e.x/e.y*(n-t.y),y:n},T=(t,e,n)=>0===e.x?null:{x:n,y:t.y+e.y/e.x*(n-t.x)};class q{static compare(t,e){const n=q.comparePoints(t.point,e.point);return 0!==n?n:(t.point!==e.point&&t.link(e),t.isLeft!==e.isLeft?t.isLeft?1:-1:F.compare(t.segment,e.segment))}static comparePoints(t,e){return t.x<e.x?-1:t.x>e.x?1:t.y<e.y?-1:t.y>e.y?1:0}constructor(t,e){void 0===t.events?t.events=[this]:t.events.push(this),this.point=t,this.isLeft=e}link(t){if(t.point===this.point)throw new Error("Tried to link already linked events");const e=t.point.events;for(let t=0,n=e.length;t<n;t++){const n=e[t];this.point.events.push(n),n.point=this.point}this.checkForConsuming()}checkForConsuming(){const t=this.point.events.length;for(let e=0;e<t;e++){const n=this.point.events[e];if(void 0===n.segment.consumedBy)for(let r=e+1;r<t;r++){const t=this.point.events[r];void 0===t.consumedBy&&(n.otherSE.point.events===t.otherSE.point.events&&n.segment.consume(t.segment))}}}getAvailableLinkedEvents(){const t=[];for(let e=0,n=this.point.events.length;e<n;e++){const n=this.point.events[e];n!==this&&!n.segment.ringOut&&n.segment.isInResult()&&t.push(n)}return t}getLeftmostComparator(t){const e=new Map,n=n=>{const r=n.otherSE;e.set(n,{sine:z(this.point,t.point,r.point),cosine:B(this.point,t.point,r.point)})};return(t,r)=>{e.has(t)||n(t),e.has(r)||n(r);const{sine:i,cosine:o}=e.get(t),{sine:s,cosine:l}=e.get(r);return i>=0&&s>=0?o<l?1:o>l?-1:0:i<0&&s<0?o<l?-1:o>l?1:0:s<i?-1:s>i?1:0}}}let C=0;class F{static compare(t,e){const n=t.leftSE.point.x,r=e.leftSE.point.x,i=t.rightSE.point.x,o=e.rightSE.point.x;if(o<n)return 1;if(i<r)return-1;const s=t.leftSE.point.y,l=e.leftSE.point.y,h=t.rightSE.point.y,u=e.rightSE.point.y;if(n<r){if(l<s&&l<h)return 1;if(l>s&&l>h)return-1;const n=t.comparePoint(e.leftSE.point);if(n<0)return 1;if(n>0)return-1;const r=e.comparePoint(t.rightSE.point);return 0!==r?r:-1}if(n>r){if(s<l&&s<u)return-1;if(s>l&&s>u)return 1;const n=e.comparePoint(t.leftSE.point);if(0!==n)return n;const r=t.comparePoint(e.rightSE.point);return r<0?1:r>0?-1:1}if(s<l)return-1;if(s>l)return 1;if(i<o){const n=e.comparePoint(t.rightSE.point);if(0!==n)return n}if(i>o){const n=t.comparePoint(e.rightSE.point);if(n<0)return 1;if(n>0)return-1}if(i!==o){const t=h-s,e=i-n,f=u-l,c=o-r;if(t>e&&f<c)return 1;if(t<e&&f>c)return-1}return i>o?1:i<o||h<u?-1:h>u?1:t.id<e.id?-1:t.id>e.id?1:0}constructor(t,e,n,r){this.id=++C,this.leftSE=t,t.segment=this,t.otherSE=e,this.rightSE=e,e.segment=this,e.otherSE=t,this.rings=n,this.windings=r}static fromRing(t,e,n){let r,i,o;const s=q.comparePoints(t,e);if(s<0)r=t,i=e,o=1;else{if(!(s>0))throw new Error(`Tried to create degenerate segment at [${t.x}, ${t.y}]`);r=e,i=t,o=-1}const l=new q(r,!0),h=new q(i,!1);return new F(l,h,[n],[o])}replaceRightSE(t){this.rightSE=t,this.rightSE.segment=this,this.rightSE.otherSE=this.leftSE,this.leftSE.otherSE=this.rightSE}bbox(){const t=this.leftSE.point.y,e=this.rightSE.point.y;return{ll:{x:this.leftSE.point.x,y:t<e?t:e},ur:{x:this.rightSE.point.x,y:t>e?t:e}}}vector(){return{x:this.rightSE.point.x-this.leftSE.point.x,y:this.rightSE.point.y-this.leftSE.point.y}}isAnEndpoint(t){return t.x===this.leftSE.point.x&&t.y===this.leftSE.point.y||t.x===this.rightSE.point.x&&t.y===this.rightSE.point.y}comparePoint(t){if(this.isAnEndpoint(t))return 0;const e=this.leftSE.point,n=this.rightSE.point,r=this.vector();if(e.x===n.x)return t.x===e.x?0:t.x<e.x?1:-1;const i=(t.y-e.y)/r.y,o=e.x+i*r.x;if(t.x===o)return 0;const s=(t.x-e.x)/r.x,l=e.y+s*r.y;return t.y===l?0:t.y<l?-1:1}getIntersection(t){const e=this.bbox(),n=t.bbox(),r=p(e,n);if(null===r)return null;const i=this.leftSE.point,o=this.rightSE.point,s=t.leftSE.point,l=t.rightSE.point,h=c(e,s)&&0===this.comparePoint(s),u=c(n,i)&&0===t.comparePoint(i),f=c(e,l)&&0===this.comparePoint(l),g=c(n,o)&&0===t.comparePoint(o);if(u&&h)return g&&!f?o:!g&&f?l:null;if(u)return f&&i.x===l.x&&i.y===l.y?null:i;if(h)return g&&o.x===s.x&&o.y===s.y?null:s;if(g&&f)return null;if(g)return o;if(f)return l;const a=((t,e,n,r)=>{if(0===e.x)return T(n,r,t.x);if(0===r.x)return T(t,e,n.x);if(0===e.y)return G(n,r,t.y);if(0===r.y)return G(t,e,n.y);const i=O(e,r);if(0==i)return null;const o={x:n.x-t.x,y:n.y-t.y},s=O(o,e)/i,l=O(o,r)/i;return{x:(t.x+l*e.x+(n.x+s*r.x))/2,y:(t.y+l*e.y+(n.y+s*r.y))/2}})(i,this.vector(),s,t.vector());return null===a?null:c(r,a)?b.round(a.x,a.y):null}split(t){const e=[],n=void 0!==t.events,r=new q(t,!0),i=new q(t,!1),o=this.rightSE;this.replaceRightSE(i),e.push(i),e.push(r);const s=new F(r,o,this.rings.slice(),this.windings.slice());return q.comparePoints(s.leftSE.point,s.rightSE.point)>0&&s.swapEvents(),q.comparePoints(this.leftSE.point,this.rightSE.point)>0&&this.swapEvents(),n&&(r.checkForConsuming(),i.checkForConsuming()),e}swapEvents(){const t=this.rightSE;this.rightSE=this.leftSE,this.leftSE=t,this.leftSE.isLeft=!0,this.rightSE.isLeft=!1;for(let t=0,e=this.windings.length;t<e;t++)this.windings[t]*=-1}consume(t){let e=this,n=t;for(;e.consumedBy;)e=e.consumedBy;for(;n.consumedBy;)n=n.consumedBy;const r=F.compare(e,n);if(0!==r){if(r>0){const t=e;e=n,n=t}if(e.prev===n){const t=e;e=n,n=t}for(let t=0,r=n.rings.length;t<r;t++){const r=n.rings[t],i=n.windings[t],o=e.rings.indexOf(r);-1===o?(e.rings.push(r),e.windings.push(i)):e.windings[o]+=i}n.rings=null,n.windings=null,n.consumedBy=e,n.leftSE.consumedBy=e.leftSE,n.rightSE.consumedBy=e.rightSE}}prevInResult(){return void 0!==this._prevInResult||(this.prev?this.prev.isInResult()?this._prevInResult=this.prev:this._prevInResult=this.prev.prevInResult():this._prevInResult=null),this._prevInResult}beforeState(){if(void 0!==this._beforeState)return this._beforeState;if(this.prev){const t=this.prev.consumedBy||this.prev;this._beforeState=t.afterState()}else this._beforeState={rings:[],windings:[],multiPolys:[]};return this._beforeState}afterState(){if(void 0!==this._afterState)return this._afterState;const t=this.beforeState();this._afterState={rings:t.rings.slice(0),windings:t.windings.slice(0),multiPolys:[]};const e=this._afterState.rings,n=this._afterState.windings,r=this._afterState.multiPolys;for(let t=0,r=this.rings.length;t<r;t++){const r=this.rings[t],i=this.windings[t],o=e.indexOf(r);-1===o?(e.push(r),n.push(i)):n[o]+=i}const i=[],o=[];for(let t=0,r=e.length;t<r;t++){if(0===n[t])continue;const r=e[t],s=r.poly;if(-1===o.indexOf(s))if(r.isExterior)i.push(s);else{-1===o.indexOf(s)&&o.push(s);const t=i.indexOf(r.poly);-1!==t&&i.splice(t,1)}}for(let t=0,e=i.length;t<e;t++){const e=i[t].multiPoly;-1===r.indexOf(e)&&r.push(e)}return this._afterState}isInResult(){if(this.consumedBy)return!1;if(void 0!==this._isInResult)return this._isInResult;const t=this.beforeState().multiPolys,e=this.afterState().multiPolys;switch(H.type){case"union":{const n=0===t.length,r=0===e.length;this._isInResult=n!==r;break}case"intersection":{let n,r;t.length<e.length?(n=t.length,r=e.length):(n=e.length,r=t.length),this._isInResult=r===H.numMultiPolys&&n<r;break}case"xor":{const n=Math.abs(t.length-e.length);this._isInResult=n%2==1;break}case"difference":{const n=t=>1===t.length&&t[0].isSubject;this._isInResult=n(t)!==n(e);break}default:throw new Error(`Unrecognized operation type found ${H.type}`)}return this._isInResult}}class j{constructor(t,e,n){if(!Array.isArray(t)||0===t.length)throw new Error("Input geometry is not a valid Polygon or MultiPolygon");if(this.poly=e,this.isExterior=n,this.segments=[],"number"!=typeof t[0][0]||"number"!=typeof t[0][1])throw new Error("Input geometry is not a valid Polygon or MultiPolygon");const r=b.round(t[0][0],t[0][1]);this.bbox={ll:{x:r.x,y:r.y},ur:{x:r.x,y:r.y}};let i=r;for(let e=1,n=t.length;e<n;e++){if("number"!=typeof t[e][0]||"number"!=typeof t[e][1])throw new Error("Input geometry is not a valid Polygon or MultiPolygon");let n=b.round(t[e][0],t[e][1]);n.x===i.x&&n.y===i.y||(this.segments.push(F.fromRing(i,n,this)),n.x<this.bbox.ll.x&&(this.bbox.ll.x=n.x),n.y<this.bbox.ll.y&&(this.bbox.ll.y=n.y),n.x>this.bbox.ur.x&&(this.bbox.ur.x=n.x),n.y>this.bbox.ur.y&&(this.bbox.ur.y=n.y),i=n)}r.x===i.x&&r.y===i.y||this.segments.push(F.fromRing(i,r,this))}getSweepEvents(){const t=[];for(let e=0,n=this.segments.length;e<n;e++){const n=this.segments[e];t.push(n.leftSE),t.push(n.rightSE)}return t}}class U{constructor(t,e){if(!Array.isArray(t))throw new Error("Input geometry is not a valid Polygon or MultiPolygon");this.exteriorRing=new j(t[0],this,!0),this.bbox={ll:{x:this.exteriorRing.bbox.ll.x,y:this.exteriorRing.bbox.ll.y},ur:{x:this.exteriorRing.bbox.ur.x,y:this.exteriorRing.bbox.ur.y}},this.interiorRings=[];for(let e=1,n=t.length;e<n;e++){const n=new j(t[e],this,!1);n.bbox.ll.x<this.bbox.ll.x&&(this.bbox.ll.x=n.bbox.ll.x),n.bbox.ll.y<this.bbox.ll.y&&(this.bbox.ll.y=n.bbox.ll.y),n.bbox.ur.x>this.bbox.ur.x&&(this.bbox.ur.x=n.bbox.ur.x),n.bbox.ur.y>this.bbox.ur.y&&(this.bbox.ur.y=n.bbox.ur.y),this.interiorRings.push(n)}this.multiPoly=e}getSweepEvents(){const t=this.exteriorRing.getSweepEvents();for(let e=0,n=this.interiorRings.length;e<n;e++){const n=this.interiorRings[e].getSweepEvents();for(let e=0,r=n.length;e<r;e++)t.push(n[e])}return t}}class Y{constructor(t,e){if(!Array.isArray(t))throw new Error("Input geometry is not a valid Polygon or MultiPolygon");try{"number"==typeof t[0][0][0]&&(t=[t])}catch(t){}this.polys=[],this.bbox={ll:{x:Number.POSITIVE_INFINITY,y:Number.POSITIVE_INFINITY},ur:{x:Number.NEGATIVE_INFINITY,y:Number.NEGATIVE_INFINITY}};for(let e=0,n=t.length;e<n;e++){const n=new U(t[e],this);n.bbox.ll.x<this.bbox.ll.x&&(this.bbox.ll.x=n.bbox.ll.x),n.bbox.ll.y<this.bbox.ll.y&&(this.bbox.ll.y=n.bbox.ll.y),n.bbox.ur.x>this.bbox.ur.x&&(this.bbox.ur.x=n.bbox.ur.x),n.bbox.ur.y>this.bbox.ur.y&&(this.bbox.ur.y=n.bbox.ur.y),this.polys.push(n)}this.isSubject=e}getSweepEvents(){const t=[];for(let e=0,n=this.polys.length;e<n;e++){const n=this.polys[e].getSweepEvents();for(let e=0,r=n.length;e<r;e++)t.push(n[e])}return t}}class V{static factory(t){const e=[];for(let n=0,r=t.length;n<r;n++){const r=t[n];if(!r.isInResult()||r.ringOut)continue;let i=null,o=r.leftSE,s=r.rightSE;const l=[o],h=o.point,u=[];for(;i=o,o=s,l.push(o),o.point!==h;)for(;;){const t=o.getAvailableLinkedEvents();if(0===t.length){const t=l[0].point,e=l[l.length-1].point;throw new Error(`Unable to complete output ring starting at [${t.x}, ${t.y}]. Last matching segment found ends at [${e.x}, ${e.y}].`)}if(1===t.length){s=t[0].otherSE;break}let n=null;for(let t=0,e=u.length;t<e;t++)if(u[t].point===o.point){n=t;break}if(null!==n){const t=u.splice(n)[0],r=l.splice(t.index);r.unshift(r[0].otherSE),e.push(new V(r.reverse()));continue}u.push({index:l.length,point:o.point});const r=o.getLeftmostComparator(i);s=t.sort(r)[0].otherSE;break}e.push(new V(l))}return e}constructor(t){this.events=t;for(let e=0,n=t.length;e<n;e++)t[e].segment.ringOut=this;this.poly=null}getGeom(){let t=this.events[0].point;const e=[t];for(let n=1,r=this.events.length-1;n<r;n++){const r=this.events[n].point,i=this.events[n+1].point;0!==$(r,t,i)&&(e.push(r),t=r)}if(1===e.length)return null;const n=e[0],r=e[1];0===$(n,t,r)&&e.shift(),e.push(e[0]);const i=this.isExteriorRing()?1:-1,o=this.isExteriorRing()?0:e.length-1,s=this.isExteriorRing()?e.length:-1,l=[];for(let t=o;t!=s;t+=i)l.push([e[t].x,e[t].y]);return l}isExteriorRing(){if(void 0===this._isExteriorRing){const t=this.enclosingRing();this._isExteriorRing=!t||!t.isExteriorRing()}return this._isExteriorRing}enclosingRing(){return void 0===this._enclosingRing&&(this._enclosingRing=this._calcEnclosingRing()),this._enclosingRing}_calcEnclosingRing(){let t=this.events[0];for(let e=1,n=this.events.length;e<n;e++){const n=this.events[e];q.compare(t,n)>0&&(t=n)}let e=t.segment.prevInResult(),n=e?e.prevInResult():null;for(;;){if(!e)return null;if(!n)return e.ringOut;if(n.ringOut!==e.ringOut)return n.ringOut.enclosingRing()!==e.ringOut?e.ringOut:e.ringOut.enclosingRing();e=n.prevInResult(),n=e?e.prevInResult():null}}}class X{constructor(t){this.exteriorRing=t,t.poly=this,this.interiorRings=[]}addInterior(t){this.interiorRings.push(t),t.poly=this}getGeom(){const t=[this.exteriorRing.getGeom()];if(null===t[0])return null;for(let e=0,n=this.interiorRings.length;e<n;e++){const n=this.interiorRings[e].getGeom();null!==n&&t.push(n)}return t}}class Q{constructor(t){this.rings=t,this.polys=this._composePolys(t)}getGeom(){const t=[];for(let e=0,n=this.polys.length;e<n;e++){const n=this.polys[e].getGeom();null!==n&&t.push(n)}return t}_composePolys(t){const e=[];for(let n=0,r=t.length;n<r;n++){const r=t[n];if(!r.poly)if(r.isExteriorRing())e.push(new X(r));else{const t=r.enclosingRing();t.poly||e.push(new X(t)),t.poly.addInterior(r)}}return e}}class W{constructor(t){let e=arguments.length>1&&void 0!==arguments[1]?arguments[1]:F.compare;this.queue=t,this.tree=new l(e),this.segments=[]}process(t){const e=t.segment,n=[];if(t.consumedBy)return t.isLeft?this.queue.remove(t.otherSE):this.tree.remove(e),n;const r=t.isLeft?this.tree.add(e):this.tree.find(e);if(!r)throw new Error(`Unable to find segment #${e.id} [${e.leftSE.point.x}, ${e.leftSE.point.y}] -> [${e.rightSE.point.x}, ${e.rightSE.point.y}] in SweepLine tree.`);let i,o,s=r,l=r;for(;void 0===i;)s=this.tree.prev(s),null===s?i=null:void 0===s.key.consumedBy&&(i=s.key);for(;void 0===o;)l=this.tree.next(l),null===l?o=null:void 0===l.key.consumedBy&&(o=l.key);if(t.isLeft){let r=null;if(i){const t=i.getIntersection(e);if(null!==t&&(e.isAnEndpoint(t)||(r=t),!i.isAnEndpoint(t))){const e=this._splitSafely(i,t);for(let t=0,r=e.length;t<r;t++)n.push(e[t])}}let s=null;if(o){const t=o.getIntersection(e);if(null!==t&&(e.isAnEndpoint(t)||(s=t),!o.isAnEndpoint(t))){const e=this._splitSafely(o,t);for(let t=0,r=e.length;t<r;t++)n.push(e[t])}}if(null!==r||null!==s){let t=null;if(null===r)t=s;else if(null===s)t=r;else{t=q.comparePoints(r,s)<=0?r:s}this.queue.remove(e.rightSE),n.push(e.rightSE);const i=e.split(t);for(let t=0,e=i.length;t<e;t++)n.push(i[t])}n.length>0?(this.tree.remove(e),n.push(t)):(this.segments.push(e),e.prev=i)}else{if(i&&o){const t=i.getIntersection(o);if(null!==t){if(!i.isAnEndpoint(t)){const e=this._splitSafely(i,t);for(let t=0,r=e.length;t<r;t++)n.push(e[t])}if(!o.isAnEndpoint(t)){const e=this._splitSafely(o,t);for(let t=0,r=e.length;t<r;t++)n.push(e[t])}}}this.tree.remove(e)}return n}_splitSafely(t,e){this.tree.remove(t);const n=t.rightSE;this.queue.remove(n);const r=t.split(e);return r.push(n),void 0===t.consumedBy&&this.tree.add(t),r}}const Z="undefined"!=typeof process&&process.env.POLYGON_CLIPPING_MAX_QUEUE_SIZE||1e6,D="undefined"!=typeof process&&process.env.POLYGON_CLIPPING_MAX_SWEEPLINE_SEGMENTS||1e6;const H=new class{run(t,e,n){H.type=t,b.reset();const r=[new Y(e,!0)];for(let t=0,e=n.length;t<e;t++)r.push(new Y(n[t],!1));if(H.numMultiPolys=r.length,"difference"===H.type){const t=r[0];let e=1;for(;e<r.length;)null!==p(r[e].bbox,t.bbox)?e++:r.splice(e,1)}if("intersection"===H.type)for(let t=0,e=r.length;t<e;t++){const e=r[t];for(let n=t+1,i=r.length;n<i;n++)if(null===p(e.bbox,r[n].bbox))return[]}const i=new l(q.compare);for(let t=0,e=r.length;t<e;t++){const e=r[t].getSweepEvents();for(let t=0,n=e.length;t<n;t++)if(i.insert(e[t]),i.size>Z)throw new Error("Infinite loop when putting segment endpoints in a priority queue (queue size too big).")}const o=new W(i);let s=i.size,h=i.pop();for(;h;){const t=h.key;if(i.size===s){const e=t.segment;throw new Error(`Unable to pop() ${t.isLeft?"left":"right"} SweepEvent [${t.point.x}, ${t.point.y}] from segment #${e.id} [${e.leftSE.point.x}, ${e.leftSE.point.y}] -> [${e.rightSE.point.x}, ${e.rightSE.point.y}] from queue.`)}if(i.size>Z)throw new Error("Infinite loop when passing sweep line over endpoints (queue size too big).");if(o.segments.length>D)throw new Error("Infinite loop when passing sweep line over endpoints (too many sweep line segments).");const e=o.process(t);for(let t=0,n=e.length;t<n;t++){const n=e[t];void 0===n.consumedBy&&i.insert(n)}s=i.size,h=i.pop()}b.reset();const u=V.factory(o.segments);return new Q(u).getGeom()}};var J={union:function(t){for(var e=arguments.length,n=new Array(e>1?e-1:0),r=1;r<e;r++)n[r-1]=arguments[r];return H.run("union",t,n)},intersection:function(t){for(var e=arguments.length,n=new Array(e>1?e-1:0),r=1;r<e;r++)n[r-1]=arguments[r];return H.run("intersection",t,n)},xor:function(t){for(var e=arguments.length,n=new Array(e>1?e-1:0),r=1;r<e;r++)n[r-1]=arguments[r];return H.run("xor",t,n)},difference:function(t){for(var e=arguments.length,n=new Array(e>1?e-1:0),r=1;r<e;r++)n[r-1]=arguments[r];return H.run("difference",t,n)}};return J}));
+
+</script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script>
   function showPanel(name){
@@ -10480,7 +10506,7 @@
     if(!tb) return;
     const tools = [{id:'drift',label:'Add drift'},{id:'measure',label:'Measure'},{id:'select',label:'Select'}];
     tb.innerHTML = tools.map(t=>`<button class="sm-tool" data-tool="${t.id}">${t.label}</button>`).join('') +
-      `<span style="flex:1"></span><button class="run secondary" onclick="sdDeleteSelected()">Delete selected</button>`;
+      `<span style="flex:1"></span><button class="run secondary" onclick="sdFlipSelected()" title="Put the selected drift on the other side of its line (F)">Flip side</button><button class="run secondary" onclick="sdDeleteSelected()">Delete selected</button>`;
     tb.addEventListener('click', e=>{ const t = e.target.closest('[data-tool]'); if(t) sdSetTool(t.dataset.tool); });
     sdSetTool('drift');
     sdRecalcAll();
@@ -10826,6 +10852,17 @@
   const SD_TYPE_LABEL = {step:'Roof step', parapet:'Parapet', rtu:'Rooftop unit / penthouse'};
 
   // =============== Section cut across an edge (from the Revit snow model) ===============
+  // "7'-5"", "7' 5 1/2"", "7-5", "7 5", "89\"", "7.38" -> feet
+  function sdParseFtIn(t){
+    t = String(t||'').trim().replace(/[\u2019\u2032]/g,"'").replace(/[\u201d\u2033]/g,'"').replace(/''/g,'"');
+    if(!t) return null;
+    const frac = x=>{ x = x.trim(); if(!x) return 0; let m = x.match(/^(\d+(?:\.\d+)?)\s+(\d+)\/(\d+)$/); if(m) return +m[1] + m[2]/m[3]; m = x.match(/^(\d+)\/(\d+)$/); if(m) return m[1]/m[2]; return parseFloat(x); };
+    let m = t.match(/^(-?\d+(?:\.\d+)?)\s*'\s*-?\s*(.*?)\s*"?$/);
+    if(m){ const i = m[2] ? frac(m[2]) : 0; return isNaN(i) ? null : +m[1] + i/12; }
+    m = t.match(/^(.*?)\s*"$/); if(m){ const i = frac(m[1]); return isNaN(i) ? null : i/12; }
+    m = t.match(/^(\d+)\s*[- ]\s*(\d+(?:\s+\d+\/\d+|\/\d+|\.\d+)?)$/); if(m) return +m[1] + frac(m[2])/12;
+    const v = parseFloat(t); return isNaN(v) ? null : v;
+  }
   function sdFtIn(v){ const neg = v < 0; v = Math.abs(v); let f = Math.floor(v+1e-9), i = Math.round((v-f)*12); if(i===12){ f++; i = 0; } return (neg?'-':'') + `${f}'-${i}"`; }
   function sdZAt(x, y){
     const g = sdModelGeo(); if(!g) return null; let z = null;
@@ -10885,8 +10922,9 @@
   }
   // SVG of the section. Equal horizontal/vertical scale so it can be measured by eye.
   function sdSectionSvg(sec, o){
-    o = Object.assign({W:520, H:220, span:50, auto:null, meas:[]}, o||{});
-    const inR = d=> d >= -o.span && d <= o.span;
+    o = Object.assign({W:520, H:220, span:50, center:0, auto:null, meas:[]}, o||{});
+    const C0 = o.center;
+    const inR = d=> d >= C0-o.span && d <= C0+o.span;
     const zs = [];
     sec.segs.forEach(q=>{ if(inR(q.d1)||inR(q.d2)){ zs.push(q.z1, q.z2); } });
     sec.walls.forEach(w=>{ if(inR(w.d)) zs.push(w.top); });
@@ -10894,11 +10932,12 @@
     if(!zs.length) return {svg:`<svg viewBox="0 0 ${o.W} ${o.H}"><text x="${o.W/2}" y="${o.H/2}" text-anchor="middle" font-size="13" fill="#666" font-family="Arial">Nothing from the Revit model crosses this line.</text></svg>`, inv:null};
     let zmin = Math.min(...zs) - 4, zmax = Math.max(...zs) + 5;
     const s = Math.min((o.W-20)/(2*o.span), (o.H-26)/(zmax-zmin));
-    const zc = (zmin+zmax)/2, X = d=> o.W/2 + d*s, Z = z=> (o.H-14)/2 + 4 - (z-zc)*s;
+    const zc = (zmin+zmax)/2, X = d=> o.W/2 + (d-C0)*s, Z = z=> (o.H-14)/2 + 4 - (z-zc)*s;
     zmin = zc - (o.H-26)/(2*s) - 2;
     let g = '';
     // grid every 5 ft
-    for(let d = -Math.floor(o.span/5)*5; d <= o.span; d += 5) g += `<line x1="${X(d)}" y1="0" x2="${X(d)}" y2="${o.H-14}" stroke="#e6ebf2" stroke-width="1"/>`;
+    const gs = o.span > 120 ? 20 : o.span > 40 ? 5 : o.span > 12 ? 1 : 0.5;
+    for(let d = Math.ceil((C0-o.span)/gs)*gs; d <= C0+o.span; d += gs) g += `<line x1="${X(d)}" y1="0" x2="${X(d)}" y2="${o.H-14}" stroke="#e6ebf2" stroke-width="1"/>`;
     sec.boxes.forEach(b=>{ g += `<rect x="${X(b.d1)}" y="${Z(b.top)}" width="${(b.d2-b.d1)*s}" height="${(b.top-b.base)*s}" fill="rgba(178,106,0,0.15)" stroke="#b26a00" stroke-width="1.2"/>`; });
     sec.walls.forEach(w=>{ const base = Math.max(w.base, zmin); g += `<rect x="${X(w.d - w.w/2)}" y="${Z(w.top)}" width="${Math.max(2, w.w*s)}" height="${Math.max(1,(w.top-base)*s)}" fill="#9aa3ad" stroke="#333" stroke-width="1"/>`;
       if(inR(w.d)){ const zr = Math.max(sdSecZ(sec, w.d + w.w/2 + 1.5) ?? -1e9, sdSecZ(sec, w.d - w.w/2 - 1.5) ?? -1e9); if(zr > -1e8 && w.top > zr + 0.1) g += `<text x="${X(w.d)+4}" y="${Z(w.top)-3}" font-size="10" fill="#333" font-family="Arial">${sdFtIn(w.top - zr)}</text>`; } });
@@ -10913,8 +10952,32 @@
     }
     (o.meas||[]).forEach(q=>{ g += `<circle cx="${X(q.d)}" cy="${Z(q.z)}" r="3.5" fill="#1565c0"/>`; });
     if(o.meas && o.meas.length===2){ const [p1,p2] = o.meas; g += `<line x1="${X(p1.d)}" y1="${Z(p1.z)}" x2="${X(p2.d)}" y2="${Z(p2.z)}" stroke="#1565c0" stroke-width="1.5" stroke-dasharray="3 2"/>`; }
-    g += `<text x="4" y="${o.H-3}" font-size="10" fill="#666" font-family="Arial">&larr; ${o.span} ft</text><text x="${o.W-4}" y="${o.H-3}" font-size="10" fill="#666" font-family="Arial" text-anchor="end">${o.span} ft &rarr;</text>`;
-    return {svg:`<svg viewBox="0 0 ${o.W} ${o.H}" xmlns="http://www.w3.org/2000/svg">${g}</svg>`, inv:(px,py)=>({d:(px - o.W/2)/s, z: zc - (py - ((o.H-14)/2 + 4))/s})};
+    g += `<text x="4" y="${o.H-3}" font-size="10" fill="#666" font-family="Arial">grid ${gs<1?'6"':gs+' ft'} &middot; ${sdFtIn(2*o.span)} across</text>`;
+    return {svg:`<svg viewBox="0 0 ${o.W} ${o.H}" xmlns="http://www.w3.org/2000/svg">${g}</svg>`, inv:(px,py)=>({d:C0 + (px - o.W/2)/s, z: zc - (py - ((o.H-14)/2 + 4))/s})};
+  }
+  // Height of the parapet / step along the edge: sample every ~1 ft and group
+  // runs where it stays the same (within 3").
+  function sdProfile(a, c, s){
+    const g = sdModelGeo(); if(!g) return null;
+    const ux = c.x-a.x, uy = c.y-a.y, L = Math.hypot(ux,uy); if(L < 1) return null;
+    const tx = ux/L, ty = uy/L; let nx = -ty, ny = tx;
+    if(((s.x-a.x)*nx + (s.y-a.y)*ny) < 0){ nx = -nx; ny = -ny; }
+    const Lft = L*g.k, n = Math.max(4, Math.min(400, Math.round(Lft))), off = 3/g.k, tol = 1.5/g.k;
+    const wallTop = (x,y)=>{ let top = null; g.walls.forEach(w=>{ for(let i=1;i<w.pts.length;i++){ const [x1,y1] = w.pts[i-1], [x2,y2] = w.pts[i], l2 = (x2-x1)**2+(y2-y1)**2; if(!l2) continue; const t = ((x-x1)*(x2-x1)+(y-y1)*(y2-y1))/l2; if(t < 0 || t > 1) continue; const d = Math.hypot(x1+t*(x2-x1)-x, y1+t*(y2-y1)-y); if(d <= w.wPt/2 + tol && (top===null || w.top > top)) top = w.top; } }); return top; };
+    const samples = [];
+    for(let i=0;i<n;i++){
+      const f = (i+0.5)/n, x = a.x+ux*f, y = a.y+uy*f;
+      const zLow = sdZAt(x+nx*off, y+ny*off), zUp = sdZAt(x-nx*off, y-ny*off), wt = wallTop(x, y);
+      let h = null;
+      if(zLow!=null){ if(zUp!=null && zUp - zLow > 1) h = zUp - zLow; else if(wt!=null && wt > zLow) h = wt - zLow; }
+      samples.push({f, h});
+    }
+    const runs = [];
+    samples.forEach(q=>{ const r = runs[runs.length-1]; if(r && ((r.h==null && q.h==null) || (r.h!=null && q.h!=null && Math.abs(q.h - r.h) <= 0.25))){ r.f1 = q.f + 0.5/n; r.n++; } else runs.push({f0: q.f - 0.5/n, f1: q.f + 0.5/n, h: q.h, n:1}); });
+    // ignore tiny blips (under ~2 ft) by folding them into a neighbour
+    for(let i=runs.length-1;i>=0 && runs.length>1;i--){ if(runs[i].n*Lft/n < 2){ const nb = runs[i-1] || runs[i+1]; nb.f0 = Math.min(nb.f0, runs[i].f0); nb.f1 = Math.max(nb.f1, runs[i].f1); runs.splice(i,1); } }
+    for(let i=runs.length-1;i>0;i--){ const A = runs[i-1], B = runs[i]; if((A.h==null && B.h==null) || (A.h!=null && B.h!=null && Math.abs(A.h-B.h) <= 0.25)){ A.f1 = B.f1; runs.splice(i,1); } }
+    return runs.map(r=>({f0: Math.max(0,r.f0), f1: Math.min(1,r.f1), h: r.h, len: (Math.min(1,r.f1)-Math.max(0,r.f0))*Lft}));
   }
   function sdUpdateMini(a, c, side){
     const box = document.getElementById('sd-mini');
@@ -10937,46 +11000,51 @@
     sdStatus(`Wall ${w.type}: ${sdFtIn(w.top - w.base)} tall` + (roofs.length ? ` · top is ${roofs.map(z=> sdFtIn(w.top - z)).join(' / ')} above the roof beside it` : '') + ` (top El. ${sdFtIn(w.top)})`);
   }
 
-  async function sdDriftDialog(init, sec, canFlip){
+  async function sdDriftDialog(init, sec, canFlip, nSplit){
     const mini = document.getElementById('sd-mini'); if(mini) mini.hidden = true;
     return new Promise(resolve=>{
       const back = document.createElement('div');
       back.className = 'dc-modal-backdrop open';
       back.innerHTML = `<div class="dc-modal" style="max-width:${sec?'820px':'560px'};">
         <h3 style="margin:0 0 8px;">Drift at this edge</h3>
-        ${sec ? `<div class="sd-sec"><div class="row" style="gap:6px;align-items:center;margin-bottom:4px;flex-wrap:wrap"><strong style="font-size:.85rem">Section across the edge</strong><span class="note" style="margin:0">Click two points on it to measure.</span><span style="flex:1"></span><button class="run secondary" data-span="-1" style="width:auto;padding:4px 10px">Closer</button><button class="run secondary" data-span="1" style="width:auto;padding:4px 10px">Wider</button></div><div data-secview style="cursor:crosshair"></div><div class="row" data-measrow style="gap:6px;align-items:center;margin-top:4px;flex-wrap:wrap;font-size:.85rem"></div>${init.autoNote?`<div class="note" style="margin:4px 0 0">${init.autoNote}</div>`:''}</div>` : ''}
+        ${sec ? `<div class="sd-sec"><div class="row" style="gap:6px;align-items:center;margin-bottom:4px;flex-wrap:wrap"><strong style="font-size:.85rem">Section across the edge</strong><span class="note" style="margin:0">Mouse wheel zooms; click two points to measure.</span><span style="flex:1"></span><button class="run secondary" data-span="-1" style="width:auto;padding:4px 10px">Closer</button><button class="run secondary" data-span="1" style="width:auto;padding:4px 10px">Wider</button></div><div data-secview style="cursor:crosshair"></div><div class="row" data-measrow style="gap:6px;align-items:center;margin-top:4px;flex-wrap:wrap;font-size:.85rem"></div>${init.autoNote?`<div class="note" style="margin:4px 0 0">${init.autoNote}</div>`:''}</div>` : ''}
         <div class="grid">
           <div><label>Condition</label><select data-f="type"><option value="step">Roof step (lower roof)</option><option value="parapet">Parapet wall</option><option value="rtu">Rooftop unit / penthouse</option></select></div>
-          <div><label data-lbl="h">Height of step above lower roof (ft)</label><input data-f="h" type="number" step="0.25"></div>
-          <div><label data-lbl="luUp">Upper roof length upwind, l<sub>u</sub> (ft)</label><input data-f="luUp" type="number" step="1"></div>
-          <div data-row="luLow"><label>Lower roof length (windward drift, and truncation) (ft)</label><input data-f="luLow" type="number" step="1"></div>
-          <div data-row="unitLen"><label>Unit side length along this edge (ft)</label><input data-f="unitLen" type="number" step="1"></div>
+          <div><label data-lbl="h">Height of step above lower roof</label><input data-f="h" data-ftin type="text" inputmode="text" placeholder="e.g. 7'-5&quot;"></div>
+          <div><label data-lbl="luUp">Upper roof length upwind, l<sub>u</sub></label><input data-f="luUp" data-ftin type="text" inputmode="text" placeholder="e.g. 7'-5&quot;"></div>
+          <div data-row="luLow"><label>Lower roof length (windward drift, and truncation)</label><input data-f="luLow" data-ftin type="text" inputmode="text" placeholder="e.g. 7'-5&quot;"></div>
+          <div data-row="unitLen"><label>Unit side length along this edge</label><input data-f="unitLen" data-ftin type="text" inputmode="text" placeholder="e.g. 7'-5&quot;"></div>
           <div><label>Label (optional)</label><input data-f="label" type="text"></div>
         </div>
         <div class="note" data-out style="margin-top:8px;"></div>
-        <div class="row" style="margin-top:10px;gap:8px;"><button class="run" data-act="ok">Save drift</button>${canFlip?'<button class="run secondary" data-act="flip" title="The drift is drawn on the wrong side of the line">Drift on the other side</button>':''}<button class="run secondary" data-act="cancel">Cancel</button></div>
+        ${init.splitNote ? `<div class="note" style="margin-top:6px;padding:6px 8px;background:#e8f0fb;border-radius:6px;color:#0d3c78"><b>Height changes along this line.</b> ${smEsc(init.splitNote.replace(/^The height changes along this line: /,''))} Split it so each part gets its own drift, or save it as one.</div>` : ''}
+        <div class="row" style="margin-top:10px;gap:8px;"><button class="run" data-act="ok">Save drift</button>${nSplit>1?`<button class="run" data-act="split" style="background:#1565c0">Split into ${nSplit} drifts</button>`:''}${canFlip?'<button class="run secondary" data-act="flip" title="The drift is drawn on the wrong side of the line">Drift on the other side</button>':''}<button class="run secondary" data-act="cancel">Cancel</button></div>
       </div>`;
       document.body.appendChild(back);
       const f = k=> back.querySelector(`[data-f="${k}"]`);
-      Object.keys(init).forEach(k=>{ if(f(k) && init[k]!=null) f(k).value = init[k]; });
+      delete init.splitNote;
+      Object.keys(init).forEach(k=>{ if(f(k) && init[k]!=null) f(k).value = f(k).hasAttribute('data-ftin') ? (init[k] ? sdFtIn(+init[k]) : '') : init[k]; });
+      back.querySelectorAll('[data-ftin]').forEach(inp=> inp.addEventListener('blur', ()=>{ const v = sdParseFtIn(inp.value); if(v!=null) inp.value = sdFtIn(v); }));
       if(sec){
-        let span = 50, meas = [];
+        let span = 50, center = 0, meas = [];
         const auto = sdAuto(sec);
         const draw = ()=>{
-          const r = sdSectionSvg(sec, {W:780, H:260, span, auto, meas});
+          const r = sdSectionSvg(sec, {W:780, H:260, span, center, auto, meas});
           const v = back.querySelector('[data-secview]'); v.innerHTML = r.svg;
+          v.onwheel = e=>{ e.preventDefault(); if(!r.inv) return; const sv = v.querySelector('svg'), bb = sv.getBoundingClientRect(); const d = r.inv((e.clientX-bb.left)/bb.width*780, 0).d; const ns = Math.max(4, Math.min(400, span*Math.exp(e.deltaY*0.0015))); center = d - (d-center)*ns/span; span = ns; draw(); };
           v.onclick = e=>{ if(!r.inv) return; const sv = v.querySelector('svg'), bb = sv.getBoundingClientRect(); const q = r.inv((e.clientX-bb.left)/bb.width*780, (e.clientY-bb.top)/bb.height*260); meas = meas.length>=2 ? [q] : meas.concat([q]); draw(); };
           const row = back.querySelector('[data-measrow]');
           if(meas.length===2){
             const dh = Math.abs(meas[1].z-meas[0].z), dd = Math.abs(meas[1].d-meas[0].d);
             row.innerHTML = `Measured: height <b>${sdFtIn(dh)}</b>, length <b>${sdFtIn(dd)}</b> <button class="run secondary" data-use="h" style="width:auto;padding:3px 8px">Use height as h</button><button class="run secondary" data-use="luUp" style="width:auto;padding:3px 8px">Use length as l<sub>u</sub></button><button class="run secondary" data-use="luLow" style="width:auto;padding:3px 8px">Use length as lower roof</button>`;
-            row.querySelectorAll('[data-use]').forEach(b=> b.onclick = ()=>{ f(b.dataset.use).value = (b.dataset.use==='h' ? dh : dd).toFixed(2); refresh(); });
+            row.querySelectorAll('[data-use]').forEach(b=> b.onclick = ()=>{ f(b.dataset.use).value = sdFtIn(b.dataset.use==='h' ? dh : dd); refresh(); });
           } else row.innerHTML = meas.length ? 'Click the second point.' : '';
         };
-        back.querySelectorAll('[data-span]').forEach(b=> b.onclick = ()=>{ span = Math.max(15, Math.min(400, span * (b.dataset.span==='1' ? 2 : 0.5))); draw(); });
+        back.querySelectorAll('[data-span]').forEach(b=> b.onclick = ()=>{ span = Math.max(4, Math.min(400, span * (b.dataset.span==='1' ? 2 : 0.5))); draw(); });
         setTimeout(draw, 0);
       }
-      const read = ()=>({type: f('type').value, h: parseFloat(f('h').value)||0, luUp: parseFloat(f('luUp').value)||0, luLow: parseFloat(f('luLow').value)||0, unitLen: parseFloat(f('unitLen').value)||0, label: f('label').value});
+      const num = k=> sdParseFtIn(f(k).value) || 0;
+      const read = ()=>({type: f('type').value, h: num('h'), luUp: num('luUp'), luLow: num('luLow'), unitLen: num('unitLen'), label: f('label').value});
       const refresh = ()=>{
         const d = read();
         back.querySelector('[data-lbl="h"]').textContent = d.type==='step' ? 'Height of step above lower roof (ft)' : d.type==='parapet' ? 'Parapet height above roof (ft)' : 'Unit height above roof (ft)';
@@ -10994,6 +11062,7 @@
         const act = e.target.dataset && e.target.dataset.act;
         if(act==='ok'){ const d = read(); back.remove(); resolve(d); }
         else if(act==='flip'){ back.remove(); resolve({flip:true}); }
+        else if(act==='split'){ const v = read(); back.remove(); resolve({split:true, values:v}); }
         else if(act==='cancel' || e.target===back){ back.remove(); resolve(null); }
       });
     });
@@ -11019,6 +11088,12 @@
     const panel = document.getElementById('snowdrift');
     if(!panel || !panel.classList.contains('active') || e.key!=='Escape' || document.querySelector('.dc-modal-backdrop.open')) return;
     sdPending = null; sdSnapMark = null; const mini = document.getElementById('sd-mini'); if(mini) mini.hidden = true; sdSetTool(sdTool);
+  });
+  document.addEventListener('keydown', e=>{
+    const panel = document.getElementById('snowdrift');
+    if(!panel || !panel.classList.contains('active') || document.querySelector('.dc-modal-backdrop.open') || ['INPUT','TEXTAREA','SELECT'].includes((document.activeElement||{}).tagName)) return;
+    if(e.key.toLowerCase()==='f' && sdSelected){ e.preventDefault(); sdFlipSelected(); }
+    if((e.key==='Delete'||e.key==='Backspace') && sdSelected){ e.preventDefault(); sdDeleteSelected(); }
   });
   async function sdPointer(type, p, ev){
     if(type==='dbl'){ const hit = sdHit(p); if(hit) await sdEdit(hit); return; }
@@ -11062,10 +11137,26 @@
         const sec = sdSection(a, c, s), auto = sdAuto(sec);
         const init = {type:'step', h: 4, luUp: sdLastMeasure ? +sdLastMeasure.toFixed(1) : 50, luLow: 50};
         if(auto && auto.type){ Object.assign(init, {type: auto.type, h: auto.h}); if(auto.luUp) init.luUp = auto.luUp; if(auto.luLow) init.luLow = auto.luLow; init.autoNote = 'Filled in from the Revit model - check them against the section.' + (auto.note ? ' ' + auto.note : ''); }
-        sdPreviewSide = {a, c, s}; sdDraw();
-        d = await sdDriftDialog(init, sec, true);
+        const prof = sdProfile(a, c, s), runs = (prof||[]).filter(r=> r.h!=null);
+        const splits = runs.length > 1 ? runs : null;
+        if(splits) init.splitNote = `The height changes along this line: ${splits.map(r=> `${sdFtIn(r.h)} for ${sdFtIn(r.len)}`).join(', ')}. The blue ticks on the plan show where.`;
+        sdPreviewSide = {a, c, s, cuts: splits ? splits.slice(1).map(r=> r.f0) : []}; sdDraw();
+        d = await sdDriftDialog(init, sec, true, splits ? splits.length : 0);
         sdPreviewSide = null;
         if(d && d.flip){ s = {x: 2*(a.x+c.x)/2 - s.x, y: 2*(a.y+c.y)/2 - s.y}; continue; }
+        if(d && d.split && splits){
+          const base = d.values;
+          splits.forEach((r,k)=>{
+            const p0 = {x:a.x+(c.x-a.x)*r.f0, y:a.y+(c.y-a.y)*r.f0}, p1 = {x:a.x+(c.x-a.x)*r.f1, y:a.y+(c.y-a.y)*r.f1};
+            const au = sdAuto(sdSection(p0, p1, s)) || {};
+            const it = Object.assign({}, base, {h: Math.round(r.h*100)/100, id: 'd'+Date.now().toString(36)+k, page: sdBoard.pageNum, sheetNumber: sdBoard.sheetNumber(), ax:p0.x, ay:p0.y, bx:p1.x, by:p1.y, sx:s.x, sy:s.y});
+            if(au.luUp) it.luUp = au.luUp; if(au.luLow) it.luLow = au.luLow;
+            it.label = base.label ? `${base.label} ${k+1}` : '';
+            sdItems.push(it);
+          });
+          sdRecalcAll(); sdStatus(`Split into ${splits.length} drifts. Click the two ends of the next edge.`);
+          return;
+        }
         break;
       }
       sdDraw();
@@ -11076,10 +11167,21 @@
     }
   }
   async function sdEdit(it){
-    const d = await sdDriftDialog(it, sdSection({x:it.ax,y:it.ay}, {x:it.bx,y:it.by}, {x:it.sx,y:it.sy}));
+    sdSelected = it.id;
+    for(;;){
+      const d = await sdDriftDialog(it, sdSection({x:it.ax,y:it.ay}, {x:it.bx,y:it.by}, {x:it.sx,y:it.sy}), true);
+      if(!d) return;
+      if(d.flip){ sdFlip(it); continue; }
+      Object.assign(it, d); sdRecalcAll(); return;
+    }
+  }
+  async function sdEditOld(it){
+    const d = null;
     if(!d) return;
     Object.assign(it, d); sdRecalcAll();
   }
+  function sdFlip(it){ if(!it) return; const mx = it.ax+it.bx, my = it.ay+it.by; it.sx = mx - it.sx; it.sy = my - it.sy; sdRecalcAll(); }
+  function sdFlipSelected(){ const it = sdItems.find(i=> i.id===sdSelected); if(!it){ sdStatus('Pick Select, click a drift, then Flip side.'); return; } sdFlip(it); }
   function sdDeleteSelected(){ if(!sdSelected) return; sdItems = sdItems.filter(i=>i.id!==sdSelected); sdSelected = null; sdRecalcAll(); }
   function sdGeom(it){
     const r = it.result || {};
@@ -11110,11 +11212,20 @@
     }
     return null;
   }
+  // Overlapping drift bands (e.g. both legs at a corner) merged into one outline.
+  function sdMergedBands(page){
+    if(!window.polygonClipping) return null;
+    const polys = sdItems.filter(i=> i.page===page && !(i.result||{}).none).map(i=>{ const b = sdGeom(i).band; return [b.concat([b[0]])]; }).filter(p=> p[0].length>=4);
+    if(!polys.length) return [];
+    try{ return polygonClipping.union(...polys.map(p=>[p])); }catch(e){ return null; }
+  }
   function sdDraw(){
     const svg = document.getElementById('sd-svg');
     if(!svg || !sdBoard.pageW) return;
     let out = `<defs><pattern id="sd-hatch" patternUnits="userSpaceOnUse" width="4" height="4" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="4" stroke="#333" stroke-width="0.5"/></pattern></defs>`;
     const pts = q=> q.map(v=>v.join(',')).join(' ');
+    const merged = sdMergedBands(sdBoard.pageNum);
+    if(merged) out += `<path d="${merged.map(poly=> poly.map(ring=> 'M ' + ring.map(v=>v.join(' ')).join(' L ') + ' Z').join(' ')).join(' ')}" fill="url(#sd-hatch)" fill-rule="evenodd" stroke="#333" stroke-width="0.75" vector-effect="non-scaling-stroke"/>`;
     sdItems.filter(i=>i.page===sdBoard.pageNum).forEach(it=>{
       const r = it.result||{}, g = sdGeom(it);
       const sel = it.id===sdSelected;
@@ -11123,7 +11234,7 @@
         out += `<text x="${g.tagPt[0]}" y="${g.tagPt[1]}" font-size="7" fill="#d32f2f" font-family="Arial">NO DRIFT</text>`;
         return;
       }
-      out += `<polygon points="${pts(g.band)}" fill="url(#sd-hatch)" stroke="#333" stroke-width="0.75" vector-effect="non-scaling-stroke"/>`;
+      if(!merged) out += `<polygon points="${pts(g.band)}" fill="url(#sd-hatch)" stroke="#333" stroke-width="0.75" vector-effect="non-scaling-stroke"/>`;
       out += `<polygon points="${pts(g.tri)}" fill="#111"/>`;
       out += `<polyline points="${g.tagAnchor.join(',')} ${g.tagPt[0]},${g.tagPt[1]}" fill="none" stroke="#111" stroke-width="1" vector-effect="non-scaling-stroke"/>`;
       out += `<text x="${g.tagPt[0]+2}" y="${g.tagPt[1]+2}" font-size="7" font-family="Arial" fill="#111">${r.tag} PSF</text>`;
@@ -11138,6 +11249,8 @@
     }
     if(sdPreviewSide){
       const {a,c,s} = sdPreviewSide, px = sdBoard.ptPerPx(), m = {x:(a.x+c.x)/2, y:(a.y+c.y)/2}, dx = s.x-m.x, dy = s.y-m.y, L = Math.hypot(dx,dy)||1, e = {x:m.x+dx/L*40*px, y:m.y+dy/L*40*px};
+      const ux = c.x-a.x, uy = c.y-a.y, UL = Math.hypot(ux,uy)||1;
+      (sdPreviewSide.cuts||[]).forEach(f=>{ const x = a.x+ux*f, y = a.y+uy*f, qx = -uy/UL*30*px, qy = ux/UL*30*px; out += `<line x1="${x-qx}" y1="${y-qy}" x2="${x+qx}" y2="${y+qy}" stroke="#1565c0" stroke-width="3" vector-effect="non-scaling-stroke"/>`; });
       out += `<line x1="${a.x}" y1="${a.y}" x2="${c.x}" y2="${c.y}" stroke="#1565c0" stroke-width="3" vector-effect="non-scaling-stroke"/><line x1="${m.x}" y1="${m.y}" x2="${e.x}" y2="${e.y}" stroke="#d32f2f" stroke-width="3" vector-effect="non-scaling-stroke"/><circle cx="${e.x}" cy="${e.y}" r="${5*px}" fill="#d32f2f"/>`;
     }
     if(sdSnapMark && sdTool!=='select'){
@@ -11157,7 +11270,7 @@
     el.innerHTML = here.map((it,n)=>{
       const r = it.result||{};
       return `<div class="sm-listitem${it.id===sdSelected?' sel':''}" onclick="sdSelected='${it.id}';sdDraw();" ondblclick="sdEdit(sdItems.find(x=>x.id==='${it.id}'))"><b>${n+1}. ${SD_TYPE_LABEL[it.type]}${it.label?' — '+smEsc(it.label):''}</b><br>` +
-        (r.none ? `No drift (${smEsc(r.notes.join('; '))})` : `h<sub>d</sub> ${r.hd.toFixed(2)}' · w ${fmtFtIn(r.wDrawn)} · p<sub>d</sub> ${r.pd.toFixed(0)} psf · tag <b>${r.tag} PSF</b>`) + `</div>`;
+        (r.none ? `No drift (${smEsc(r.notes.join('; '))})` : `h ${fmtFtIn(it.h||0)} · h<sub>d</sub> ${r.hd.toFixed(2)}' · w ${fmtFtIn(r.wDrawn)} · p<sub>d</sub> ${r.pd.toFixed(0)} psf · tag <b>${r.tag} PSF</b>`) + ` <a href="#" onclick="event.stopPropagation();sdFlip(sdItems.find(x=>x.id==='${it.id}'));return false;">flip side</a></div>`;
     }).join('');
   }
   function sdDownload(){
@@ -11178,7 +11291,8 @@
         tagText: r.none ? 'NO DRIFT' : `${r.tag} PSF`, widthText: r.none ? '' : fmtFtIn(r.wDrawn)};
     });
     return {format:'tdd-snow-drift', version:1, sourceName: sdBoard.name, isImage: !!sdBoard.img, exportedAt: new Date().toISOString(),
-      criteria: C, ptsPerFt: sdPtsPerFt, units:'pdf-points, origin top-left', pages, items};
+      criteria: C, ptsPerFt: sdPtsPerFt, units:'pdf-points, origin top-left', pages, items,
+      hatchRegions: Object.keys(pages).map(pg=>({page:+pg, sheetNumber: pages[pg].sheetNumber, polygons: (sdMergedBands(+pg)||[]).map(poly=> poly.map(ring=> ring.slice(0,-1)))}))};
   }
   async function sdOpenDriftFile(file){
     if(!file) return;
