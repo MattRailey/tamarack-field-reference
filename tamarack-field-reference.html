@@ -592,6 +592,24 @@
 
         <div class="sm-layout" id="g-layout" style="align-items:flex-start;">
           <div class="card sm-side" id="g-side-panel" style="width:300px;">
+            <div class="grp" id="gb-lib">
+              <p class="grp-label">Saved beams</p>
+              <div class="row" style="flex-direction:column;align-items:stretch;gap:5px;margin-bottom:0;">
+                <div class="pv-field" style="justify-content:space-between;">Title<input id="gb-title" type="text" placeholder="e.g. 26-027 B1 garage header" style="flex:1;max-width:190px;padding:3px 6px;font-size:.76rem;"></div>
+                <div class="pv-field" style="justify-content:space-between;gap:6px;">
+                  <button class="pv-btn" onclick="document.getElementById('gb-pdf').click()" title="Attach the PDF sheet this beam is on - it's stored with the beam">Attach PDF&hellip;</button>
+                  <input id="gb-pdf" type="file" accept="application/pdf" style="display:none" onchange="gbPickPdf(this.files[0]); this.value='';">
+                  <span id="gb-pdfname" class="note" style="margin:0;flex:1;overflow:hidden;text-overflow:ellipsis;">No PDF</span>
+                </div>
+                <div style="display:flex;gap:6px;">
+                  <button class="pv-btn" onclick="gbSave(false)" title="Save as a new beam in the list">Save as new</button>
+                  <button class="pv-btn" id="gb-update" onclick="gbSave(true)" style="display:none;" title="Overwrite the beam you loaded with the current inputs">Update loaded</button>
+                  <button class="pv-btn" onclick="gbNew()" title="Clear the title/PDF and start a fresh beam (your current inputs stay)">New</button>
+                </div>
+                <input id="gb-search" type="text" placeholder="Search saved beams&hellip;" oninput="gbRenderList()" style="padding:3px 6px;font-size:.76rem;">
+                <div id="gb-list" style="max-height:220px;overflow:auto;font-size:.8rem;"></div>
+              </div>
+            </div>
             <div class="grp">
               <p class="grp-label">Load case &amp; member</p>
               <div class="row" style="flex-direction:column;align-items:stretch;gap:5px;margin-bottom:0;">
@@ -626,6 +644,15 @@
                     <option value="46">46 — A500 Gr. B (HSS)</option>
                     <option value="custom">— custom Fy —</option>
                   </select>
+                </div>
+                <div class="pv-field hide" id="g-steel-width-wrap" style="justify-content:space-between;" title="Fix the width (WF flange width, or HSS tube width) to match the wall/post below">Width
+                  <select id="g-steel-width" onchange="updateBeamAnalysis()" style="flex:1;max-width:190px;"></select>
+                </div>
+                <div class="pv-field hide" id="g-steel-depth-wrap" style="justify-content:space-between;" title="Fix the depth (WF nominal series, or HSS tube depth). Set both width and depth on an HSS to solve for wall thickness.">Depth
+                  <select id="g-steel-depth" onchange="updateBeamAnalysis()" style="flex:1;max-width:190px;"></select>
+                </div>
+                <div class="pv-field hide" id="g-steel-thick-wrap" style="justify-content:space-between;" title="HSS wall thickness. Hold any two of width / depth / wall and it solves the third.">Wall thick.
+                  <select id="g-steel-thick" onchange="updateBeamAnalysis()" style="flex:1;max-width:190px;"></select>
                 </div>
                 <div class="pv-field hide" id="g-steel-fy-custom-wrap" style="justify-content:space-between;">Custom Fy (ksi)<input id="g-steel-fy-custom" type="number" inputmode="decimal" value="50" step="1" oninput="updateBeamAnalysis()" style="width:80px;"></div>
                 <div class="pv-field" id="g-width-wrap" style="justify-content:space-between;">Beam width
@@ -5386,6 +5413,7 @@
   // (without stomping on a custom Fy the user already typed in). Everything
   // else routes through onBeamMaterialChange().
   function onMemberTypeChange(){
+    if(typeof scheduleBeamRedraw==='function') scheduleBeamRedraw();
     const memberTypeEl = document.getElementById('g-member-type');
     const type = memberTypeEl ? memberTypeEl.value : 'glulam';
     const fyEl = document.getElementById('g-steel-fy');
@@ -5411,6 +5439,10 @@
     document.getElementById('g-species-wrap').classList.toggle('hide', !fbCustom);
     document.getElementById('g-e-custom-wrap').classList.toggle('hide', isSawn || isSteel || document.getElementById('g-e').value!=='custom');
     document.getElementById('g-steel-grade-wrap').classList.toggle('hide', !isSteel);
+    document.getElementById('g-steel-width-wrap').classList.toggle('hide', !isSteel);
+    document.getElementById('g-steel-depth-wrap').classList.toggle('hide', !isSteel);
+    document.getElementById('g-steel-thick-wrap').classList.toggle('hide', type!=='hss');
+    if(isSteel) refreshSteelDims();
     document.getElementById('g-steel-fy-custom-wrap').classList.toggle('hide', !isSteel || document.getElementById('g-steel-fy').value!=='custom');
     if(typeof updateBeamAnalysis==='function') updateBeamAnalysis();
   }
@@ -5712,7 +5744,141 @@
     drawBeamDiagram();
     drawShearMomentDiagrams();
     calcGlulam();
+    if(typeof gbAutoSave==='function') gbAutoSave();
   }
+
+  // ---- Beam Sizing memory: autosave the working beam + a saved-beam library ----
+  // The working beam (every input, supports, point loads) is saved to
+  // localStorage on every change and restored on reload. "Save" puts a named
+  // copy - plus an optional PDF - into IndexedDB (tfr-beams), listed above.
+  const GB_KEY = 'tfrBeamWorking', GB_DB = 'tfr-beams', GB_STORE = 'beams';
+  let gbRestoring = false, gbTimer = null, gbLoadedId = null, gbPdf = null; // gbPdf = {name, buf}
+  function gbCapture(){
+    const vals = {};
+    document.querySelectorAll('#g-side-panel input[id], #g-side-panel select[id]').forEach(el=>{
+      if(/^gb-|^g-pl-(mag|loc)-/.test(el.id) || el.type==='file') return;
+      vals[el.id] = el.type==='checkbox' ? el.checked : el.value;
+    });
+    const pl = [];
+    for(let i=0;i<4;i++){ const m = document.getElementById('g-pl-mag-'+i), l = document.getElementById('g-pl-loc-'+i); if(m) pl.push({m:m.value, l:l?l.value:''}); }
+    return {vals, pl, supports:[...beamSupports], types:[...beamSupportTypes], locked:beamLockedTotal};
+  }
+  function gbApply(st){
+    if(!st || !st.vals) return;
+    gbRestoring = true;
+    try{
+      const setv = id=>{ const el = document.getElementById(id); if(!el || !(id in st.vals)) return; if(el.type==='checkbox') el.checked = !!st.vals[id]; else el.value = st.vals[id]; };
+      ['g-member-type','g-steel-fy','g-width','g-fb','g-e'].forEach(setv);
+      if(typeof onBeamMaterialChange==='function') onBeamMaterialChange();
+      Object.keys(st.vals).forEach(setv);
+      if(typeof onBeamMaterialChange==='function') onBeamMaterialChange();
+      Object.keys(st.vals).forEach(setv); // steel width/depth/wall options exist now
+      if(Array.isArray(st.supports) && st.supports.length>=2){ beamSupports = st.supports.slice(); beamSupportTypes = (st.types||[]).slice(); while(beamSupportTypes.length<beamSupports.length) beamSupportTypes.push('post'); }
+      beamLockedTotal = (st.locked==null ? null : st.locked);
+      onPointLoadCountChange();
+      (st.pl||[]).forEach((q,i)=>{ const m = document.getElementById('g-pl-mag-'+i), l = document.getElementById('g-pl-loc-'+i); if(m) m.value = q.m; if(l) l.value = q.l; });
+      updateBeamAnalysis();
+    } finally { gbRestoring = false; }
+  }
+  function gbAutoSave(){
+    if(gbRestoring) return;
+    clearTimeout(gbTimer);
+    gbTimer = setTimeout(()=>{ try{ localStorage.setItem(GB_KEY, JSON.stringify({state:gbCapture(), loadedId:gbLoadedId, title:(document.getElementById('gb-title')||{}).value||''})); }catch(e){} }, 300);
+  }
+  function gbIdb(mode, fn){
+    return new Promise((resolve, reject)=>{
+      const req = indexedDB.open(GB_DB, 1);
+      req.onupgradeneeded = ()=> req.result.createObjectStore(GB_STORE, {keyPath:'id'});
+      req.onerror = ()=> reject(req.error);
+      req.onsuccess = ()=>{
+        const tx = req.result.transaction(GB_STORE, mode), st = tx.objectStore(GB_STORE);
+        const r = fn(st); tx.oncomplete = ()=> resolve(r && r.result); tx.onerror = ()=> reject(tx.error);
+      };
+    });
+  }
+  function gbPickPdf(f){
+    if(!f) return;
+    f.arrayBuffer().then(buf=>{ gbPdf = {name:f.name, buf}; gbShowPdf(); });
+  }
+  function gbShowPdf(){ const el = document.getElementById('gb-pdfname'); if(el) el.textContent = gbPdf ? gbPdf.name : 'No PDF'; }
+  function gbNew(){
+    gbLoadedId = null; gbPdf = null;
+    document.getElementById('gb-title').value = '';
+    document.getElementById('gb-update').style.display = 'none';
+    gbShowPdf(); gbAutoSave(); gbRenderList();
+  }
+  function gbSummary(){
+    const r = document.querySelector('#g-result .headline');
+    return r ? r.textContent.replace(/^Suggested:\s*/,'') : '';
+  }
+  async function gbSave(overwrite){
+    const titleEl = document.getElementById('gb-title');
+    let title = titleEl.value.trim();
+    if(!title){ title = prompt('Title for this beam:', '') || ''; title = title.trim(); if(!title) return; titleEl.value = title; }
+    const id = (overwrite && gbLoadedId) ? gbLoadedId : ('b' + Date.now().toString(36));
+    const rec = {id, title, savedAt:new Date().toISOString(), state:gbCapture(), summary:gbSummary(), pdfName:gbPdf?gbPdf.name:'', pdf:gbPdf?gbPdf.buf:null};
+    try{ await gbIdb('readwrite', st=> st.put(rec)); }
+    catch(e){ alert('Could not save the beam: ' + (e && e.message || e)); return; }
+    gbLoadedId = id;
+    document.getElementById('gb-update').style.display = '';
+    gbAutoSave(); gbRenderList();
+    if(typeof showLoadToast==='function') showLoadToast(`Saved "${title}"${gbPdf?' with '+gbPdf.name:''}.`);
+  }
+  async function gbLoad(id){
+    const rec = await gbIdb('readonly', st=> st.get(id));
+    if(!rec) return;
+    gbApply(rec.state);
+    gbLoadedId = rec.id;
+    document.getElementById('gb-title').value = rec.title;
+    gbPdf = rec.pdf ? {name:rec.pdfName||'attached.pdf', buf:rec.pdf} : null;
+    gbShowPdf();
+    document.getElementById('gb-update').style.display = '';
+    gbAutoSave(); gbRenderList();
+  }
+  async function gbOpenPdf(id){
+    const rec = await gbIdb('readonly', st=> st.get(id));
+    if(!rec || !rec.pdf) return;
+    if(typeof showPanel==='function') showPanel('pdfcompare');
+    if(typeof pcSetMode==='function') pcSetMode('single');
+    if(typeof pvLoadFiles==='function') await pvLoadFiles([new File([rec.pdf.slice(0)], rec.pdfName||'attached.pdf', {type:'application/pdf'})]);
+  }
+  async function gbDelete(id){
+    const rec = await gbIdb('readonly', st=> st.get(id));
+    if(!rec || !confirm(`Remove "${rec.title}" from saved beams?`)) return;
+    await gbIdb('readwrite', st=> st.delete(id));
+    if(gbLoadedId===id){ gbLoadedId = null; document.getElementById('gb-update').style.display = 'none'; }
+    gbRenderList();
+  }
+  async function gbRenderList(){
+    const el = document.getElementById('gb-list'); if(!el) return;
+    let all = [];
+    try{ all = await gbIdb('readonly', st=> st.getAll()) || []; }catch(e){}
+    const q = ((document.getElementById('gb-search')||{}).value||'').toLowerCase().trim();
+    all = all.filter(r=> !q || (r.title+' '+(r.summary||'')+' '+(r.pdfName||'')).toLowerCase().includes(q))
+             .sort((a,b)=> b.savedAt.localeCompare(a.savedAt));
+    if(!all.length){ el.innerHTML = `<div class="note" style="margin:4px 0 0;">${q?'No matches.':'Nothing saved yet.'}</div>`; return; }
+    el.innerHTML = all.map(r=>`<div class="sm-listitem${r.id===gbLoadedId?' sel':''}" style="padding:5px 7px;margin-bottom:4px;" onclick="gbLoad('${r.id}')" title="Load this beam's inputs">
+        <div style="display:flex;justify-content:space-between;gap:6px;align-items:center;"><b style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${smEsc(r.title)}</b>
+          <span style="display:flex;gap:4px;flex:none;">${r.pdf?`<a href="#" onclick="event.stopPropagation();gbOpenPdf('${r.id}');return false;" title="Open ${smEsc(r.pdfName||'')} in PDF Viewer">PDF</a>`:''}<a href="#" onclick="event.stopPropagation();gbDelete('${r.id}');return false;" style="color:#c62828;" title="Remove from the list">&times;</a></span></div>
+        <div class="note" style="margin:0;">${smEsc(r.summary||'')}${r.summary?' &middot; ':''}${new Date(r.savedAt).toLocaleDateString()}</div>
+      </div>`).join('');
+  }
+  window.addEventListener('load', ()=> setTimeout(()=>{
+    try{
+      const raw = localStorage.getItem(GB_KEY);
+      if(raw){
+        const w = JSON.parse(raw);
+        gbApply(w.state);
+        gbLoadedId = w.loadedId || null;
+        if(w.title) document.getElementById('gb-title').value = w.title;
+        if(gbLoadedId){
+          document.getElementById('gb-update').style.display = '';
+          gbIdb('readonly', st=> st.get(gbLoadedId)).then(rec=>{ if(rec && rec.pdf){ gbPdf = {name:rec.pdfName, buf:rec.pdf}; gbShowPdf(); } else if(!rec){ gbLoadedId = null; document.getElementById('gb-update').style.display = 'none'; } }).catch(()=>{});
+        }
+      }
+    }catch(e){ console.warn('Beam Sizing: could not restore last beam', e); }
+    gbRenderList();
+  }, 0));
 
   function spansFromSupports(){
     const s = [...beamSupports].sort((a,b)=>a-b);
@@ -5803,6 +5969,11 @@
           <stop offset="55%" stop-color="#a8703f"/>
           <stop offset="100%" stop-color="#96602f"/>
         </linearGradient>
+        <linearGradient id="steelGrad" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stop-color="#aeb7c0"/>
+          <stop offset="50%" stop-color="#8d97a1"/>
+          <stop offset="100%" stop-color="#6f7983"/>
+        </linearGradient>
       </defs>`);
 
     // ground line
@@ -5811,11 +5982,36 @@
     // beam body (start point = leftmost x incl. start overhang, end = incl. end overhang)
     const xLeft = ftToX(supports[0]-ohStart);
     const xRight = ftToX(supports[supports.length-1]+ohEnd);
-    svgParts.push(`<rect class="beam-body" x="${xLeft}" y="${beamY}" width="${xRight-xLeft}" height="${beamH}" rx="3" fill="url(#woodGrad)" stroke="#6b4423" stroke-width="1.5" style="cursor:copy;"/>`);
-    // wood grain lines
-    for(let i=1;i<7;i++){
-      const gy = beamY + (beamH/7)*i + (Math.sin(i*13)*2);
-      svgParts.push(`<path d="M ${xLeft+4} ${gy} Q ${(xLeft+xRight)/2} ${gy+(i%2?3:-3)} ${xRight-4} ${gy}" stroke="#6b4423" stroke-width="0.6" fill="none" opacity="0.35"/>`);
+    // Beam body drawn to match the Member type picked in the inputs.
+    const mtEl = document.getElementById('g-member-type');
+    const mType = mtEl ? mtEl.value : 'glulam';
+    if(mType==='wf' || mType==='hss'){
+      const fl = mType==='wf' ? 7 : 5;   // flange / tube-wall band thickness in the elevation
+      svgParts.push(`<rect class="beam-body" x="${xLeft}" y="${beamY}" width="${xRight-xLeft}" height="${beamH}" rx="${mType==='hss'?4:1}" fill="url(#steelGrad)" stroke="#3d4650" stroke-width="1.5" style="cursor:copy;"/>`);
+      svgParts.push(`<rect x="${xLeft}" y="${beamY}" width="${xRight-xLeft}" height="${fl}" fill="#5c6670" pointer-events="none"/>`);
+      svgParts.push(`<rect x="${xLeft}" y="${beamY+beamH-fl}" width="${xRight-xLeft}" height="${fl}" fill="#5c6670" pointer-events="none"/>`);
+      if(mType==='wf'){
+        svgParts.push(`<rect x="${xLeft+1}" y="${beamY+fl}" width="${xRight-xLeft-2}" height="${beamH-2*fl}" fill="#9aa4ae" pointer-events="none"/>`);
+      } else {
+        // hidden inner wall lines of the hollow tube
+        [beamY+fl, beamY+beamH-fl].forEach(y=> svgParts.push(`<line x1="${xLeft+4}" y1="${y}" x2="${xRight-4}" y2="${y}" stroke="#2c333a" stroke-width="0.8" stroke-dasharray="6 4" pointer-events="none"/>`));
+        svgParts.push(`<rect x="${xLeft+1}" y="${beamY+fl}" width="${xRight-xLeft-2}" height="${beamH-2*fl}" fill="#b7c0c9" opacity="0.6" pointer-events="none"/>`);
+      }
+    } else {
+      svgParts.push(`<rect class="beam-body" x="${xLeft}" y="${beamY}" width="${xRight-xLeft}" height="${beamH}" rx="3" fill="url(#woodGrad)" stroke="#6b4423" stroke-width="1.5" style="cursor:copy;"/>`);
+      if(mType==='sawn'){
+        // wavy sawn-lumber grain
+        for(let i=1;i<7;i++){
+          const gy = beamY + (beamH/7)*i + (Math.sin(i*13)*2);
+          svgParts.push(`<path d="M ${xLeft+4} ${gy} Q ${(xLeft+xRight)/2} ${gy+(i%2?3:-3)} ${xRight-4} ${gy}" stroke="#6b4423" stroke-width="0.6" fill="none" opacity="0.35" pointer-events="none"/>`);
+        }
+      } else {
+        // glulam: straight, evenly spaced laminations
+        for(let i=1;i<8;i++){
+          const gy = beamY + (beamH/8)*i;
+          svgParts.push(`<line x1="${xLeft+2}" y1="${gy}" x2="${xRight-2}" y2="${gy}" stroke="#6b4423" stroke-width="0.7" opacity="0.45" pointer-events="none"/>`);
+        }
+      }
     }
 
     // overhang shading (lighter, to distinguish cantilever from bay)
@@ -6083,50 +6279,82 @@
   // against the current AISC Steel Construction Manual (or a stamped calc)
   // before it goes on a drawing.
   const WF_SHAPES = [
-    {key:'W8x10',  wt:10, d:7.89,  Sx:7.81,  Ix:30.8},
-    {key:'W10x12', wt:12, d:9.87,  Sx:10.9,  Ix:53.8},
-    {key:'W8x13',  wt:13, d:7.99,  Sx:9.91,  Ix:39.6},
-    {key:'W12x14', wt:14, d:11.9,  Sx:14.9,  Ix:88.6},
-    {key:'W8x15',  wt:15, d:8.11,  Sx:11.8,  Ix:48.0},
-    {key:'W10x15', wt:15, d:9.99,  Sx:13.8,  Ix:68.9},
-    {key:'W12x16', wt:16, d:11.99, Sx:17.1,  Ix:103},
-    {key:'W10x17', wt:17, d:10.1,  Sx:16.2,  Ix:81.9},
-    {key:'W8x18',  wt:18, d:8.14,  Sx:15.2,  Ix:61.9},
-    {key:'W10x19', wt:19, d:10.2,  Sx:18.8,  Ix:96.3},
-    {key:'W12x19', wt:19, d:12.2,  Sx:21.3,  Ix:130},
-    {key:'W8x21',  wt:21, d:8.28,  Sx:18.2,  Ix:75.3},
-    {key:'W10x22', wt:22, d:10.2,  Sx:23.2,  Ix:118},
-    {key:'W12x22', wt:22, d:12.3,  Sx:25.4,  Ix:156},
-    {key:'W14x22', wt:22, d:13.7,  Sx:29.0,  Ix:199},
-    {key:'W8x24',  wt:24, d:7.93,  Sx:20.9,  Ix:82.7},
-    {key:'W10x26', wt:26, d:10.3,  Sx:27.9,  Ix:144},
-    {key:'W12x26', wt:26, d:12.2,  Sx:33.4,  Ix:204},
-    {key:'W14x26', wt:26, d:13.9,  Sx:35.3,  Ix:245},
-    {key:'W16x26', wt:26, d:15.7,  Sx:38.4,  Ix:301},
-    {key:'W10x30', wt:30, d:10.5,  Sx:32.4,  Ix:170},
-    {key:'W12x30', wt:30, d:12.3,  Sx:38.6,  Ix:238},
-    {key:'W14x30', wt:30, d:13.8,  Sx:42.0,  Ix:291},
-    {key:'W16x31', wt:31, d:15.9,  Sx:47.2,  Ix:375},
-    {key:'W14x34', wt:34, d:14.0,  Sx:48.6,  Ix:340},
-    {key:'W12x35', wt:35, d:12.5,  Sx:45.6,  Ix:285},
-    {key:'W18x35', wt:35, d:17.7,  Sx:57.6,  Ix:510},
-    {key:'W16x36', wt:36, d:15.9,  Sx:56.5,  Ix:448},
-    {key:'W18x40', wt:40, d:17.9,  Sx:68.4,  Ix:612}
+    {key:'W8x10',  wt:10, d:7.89,  Sx:7.81,  Ix:30.8, bf:3.94},
+    {key:'W10x12', wt:12, d:9.87,  Sx:10.9,  Ix:53.8, bf:3.96},
+    {key:'W8x13',  wt:13, d:7.99,  Sx:9.91,  Ix:39.6, bf:4.0},
+    {key:'W12x14', wt:14, d:11.9,  Sx:14.9,  Ix:88.6, bf:3.97},
+    {key:'W8x15',  wt:15, d:8.11,  Sx:11.8,  Ix:48.0, bf:4.015},
+    {key:'W10x15', wt:15, d:9.99,  Sx:13.8,  Ix:68.9, bf:4.0},
+    {key:'W12x16', wt:16, d:11.99, Sx:17.1,  Ix:103, bf:3.99},
+    {key:'W10x17', wt:17, d:10.1,  Sx:16.2,  Ix:81.9, bf:4.01},
+    {key:'W8x18',  wt:18, d:8.14,  Sx:15.2,  Ix:61.9, bf:5.25},
+    {key:'W10x19', wt:19, d:10.2,  Sx:18.8,  Ix:96.3, bf:4.02},
+    {key:'W12x19', wt:19, d:12.2,  Sx:21.3,  Ix:130, bf:4.01},
+    {key:'W8x21',  wt:21, d:8.28,  Sx:18.2,  Ix:75.3, bf:5.27},
+    {key:'W10x22', wt:22, d:10.2,  Sx:23.2,  Ix:118, bf:5.75},
+    {key:'W12x22', wt:22, d:12.3,  Sx:25.4,  Ix:156, bf:4.03},
+    {key:'W14x22', wt:22, d:13.7,  Sx:29.0,  Ix:199, bf:5.0},
+    {key:'W8x24',  wt:24, d:7.93,  Sx:20.9,  Ix:82.7, bf:6.495},
+    {key:'W10x26', wt:26, d:10.3,  Sx:27.9,  Ix:144, bf:5.77},
+    {key:'W12x26', wt:26, d:12.2,  Sx:33.4,  Ix:204, bf:6.49},
+    {key:'W14x26', wt:26, d:13.9,  Sx:35.3,  Ix:245, bf:5.025},
+    {key:'W16x26', wt:26, d:15.7,  Sx:38.4,  Ix:301, bf:5.5},
+    {key:'W10x30', wt:30, d:10.5,  Sx:32.4,  Ix:170, bf:5.81},
+    {key:'W12x30', wt:30, d:12.3,  Sx:38.6,  Ix:238, bf:6.52},
+    {key:'W14x30', wt:30, d:13.8,  Sx:42.0,  Ix:291, bf:6.73},
+    {key:'W16x31', wt:31, d:15.9,  Sx:47.2,  Ix:375, bf:5.525},
+    {key:'W14x34', wt:34, d:14.0,  Sx:48.6,  Ix:340, bf:6.75},
+    {key:'W12x35', wt:35, d:12.5,  Sx:45.6,  Ix:285, bf:6.56},
+    {key:'W18x35', wt:35, d:17.7,  Sx:57.6,  Ix:510, bf:6.0},
+    {key:'W16x36', wt:36, d:15.9,  Sx:56.5,  Ix:448, bf:6.985},
+    {key:'W18x40', wt:40, d:17.9,  Sx:68.4,  Ix:612, bf:6.015}
   ].sort((a,b)=> a.wt-b.wt);
   const HSS_SHAPES = [
-    {key:'HSS3x3x3/16', wt:6.87,  d:3, Sx:1.86,  Ix:2.78},
-    {key:'HSS4x4x3/16', wt:8.81,  d:4, Sx:3.65,  Ix:7.29},
-    {key:'HSS5x5x3/16', wt:11.1,  d:5, Sx:5.96,  Ix:14.9},
-    {key:'HSS4x4x1/4',  wt:11.4,  d:4, Sx:4.34,  Ix:8.68},
-    {key:'HSS6x6x3/16', wt:13.5,  d:6, Sx:8.80,  Ix:26.4},
-    {key:'HSS5x5x1/4',  wt:14.5,  d:5, Sx:7.44,  Ix:18.6},
-    {key:'HSS6x6x1/4',  wt:17.8,  d:6, Sx:11.1,  Ix:33.4},
-    {key:'HSS8x8x1/4',  wt:24.7,  d:8, Sx:19.9,  Ix:79.5},
-    {key:'HSS6x6x5/16', wt:21.9,  d:6, Sx:13.2,  Ix:39.5},
-    {key:'HSS6x6x3/8',  wt:25.8,  d:6, Sx:14.9,  Ix:44.8},
-    {key:'HSS8x8x5/16', wt:30.5,  d:8, Sx:24.1,  Ix:96.3},
-    {key:'HSS8x8x3/8',  wt:36.2,  d:8, Sx:28.0,  Ix:112}
+    {key:'HSS3x3x3/16', wt:6.87,  d:3, Sx:1.86,  Ix:2.78, b:3},
+    {key:'HSS4x4x3/16', wt:8.81,  d:4, Sx:3.65,  Ix:7.29, b:4},
+    {key:'HSS5x5x3/16', wt:11.1,  d:5, Sx:5.96,  Ix:14.9, b:5},
+    {key:'HSS4x4x1/4',  wt:11.4,  d:4, Sx:4.34,  Ix:8.68, b:4},
+    {key:'HSS6x6x3/16', wt:13.5,  d:6, Sx:8.80,  Ix:26.4, b:6},
+    {key:'HSS5x5x1/4',  wt:14.5,  d:5, Sx:7.44,  Ix:18.6, b:5},
+    {key:'HSS6x6x1/4',  wt:17.8,  d:6, Sx:11.1,  Ix:33.4, b:6},
+    {key:'HSS8x8x1/4',  wt:24.7,  d:8, Sx:19.9,  Ix:79.5, b:8},
+    {key:'HSS6x6x5/16', wt:21.9,  d:6, Sx:13.2,  Ix:39.5, b:6},
+    {key:'HSS6x6x3/8',  wt:25.8,  d:6, Sx:14.9,  Ix:44.8, b:6},
+    {key:'HSS8x8x5/16', wt:30.5,  d:8, Sx:24.1,  Ix:96.3, b:8},
+    {key:'HSS8x8x3/8',  wt:36.2,  d:8, Sx:28.0,  Ix:112, b:8},
+    // Rectangular HSS, bending about the strong (depth) axis
+    {key:'HSS6x4x1/4',  wt:15.6, d:6,  b:4, Sx:7.93, Ix:23.8},
+    {key:'HSS6x4x3/8',  wt:21.9, d:6,  b:4, Sx:10.6, Ix:31.9},
+    {key:'HSS8x4x1/4',  wt:17.7, d:8,  b:4, Sx:11.1, Ix:44.3},
+    {key:'HSS8x4x3/8',  wt:25.8, d:8,  b:4, Sx:15.5, Ix:61.8},
+    {key:'HSS8x6x1/4',  wt:21.9, d:8,  b:6, Sx:14.8, Ix:59.3},
+    {key:'HSS8x6x3/8',  wt:32.0, d:8,  b:6, Sx:20.4, Ix:81.7},
+    {key:'HSS10x6x1/4', wt:24.7, d:10, b:6, Sx:18.2, Ix:90.9},
+    {key:'HSS10x6x3/8', wt:36.2, d:10, b:6, Sx:25.3, Ix:126}
   ].sort((a,b)=> a.wt-b.wt);
+  // Steel "set width / set depth" filters. WF width = flange bf bucketed to 1/4",
+  // WF depth = nominal series (W8, W10...). HSS width/depth are the tube's b x d.
+  function steelWidthOf(sh){ return sh.bf!=null ? Math.round(sh.bf/0.25)*0.25 : sh.b; }
+  function steelDepthOf(sh){ return sh.bf!=null ? +sh.key.match(/^W(\d+)/)[1] : sh.d; }
+  function steelThickOf(sh){ if(sh.bf!=null) return null; const f = sh.key.split('x').pop().split('/'); return f.length>1 ? +f[0]/+f[1] : +f[0]; }
+  function steelFracTxt(v){ const m = {0.125:'1/8',0.1875:'3/16',0.25:'1/4',0.3125:'5/16',0.375:'3/8',0.5:'1/2',0.625:'5/8'}; return (m[v]||v)+'"'; }
+  function steelFill(selId, vals, fmt){
+    const sel = document.getElementById(selId); if(!sel) return;
+    const prev = sel.value;
+    sel.innerHTML = '<option value="">Any — solve it</option>' + vals.map(v=>`<option value="${v}">${fmt(v)}</option>`).join('');
+    if(vals.map(String).includes(prev)) sel.value = prev;
+  }
+  function refreshSteelDims(){
+    const t = document.getElementById('g-member-type').value;
+    if(t!=='wf' && t!=='hss') return;
+    const cat = t==='wf' ? WF_SHAPES : HSS_SHAPES;
+    const u = a=> [...new Set(a)].sort((x,y)=>x-y);
+    steelFill('g-steel-width', u(cat.map(steelWidthOf)), v=> `${v}"`);
+    steelFill('g-steel-depth', u(cat.map(steelDepthOf)), v=> t==='wf' ? `W${v}` : `${v}"`);
+    const tw = document.getElementById('g-steel-thick-wrap');
+    if(tw) tw.classList.toggle('hide', t!=='hss');
+    if(t==='hss') steelFill('g-steel-thick', u(cat.map(steelThickOf)), steelFracTxt);
+  }
   const widths = [3.125, 5.125, 5.5, 6.75, 7.5, 8.75, 9.5];
   function depthsForWidth(b){
     const sizes = [];
@@ -6315,7 +6543,12 @@
       const Mreq = Sreq * fb / 12; // recover the raw required moment (fb cancels out - see note above)
       const MreqInLb = Mreq * 12;
       const FbAllow = 0.60 * steelFy * 1000; // psi
-      const catalog = isWF ? WF_SHAPES : HSS_SHAPES;
+      const wSel = (document.getElementById('g-steel-width')||{}).value || '';
+      const dSel = (document.getElementById('g-steel-depth')||{}).value || '';
+      const tSel = isHSS ? ((document.getElementById('g-steel-thick')||{}).value || '') : '';
+      const catalog = (isWF ? WF_SHAPES : HSS_SHAPES).filter(sh=> (!wSel || steelWidthOf(sh)===+wSel) && (!dSel || steelDepthOf(sh)===+dSel) && (!tSel || Math.abs(steelThickOf(sh)-(+tSel))<1e-6));
+      const open = [!wSel&&'width', !dSel&&'depth', isHSS&&!tSel&&'wall thickness'].filter(Boolean);
+      const solving = !open.length ? 'nothing (all three held — just checking it)' : (isWF && !wSel && !dSel ? 'size' : open.join(' + ') + (isWF ? ' / weight' : ''));
       let fit = null;
       for(const sz of catalog){
         const Mallow = FbAllow * sz.Sx; // in-lb
@@ -6326,7 +6559,9 @@
         box.classList.remove('warn');
         const MallowFt = fit.Mallow/12;
         const bendPct = Mreq/MallowFt*100, deflPct = Ireq/fit.Ix*100;
-        box.innerHTML = `<div class="headline">Suggested: ${fit.key} (${fit.wt} plf, ${typeLabel})</div>
+        const held = [wSel&&`width ${wSel}"`, dSel&&`depth ${isWF?'W'+dSel:dSel+'"'}`, tSel&&`wall ${steelFracTxt(+tSel)}`].filter(Boolean);
+        const fixedNote = held.length ? `<div class="note" style="margin:2px 0 4px;">Held: ${held.join(', ')} &mdash; solved for ${solving}${isHSS?` &rarr; ${fit.b}" wide x ${fit.d}" deep x ${steelFracTxt(steelThickOf(fit))} wall`:''}</div>` : '';
+        box.innerHTML = `<div class="headline">Suggested: ${fit.key} (${fit.wt} plf, ${typeLabel})</div>${fixedNote}
           Fy = ${steelFy} ksi &nbsp; w = ${w.toFixed(0)} plf${loadBreakdown}${bayNote}${plNote}${contNote}<br>
           Moment required = ${Mreq.toFixed(0)} ft-lb -> allowable ${MallowFt.toFixed(0)} ft-lb (0.60Fy x Sx ${fit.Sx} in3)<br>
           I required (defl) = ${Ireq.toFixed(0)} in4 -> provided ${fit.Ix.toFixed(0)} in4<br>
@@ -6344,6 +6579,7 @@
       } else {
         box.classList.add('warn');
         box.innerHTML = `<div class="headline">No ${typeLabel} in this catalog works</div>
+          ${(wSel||dSel||tSel) ? `Nothing in the catalog at the width/depth/wall you held works${catalog.length?'':' (no shapes at that combination)'} — set one of them back to "Any", or pick a bigger size.` : ''}
           Even the heaviest ${typeLabel} section checked here doesn't clear the required moment/deflection for this span.${bayNote} Try a deeper/heavier size from a full AISC table, a higher Fy, or switch member type.${reactionNote}`;
         lastGlulamCalc = null;
       }
@@ -9620,10 +9856,23 @@
       if(i.k==='length' || i.k==='polylength' || i.k==='area'){
         const closed = i.k==='area';
         const d = i.pts.map((q,n)=>(n?'L':'M')+q[0]+' '+q[1]).join(' ') + (closed?' Z':'');
-        const mst = `stroke="#1f5f99" stroke-width="${strokeW}" ${closed?'fill="rgba(31,95,153,.12)"':'fill="none"'} stroke-linecap="round" stroke-linejoin="round"`;
-        const last = i.pts[i.pts.length-1];
-        return `<path d="${d}" ${mst}/>` + i.pts.map(q=>`<circle cx="${q[0]}" cy="${q[1]}" r="${strokeW*1.4}" fill="#1f5f99"/>`).join('') +
-          `<text x="${last[0]+6*strokeW}" y="${last[1]-6*strokeW}" font-size="${11*strokeW/1.2}" fill="#1f5f99" font-family="Arial, sans-serif" font-weight="bold">${smEsc(i.label||'')}</text>`;
+        const measColor = '#5b8fb8';
+        const mst = `stroke="${measColor}" stroke-width="${strokeW*0.65}" ${closed?'fill="rgba(91,143,184,.10)"':'fill="none"'} stroke-linecap="round" stroke-linejoin="round"`;
+        // Center the label on the midpoint along the path (by arc length), not
+        // off to the side of the last point, so it reads centered on the run.
+        let mx = i.pts[0][0], my = i.pts[0][1];
+        {
+          let total = 0;
+          for(let n=1;n<i.pts.length;n++) total += Math.hypot(i.pts[n][0]-i.pts[n-1][0], i.pts[n][1]-i.pts[n-1][1]);
+          let half = total/2;
+          for(let n=1;n<i.pts.length;n++){
+            const seg = Math.hypot(i.pts[n][0]-i.pts[n-1][0], i.pts[n][1]-i.pts[n-1][1]);
+            if(seg>=half || n===i.pts.length-1){ const t = seg ? Math.min(1, half/seg) : 0; mx = i.pts[n-1][0]+(i.pts[n][0]-i.pts[n-1][0])*t; my = i.pts[n-1][1]+(i.pts[n][1]-i.pts[n-1][1])*t; break; }
+            half -= seg;
+          }
+        }
+        return `<path d="${d}" ${mst}/>` + i.pts.map(q=>`<circle cx="${q[0]}" cy="${q[1]}" r="${strokeW*1.0}" fill="${measColor}"/>`).join('') +
+          `<text x="${mx}" y="${my-6*strokeW}" font-size="${9*strokeW/1.2}" fill="${measColor}" font-family="Arial, sans-serif" font-weight="600" text-anchor="middle">${smEsc(i.label||'')}</text>`;
       }
       return '';
     }).join('');
