@@ -415,6 +415,7 @@
   .pv-field{ display:flex; align-items:center; gap:4px; font-size:.76rem; color:var(--ink); white-space:nowrap; }
   .pv-field select, .pv-field input[type=number]{ padding:3px 6px; font-size:.76rem; min-height:0; width:auto; border-radius:5px; }
   .pv-field input[type=number]{ width:48px; }
+  .pv-field input[type=text]{ padding:3px 6px; font-size:.76rem; min-height:0; height:auto; border-radius:5px; }
   .pv-open{ display:flex; align-items:center; gap:8px; flex:1; min-width:180px; font-size:.78rem; }
   .pv-open .note{ margin:0; font-size:.76rem; }
   .pv-bar.dragover{ outline:2px dashed var(--blueprint); outline-offset:-2px; }
@@ -591,34 +592,33 @@
         <p class="sub">Preliminary uniform-load beam check. Gives a starting section — not a substitute for a stamped calculation. "Member type" below covers Glulam and bundled sawn-lumber headers/beams (e.g. (3) 2x8) using the full diagram, overhangs, point loads, and reactions above — the LVL/I-Joist Calc tab is still there for a quick single-span LVL or I-joist check.</p>
 
         <div class="sm-layout" id="g-layout" style="align-items:flex-start;">
-          <div class="card sm-side" id="g-side-panel" style="width:300px;">
+          <div class="card sm-side" id="g-side-panel" style="width:370px;">
             <div class="grp" id="gb-lib">
               <p class="grp-label">Saved beams</p>
               <div class="row" style="flex-direction:column;align-items:stretch;gap:5px;margin-bottom:0;">
-                <div class="pv-field" style="justify-content:space-between;">Project<input id="gb-project" type="text" list="gb-projects" placeholder="e.g. 26-027 River Ranch" oninput="gbAutoSave()" style="flex:1;max-width:190px;padding:3px 6px;font-size:.76rem;"><datalist id="gb-projects"></datalist></div>
-                <div class="pv-field" style="justify-content:space-between;">Title<input id="gb-title" type="text" placeholder="e.g. B1 garage header" oninput="gbAutoSave()" style="flex:1;max-width:190px;padding:3px 6px;font-size:.76rem;"></div>
-                <div class="pv-field" style="justify-content:space-between;gap:6px;">
-                  <button class="pv-btn" onclick="document.getElementById('gb-pdf').click()" title="Attach the PDF sheet this beam is on - it's stored with the beam">Attach PDF&hellip;</button>
-                  <input id="gb-pdf" type="file" accept="application/pdf" style="display:none" onchange="gbPickPdf(this.files[0]); this.value='';">
-                  <span id="gb-pdfname" class="note" style="margin:0;flex:1;overflow:hidden;text-overflow:ellipsis;">No PDF</span>
-                </div>
-                <div style="display:flex;gap:6px;">
+                <div class="pv-field" style="justify-content:space-between;">Project<input id="gb-project" type="text" list="gb-projects" placeholder="e.g. 26-027 River Ranch" oninput="gbAutoSave()" style="flex:1;max-width:230px;padding:3px 6px;font-size:.76rem;"><datalist id="gb-projects"></datalist></div>
+                <div class="pv-field" style="justify-content:space-between;">Title<input id="gb-title" type="text" placeholder="e.g. B1 garage header" oninput="gbAutoSave()" style="flex:1;max-width:230px;padding:3px 6px;font-size:.76rem;"></div>
+                <div style="display:flex;gap:6px;flex-wrap:wrap;">
                   <button class="pv-btn" onclick="gbSave()" title="Save under this project + title (asks before replacing one with the same name)">Save</button>
+                  <button class="pv-btn" onclick="gbSavePdf()" title="Save this beam's calc sheet (inputs, diagrams, results) as a PDF file. From then on, that PDF is overwritten automatically every time this beam changes.">Save PDF&hellip;</button>
                   <span id="gb-update" style="display:none;"></span>
                   <button class="pv-btn" onclick="gbNew()" title="Clear the title/PDF and start a fresh beam (your current inputs stay)">New</button>
                 </div>
-                <div class="pv-field" style="justify-content:space-between;">Show
-                  <select id="gb-filter" onchange="gbRenderList()" style="flex:1;max-width:190px;"><option value="">All projects</option></select>
+                <div id="gb-pdfname" class="note" style="margin:0;">No calc PDF linked</div>
+                <div class="pv-field" style="justify-content:space-between;">Open
+                  <select id="gb-pick" onchange="if(this.value) gbLoad(this.value)" style="flex:1;max-width:230px;"><option value="">— saved beams —</option></select>
                 </div>
-                <input id="gb-search" type="text" placeholder="Search saved beams&hellip;" oninput="gbRenderList()" style="padding:3px 6px;font-size:.76rem;">
-                <div id="gb-list" style="max-height:220px;overflow:auto;font-size:.8rem;"></div>
+                <div style="display:flex;gap:6px;">
+                  <button class="pv-btn" id="gb-openpdf" onclick="gbLoadedId && gbOpenPdf(gbLoadedId)" title="Open this beam's calc PDF in PDF Viewer" disabled>View PDF</button>
+                  <button class="pv-btn" style="color:#c62828;border-color:#c62828;" onclick="gbLoadedId && gbDelete(gbLoadedId)" title="Remove the open beam from the saved list">Remove</button>
+                </div>
               </div>
             </div>
             <div class="grp">
               <p class="grp-label">Load case &amp; member</p>
               <div class="row" style="flex-direction:column;align-items:stretch;gap:5px;margin-bottom:0;">
                 <div class="pv-field" style="justify-content:space-between;">Preset
-                  <select id="g-preset" onchange="applyPreset()" style="flex:1;max-width:190px;">
+                  <select id="g-preset" onchange="applyPreset()" style="flex:1;max-width:230px;">
                     <option value="">— manual entry —</option>
                     <option value="10,40">Residential floor (DL 10 / LL 40)</option>
                     <option value="15,50">Light commercial floor (DL 15 / LL 50)</option>
@@ -629,7 +629,7 @@
                   </select>
                 </div>
                 <div class="pv-field" style="justify-content:space-between;">Member type
-                  <select id="g-member-type" onchange="onMemberTypeChange()" style="flex:1;max-width:190px;">
+                  <select id="g-member-type" onchange="onMemberTypeChange()" style="flex:1;max-width:230px;">
                     <option value="glulam" selected>Glulam (fixed width, solve depth)</option>
                     <option value="sawn">Sawn lumber, bundled plies — e.g. (3) 2x8</option>
                     <option value="wf">Steel — Wide Flange (W-shape)</option>
@@ -643,24 +643,24 @@
               <p class="grp-label">Section &amp; material</p>
               <div class="row" style="flex-direction:column;align-items:stretch;gap:5px;margin-bottom:0;">
                 <div class="pv-field hide" id="g-steel-grade-wrap" style="justify-content:space-between;">Steel Fy (ksi)
-                  <select id="g-steel-fy" onchange="onBeamMaterialChange()" style="flex:1;max-width:190px;">
+                  <select id="g-steel-fy" onchange="onBeamMaterialChange()" style="flex:1;max-width:230px;">
                     <option value="50">50 — A992 (W-shapes)</option>
                     <option value="46">46 — A500 Gr. B (HSS)</option>
                     <option value="custom">— custom Fy —</option>
                   </select>
                 </div>
                 <div class="pv-field hide" id="g-steel-width-wrap" style="justify-content:space-between;" title="Fix the width (WF flange width, or HSS tube width) to match the wall/post below">Width
-                  <select id="g-steel-width" onchange="updateBeamAnalysis()" style="flex:1;max-width:190px;"></select>
+                  <select id="g-steel-width" onchange="updateBeamAnalysis()" style="flex:1;max-width:230px;"></select>
                 </div>
                 <div class="pv-field hide" id="g-steel-depth-wrap" style="justify-content:space-between;" title="Fix the depth (WF nominal series, or HSS tube depth). Set both width and depth on an HSS to solve for wall thickness.">Depth
-                  <select id="g-steel-depth" onchange="updateBeamAnalysis()" style="flex:1;max-width:190px;"></select>
+                  <select id="g-steel-depth" onchange="updateBeamAnalysis()" style="flex:1;max-width:230px;"></select>
                 </div>
                 <div class="pv-field hide" id="g-steel-thick-wrap" style="justify-content:space-between;" title="HSS wall thickness. Hold any two of width / depth / wall and it solves the third.">Wall thick.
-                  <select id="g-steel-thick" onchange="updateBeamAnalysis()" style="flex:1;max-width:190px;"></select>
+                  <select id="g-steel-thick" onchange="updateBeamAnalysis()" style="flex:1;max-width:230px;"></select>
                 </div>
                 <div class="pv-field hide" id="g-steel-fy-custom-wrap" style="justify-content:space-between;">Custom Fy (ksi)<input id="g-steel-fy-custom" type="number" inputmode="decimal" value="50" step="1" oninput="updateBeamAnalysis()" style="width:80px;"></div>
                 <div class="pv-field" id="g-width-wrap" style="justify-content:space-between;">Beam width
-                  <select id="g-width" onchange="onBeamMaterialChange()" style="flex:1;max-width:190px;">
+                  <select id="g-width" onchange="onBeamMaterialChange()" style="flex:1;max-width:230px;">
                     <option value="3.125">3-1/8" (Western/DF)</option>
                     <option value="5.125">5-1/8" (Western/DF)</option>
                     <option value="5.5" selected>5-1/2" (SP — default)</option>
@@ -668,19 +668,22 @@
                     <option value="7.5">7-1/2" (SP)</option>
                     <option value="8.75">8-3/4" (Western/DF)</option>
                     <option value="9.5">9-1/2" (SP)</option>
+                    <option value="10.75">10-3/4" (Western/DF)</option>
+                    <option value="12.25">12-1/4" (Western/DF)</option>
+                    <option value="14.25">14-1/4" (Western/DF)</option>
                     <option value="custom">— custom width —</option>
                   </select>
                 </div>
                 <div class="pv-field hide" id="g-width-custom-wrap" style="justify-content:space-between;">Custom width (in)<input id="g-width-custom" type="number" inputmode="decimal" value="5.5" step="0.125" oninput="updateBeamAnalysis()" style="width:80px;"></div>
                 <div class="pv-field hide" id="g-sawn-grade-wrap" style="justify-content:space-between;">Grade (DF-L)
-                  <select id="g-sawn-grade" onchange="updateBeamAnalysis()" style="flex:1;max-width:190px;">
+                  <select id="g-sawn-grade" onchange="updateBeamAnalysis()" style="flex:1;max-width:230px;">
                     <option value="ss">Select Structural</option>
                     <option value="1" selected>No. 1</option>
                     <option value="2">No. 2</option>
                   </select>
                 </div>
                 <div class="pv-field hide" id="g-sawn-plies-wrap" style="justify-content:space-between;">Number of plies
-                  <select id="g-sawn-plies" onchange="updateBeamAnalysis()" style="flex:1;max-width:190px;">
+                  <select id="g-sawn-plies" onchange="updateBeamAnalysis()" style="flex:1;max-width:230px;">
                     <option value="1">(1) single ply</option>
                     <option value="2">(2) plies</option>
                     <option value="3" selected>(3) plies</option>
@@ -688,7 +691,7 @@
                   </select>
                 </div>
                 <div class="pv-field" id="g-fb-wrap" style="justify-content:space-between;">Fb (psi)
-                  <select id="g-fb" onchange="onBeamMaterialChange()" style="flex:1;max-width:190px;">
+                  <select id="g-fb" onchange="onBeamMaterialChange()" style="flex:1;max-width:230px;">
                     <option value="1800">24F-V1 — 1800</option>
                     <option value="2000">24F-V3 — 2000</option>
                     <option value="2400" selected>24F-V4 — 2400</option>
@@ -697,20 +700,20 @@
                   </select>
                 </div>
                 <div class="pv-field hide" id="g-species-wrap" style="justify-content:space-between;">Species/grade
-                  <select id="g-species" onchange="onSpeciesChange()" style="flex:1;max-width:190px;">
+                  <select id="g-species" onchange="onSpeciesChange()" style="flex:1;max-width:230px;">
                     <option value="">— manual entry —</option>
                   </select>
                 </div>
                 <div class="pv-field hide" id="g-fb-custom-wrap" style="justify-content:space-between;">Custom Fb (psi)<input id="g-fb-custom" type="number" inputmode="decimal" value="2400" step="50" oninput="updateBeamAnalysis()" style="width:80px;"></div>
                 <div class="pv-field" id="g-e-wrap" style="justify-content:space-between;">E (x10^6 psi)
-                  <select id="g-e" onchange="onBeamMaterialChange()" style="flex:1;max-width:190px;">
+                  <select id="g-e" onchange="onBeamMaterialChange()" style="flex:1;max-width:230px;">
                     <option value="1.7">1.7</option><option value="1.8" selected>1.8</option><option value="1.9">1.9</option>
                     <option value="custom">— custom E —</option>
                   </select>
                 </div>
                 <div class="pv-field hide" id="g-e-custom-wrap" style="justify-content:space-between;">Custom E<input id="g-e-custom" type="number" inputmode="decimal" value="1.8" step=".05" oninput="updateBeamAnalysis()" style="width:80px;"></div>
                 <div class="pv-field" style="justify-content:space-between;">Deflection limit
-                  <select id="g-defl" onchange="updateBeamAnalysis()" style="flex:1;max-width:190px;">
+                  <select id="g-defl" onchange="updateBeamAnalysis()" style="flex:1;max-width:230px;">
                     <option value="240">L/240 (total)</option>
                     <option value="360" selected>L/360 (live)</option>
                     <option value="180">L/180 (roof, no ceiling)</option>
@@ -747,7 +750,7 @@
             <div class="grp">
               <p class="grp-label">Point loads (optional)</p>
               <div class="pv-field" style="justify-content:space-between;">Count
-                <select id="g-pl-count" onchange="onPointLoadCountChange()" style="flex:1;max-width:190px;">
+                <select id="g-pl-count" onchange="onPointLoadCountChange()" style="flex:1;max-width:230px;">
                   <option value="0">None — uniform only</option>
                   <option value="1">1 point load</option>
                   <option value="2">2 point loads</option>
@@ -790,73 +793,76 @@
       <section class="panel" id="spancalc">
         <h2>LVL / I-Joist calculator</h2>
         <p class="sub">Preliminary simple-span beam check for engineered lumber (LVL) or engineered I-joists (also handles plain sawn lumber, if you want a quick single-span check without the Beam Sizing tab's diagram). Handles uniform load, a point load, or both together (superposition, load at midspan). Not a substitute for a stamped calculation.</p>
-        <div class="card">
-          <div class="seg" id="sp-type-seg">
-            <button class="active" data-type="sawn" onclick="setSpanType('sawn')">Sawn Lumber</button>
-            <button data-type="lvl" onclick="setSpanType('lvl')">LVL</button>
-            <button data-type="ijoist" onclick="setSpanType('ijoist')">I-Joist</button>
+        <div class="sm-layout" style="align-items:flex-start;">
+          <div class="card sm-side" id="sp-side-panel" style="width:370px;">
+            <div class="grp" id="sl-lib"></div>
+            <div class="grp">
+              <p class="grp-label">Member</p>
+              <div class="seg" id="sp-type-seg" style="margin-bottom:6px;">
+                <button class="active" data-type="sawn" onclick="setSpanType('sawn')">Sawn Lumber</button>
+                <button data-type="lvl" onclick="setSpanType('lvl')">LVL</button>
+                <button data-type="ijoist" onclick="setSpanType('ijoist')">I-Joist</button>
+              </div>
+              <div class="row" style="flex-direction:column;align-items:stretch;gap:5px;margin-bottom:0;">
+                <div id="sp-sawn-opts" style="display:flex;flex-direction:column;gap:5px;">
+                  <div class="pv-field" style="justify-content:space-between;">Species / grade
+                    <select id="sp-sawn-grade" style="flex:1;max-width:230px;">
+                      <option value="dfl-ss">DF-L Select Structural</option>
+                      <option value="dfl-1" selected>DF-L No. 1</option>
+                      <option value="dfl-2">DF-L No. 2</option>
+                      <option value="hf-2">Hem-Fir No. 2</option>
+                      <option value="spf-2">Spruce-Pine-Fir No. 2</option>
+                    </select></div>
+                  <div class="pv-field" style="justify-content:space-between;">Plies
+                    <select id="sp-sawn-plies" style="flex:1;max-width:230px;">
+                      <option value="1" selected>Single (1-ply, 1-1/2")</option>
+                      <option value="2">2-ply (3")</option>
+                      <option value="3">3-ply (4-1/2")</option>
+                      <option value="4">4-ply (6")</option>
+                    </select></div>
+                </div>
+                <div id="sp-lvl-opts" class="hide" style="display:flex;flex-direction:column;gap:5px;">
+                  <div class="pv-field" style="justify-content:space-between;">LVL grade
+                    <select id="sp-lvl-grade" style="flex:1;max-width:230px;">
+                      <option value="2600" selected>2.0E LVL — Fb 2600</option>
+                      <option value="2900">2.1E LVL — Fb 2900</option>
+                      <option value="3100">2.2E LVL — Fb 3100</option>
+                    </select></div>
+                  <div class="pv-field" style="justify-content:space-between;">Plies (1-3/4" each)
+                    <select id="sp-lvl-plies" style="flex:1;max-width:230px;">
+                      <option value="1" selected>Single (1-3/4")</option>
+                      <option value="2">2-ply (3-1/2")</option>
+                      <option value="3">3-ply (5-1/4")</option>
+                      <option value="4">4-ply (7")</option>
+                    </select></div>
+                </div>
+                <div id="sp-ijoist-opts" class="hide"><p class="note" style="margin:0;">I-joist values are generic/representative (not a specific manufacturer's product) — confirm against the manufacturer's ESR span tables.</p></div>
+              </div>
+            </div>
+            <div class="grp">
+              <p class="grp-label">Span &amp; loads</p>
+              <div class="row" style="flex-direction:column;align-items:stretch;gap:5px;margin-bottom:0;">
+                <div class="pv-field" style="justify-content:space-between;">Span (ft)<input id="sp-span" type="number" inputmode="decimal" value="14" step="0.5" style="width:80px;"></div>
+                <div class="pv-field" style="justify-content:space-between;">Spacing / trib. (ft)<input id="sp-trib" type="number" inputmode="decimal" value="2" step="0.5" style="width:80px;"></div>
+                <div class="pv-field" style="justify-content:space-between;">Dead load (psf)<input id="sp-dl" type="number" inputmode="decimal" value="10" step="1" style="width:80px;"></div>
+                <div class="pv-field" style="justify-content:space-between;">Live load / snow (psf)<input id="sp-ll" type="number" inputmode="decimal" value="40" step="1" style="width:80px;"></div>
+                <div class="pv-field" style="justify-content:space-between;">Point load at midspan (lb)<input id="sp-pl" type="number" inputmode="decimal" value="0" step="10" style="width:80px;"></div>
+                <div class="pv-field" style="justify-content:space-between;">Deflection limit
+                  <select id="sp-defl" style="flex:1;max-width:230px;">
+                    <option value="240">L/240 (total)</option>
+                    <option value="360" selected>L/360 (live)</option>
+                    <option value="180">L/180 (roof, no ceiling)</option>
+                  </select></div>
+              </div>
+            </div>
+            <p class="note" style="margin-top:6px;">Results update live as you type.</p>
           </div>
-
-          <div class="grid">
-            <div><label>Span (ft)</label><input id="sp-span" type="number" inputmode="decimal" value="14" step="0.5"></div>
-            <div><label>Spacing / tributary distance (ft)</label><input id="sp-trib" type="number" inputmode="decimal" value="2" step="0.5"></div>
-            <div><label>Dead load (psf)</label><input id="sp-dl" type="number" inputmode="decimal" value="10" step="1"></div>
-            <div><label>Live load / snow (psf)</label><input id="sp-ll" type="number" inputmode="decimal" value="40" step="1"></div>
-            <div><label>Point load at midspan (lb)</label><input id="sp-pl" type="number" inputmode="decimal" value="0" step="10"></div>
-            <div><label>Deflection limit</label>
-              <select id="sp-defl">
-                <option value="240">L/240 (total)</option>
-                <option value="360" selected>L/360 (live)</option>
-                <option value="180">L/180 (roof, no ceiling)</option>
-              </select>
+          <div class="sd-viewercol">
+            <div class="card">
+              <div class="result" id="sp-result"></div>
+              <button class="run secondary" onclick="printSpanCalcSheet()" style="margin-top:10px;">Print / Save as PDF for building dept.</button>
             </div>
           </div>
-
-          <div class="grid" id="sp-sawn-opts">
-            <div><label>Species / grade</label>
-              <select id="sp-sawn-grade">
-                <option value="dfl-ss">DF-L Select Structural</option>
-                <option value="dfl-1" selected>DF-L No. 1</option>
-                <option value="dfl-2">DF-L No. 2</option>
-                <option value="hf-2">Hem-Fir No. 2</option>
-                <option value="spf-2">Spruce-Pine-Fir No. 2</option>
-              </select>
-            </div>
-            <div><label>Plies (built-up header)</label>
-              <select id="sp-sawn-plies">
-                <option value="1" selected>Single (1-ply, 1-1/2")</option>
-                <option value="2">2-ply (3")</option>
-                <option value="3">3-ply (4-1/2")</option>
-                <option value="4">4-ply (6")</option>
-              </select>
-            </div>
-          </div>
-
-          <div class="grid hide" id="sp-lvl-opts">
-            <div><label>LVL grade</label>
-              <select id="sp-lvl-grade">
-                <option value="2600" selected>2.0E LVL — Fb 2600</option>
-                <option value="2900">2.1E LVL — Fb 2900</option>
-                <option value="3100">2.2E LVL — Fb 3100</option>
-              </select>
-            </div>
-            <div><label>Plies (1-3/4" per ply)</label>
-              <select id="sp-lvl-plies">
-                <option value="1" selected>Single (1-3/4")</option>
-                <option value="2">2-ply (3-1/2")</option>
-                <option value="3">3-ply (5-1/4")</option>
-                <option value="4">4-ply (7")</option>
-              </select>
-            </div>
-          </div>
-
-          <div class="grid hide" id="sp-ijoist-opts">
-            <div style="grid-column:1/-1"><p class="note" style="margin-top:0;">I-joist values below are generic/representative (not a specific manufacturer's product) — confirm final selection against the actual manufacturer's ESR span tables.</p></div>
-          </div>
-
-          <button class="run" onclick="calcSpan()">Check section</button>
-          <div class="result" id="sp-result"></div>
-          <button class="run secondary" onclick="printSpanCalcSheet()" style="margin-top:10px;">Print / Save as PDF for building dept.</button>
         </div>
         <p class="flag-link">&#9432; <a href="#" onclick="goToNote('spancalc');return false;">See Notes &rarr; LVL/I-Joist Calc</a> for load assumptions and value sourcing.</p>
       </section>
@@ -865,54 +871,59 @@
       <section class="panel" id="joist">
         <h2>Sawn lumber joist spans</h2>
         <p class="sub">Douglas Fir-Larch. Lay out the actual bearing points below — including a mid-span beam and a cantilever — and it suggests the smallest size that works for every bay/overhang at once, live.</p>
-
-        <div class="card">
-          <h3 style="margin-top:0;font-size:.95rem;">Joist &amp; bearings</h3>
-          <p class="note" style="margin-top:0;">Click the joist to add a bearing, drag a bearing to move it, double-click a bearing to remove it (2 minimum). Click a bearing's label to toggle Wall/Beam. Set an overhang below for a joist that cantilevers past its end bearing.</p>
-          <div class="beam-diagram-wrap">
-            <svg id="j-beam-svg" viewBox="0 0 900 286" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid meet"></svg>
-          </div>
-          <div class="grid" style="margin-top:10px;">
-            <div><label>Total number of bearings</label><input id="j-support-count" type="number" inputmode="numeric" value="2" step="1" min="2" onchange="onJoistSupportCountChange()"></div>
-            <div><label>Total joist length (ft) &mdash; controlling</label><input id="j-total-length" type="number" inputmode="decimal" step="0.5" min="0.5" onchange="onJoistTotalLengthChange()"></div>
-            <div style="align-self:end;"><label style="display:flex;align-items:center;gap:6px;margin-bottom:8px;"><input type="checkbox" id="j-lock-total" onchange="onJoistLockToggle()" style="width:auto;margin:0;"> Lock total length while adjusting bearings</label></div>
-            <div><label>Start overhang (ft) &mdash; cantilever past the first bearing</label><input id="j-oh-start" type="number" inputmode="decimal" value="0" step="0.5" min="0" oninput="onJoistOverhangChange()"></div>
-            <div><label>End overhang (ft) &mdash; cantilever past the last bearing</label><input id="j-oh-end" type="number" inputmode="decimal" value="0" step="0.5" min="0" oninput="onJoistOverhangChange()"></div>
-          </div>
-          <div class="note" id="j-span-readout" style="margin-top:2px;"></div>
-          <p class="note" style="margin-top:2px;">Click any dimension number in the diagram to type an exact value for that bay or overhang. Setting total joist length scales the bay spans proportionally to hit that overall length (overhangs stay as entered).</p>
-        </div>
-
-        <div class="card">
-          <div class="grid">
-            <div><label>Grade</label>
-              <select id="j-grade" onchange="updateJoistAnalysis()">
-                <option value="ss">Select Structural</option>
-                <option value="1" selected>No. 1</option>
-                <option value="2">No. 2</option>
-              </select>
+        <div class="sm-layout" style="align-items:flex-start;">
+          <div class="card sm-side" id="j-side-panel" style="width:370px;">
+            <div class="grp" id="jl-lib"></div>
+            <div class="grp">
+              <p class="grp-label">Lumber &amp; loads</p>
+              <div class="row" style="flex-direction:column;align-items:stretch;gap:5px;margin-bottom:0;">
+                <div class="pv-field" style="justify-content:space-between;">Grade
+                  <select id="j-grade" onchange="updateJoistAnalysis()" style="flex:1;max-width:230px;">
+                    <option value="ss">Select Structural</option>
+                    <option value="1" selected>No. 1</option>
+                    <option value="2">No. 2</option>
+                  </select></div>
+                <div class="pv-field" style="justify-content:space-between;">Preset
+                  <select id="j-preset" onchange="applyJoistPreset()" style="flex:1;max-width:230px;">
+                    <option value="">— manual entry —</option>
+                    <option value="10,40" selected>Residential floor (DL 10 / LL 40)</option>
+                    <option value="15,50">Light commercial floor (DL 15 / LL 50)</option>
+                    <option value="10,60">Deck (DL 10 / LL 60)</option>
+                  </select></div>
+                <div class="pv-field" style="justify-content:space-between;">Spacing (in o.c.)<input id="j-spacing" type="number" inputmode="decimal" value="16" step="1" min="1" oninput="updateJoistAnalysis()" style="width:80px;"></div>
+                <div class="pv-field" style="justify-content:space-between;">Dead load (psf)<input id="j-dl" type="number" inputmode="decimal" value="10" step="1" oninput="updateJoistAnalysis()" style="width:80px;"></div>
+                <div class="pv-field" style="justify-content:space-between;">Live load (psf)<input id="j-ll" type="number" inputmode="decimal" value="40" step="1" oninput="updateJoistAnalysis()" style="width:80px;"></div>
+                <div class="pv-field" style="justify-content:space-between;">Deflection limit (live)
+                  <select id="j-defl" onchange="updateJoistAnalysis()" style="flex:1;max-width:230px;">
+                    <option value="360" selected>L/360</option>
+                    <option value="480">L/480 (stiffer floor)</option>
+                    <option value="240">L/240</option>
+                  </select></div>
+              </div>
             </div>
-            <div><label>Typical load case</label>
-              <select id="j-preset" onchange="applyJoistPreset()">
-                <option value="">— manual entry —</option>
-                <option value="10,40" selected>Residential floor (DL 10 / LL 40)</option>
-                <option value="15,50">Light commercial floor (DL 15 / LL 50)</option>
-                <option value="10,60">Deck (DL 10 / LL 60)</option>
-              </select>
-            </div>
-            <div><label>Spacing (in o.c.)</label><input id="j-spacing" type="number" inputmode="decimal" value="16" step="1" min="1" oninput="updateJoistAnalysis()"></div>
-            <div><label>Dead load (psf)</label><input id="j-dl" type="number" inputmode="decimal" value="10" step="1" oninput="updateJoistAnalysis()"></div>
-            <div><label>Live load (psf)</label><input id="j-ll" type="number" inputmode="decimal" value="40" step="1" oninput="updateJoistAnalysis()"></div>
-            <div><label>Deflection limit (live load)</label>
-              <select id="j-defl" onchange="updateJoistAnalysis()">
-                <option value="360" selected>L/360</option>
-                <option value="480">L/480 (stiffer floor)</option>
-                <option value="240">L/240</option>
-              </select>
+            <div class="grp">
+              <p class="grp-label">Bearings &amp; overhangs</p>
+              <p class="note" style="margin:0 0 6px;">Click the joist to add a bearing, drag to move, double-click to remove (2 min). Click a label to toggle Wall/Beam.</p>
+              <div class="row" style="flex-direction:column;align-items:stretch;gap:5px;margin-bottom:0;">
+                <div class="pv-field" style="justify-content:space-between;">Bearings<input id="j-support-count" type="number" inputmode="numeric" value="2" step="1" min="2" onchange="onJoistSupportCountChange()" style="width:60px;"></div>
+                <div class="pv-field" style="justify-content:space-between;">Total length (ft)<input id="j-total-length" type="number" inputmode="decimal" step="0.5" min="0.5" onchange="onJoistTotalLengthChange()" style="width:80px;"></div>
+                <label class="pv-field" style="cursor:pointer;"><input type="checkbox" id="j-lock-total" onchange="onJoistLockToggle()" style="width:16px;height:16px;min-height:0;margin:0;flex:none;"> Lock total length while adjusting bearings</label>
+                <div class="pv-field" style="justify-content:space-between;">Start overhang (ft)<input id="j-oh-start" type="number" inputmode="decimal" value="0" step="0.5" min="0" oninput="onJoistOverhangChange()" style="width:80px;"></div>
+                <div class="pv-field" style="justify-content:space-between;">End overhang (ft)<input id="j-oh-end" type="number" inputmode="decimal" value="0" step="0.5" min="0" oninput="onJoistOverhangChange()" style="width:80px;"></div>
+              </div>
+              <div class="note" id="j-span-readout" style="margin-top:6px;"></div>
+              <p class="note" style="margin-top:2px;">Click any dimension number in the diagram to type an exact value.</p>
             </div>
           </div>
-          <div class="result" id="j-result"></div>
-          <button class="run secondary" onclick="printJoistSheet()" style="margin-top:10px;">Print / Save as PDF for building dept.</button>
+          <div class="sd-viewercol">
+            <div class="card">
+              <div class="beam-diagram-wrap">
+                <svg id="j-beam-svg" viewBox="0 0 900 286" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid meet"></svg>
+              </div>
+              <div class="result" id="j-result"></div>
+              <button class="run secondary" onclick="printJoistSheet()" style="margin-top:10px;">Print / Save as PDF for building dept.</button>
+            </div>
+          </div>
         </div>
         <p class="flag-link">&#9432; <a href="#" onclick="goToNote('joist');return false;">See Notes &rarr; Joist Spans</a> for the calculation basis and table-matching caveats.</p>
       </section>
@@ -4913,6 +4924,22 @@
         rows.push({label: label.textContent.replace(/\s*&mdash;.*$/,'').trim(), value: String(val)});
       });
     });
+    // Compact .pv-field rows (Beam Sizing's side panel, etc.): the label is the
+    // row's own text, the field is the input/select inside it.
+    panel.querySelectorAll('.pv-field').forEach(pf=>{
+      if(pf.classList.contains('hide') || pf.closest('.hide')) return;
+      const field = pf.querySelector('input, select');
+      if(!field || !field.id || seen.has(field.id) || /^gb-/.test(field.id) || field.type==='file') return;
+      const clone = pf.cloneNode(true); clone.querySelectorAll('input, select, datalist, button').forEach(x=>x.remove());
+      const label = clone.textContent.replace(/\s+/g,' ').trim();
+      let val;
+      if(field.tagName==='SELECT') val = field.options[field.selectedIndex] ? field.options[field.selectedIndex].text : field.value;
+      else if(field.type==='checkbox') val = field.checked ? 'Yes' : 'No';
+      else val = field.value;
+      if(!label || val===null || val==='') return;
+      seen.add(field.id);
+      rows.push({label, value: String(val)});
+    });
     return rows;
   }
   // Builds a RedSpec-style "Design Controls" table (Design value / Allowable
@@ -4954,8 +4981,12 @@
   }
 
   function generatePrintSheet(cfg){
+    const html = buildPrintSheetHtml(cfg);
+    if(html) showPrintFrame(html);
+  }
+  function buildPrintSheetHtml(cfg){
     const panel = document.getElementById(cfg.panelId);
-    if(!panel) return;
+    if(!panel) return '';
     const inputRows = collectPanelInputs(panel);
     let diagramsHtml = '';
     (cfg.diagramIds||[]).forEach(id=>{
@@ -5036,7 +5067,7 @@
   </div>
 </body></html>`;
 
-    showPrintFrame(html);
+    return html;
   }
   // Shown as an in-page iframe overlay rather than a new window/tab —
   // window.open() gets silently blocked in sandboxed webviews (Claude's
@@ -5065,7 +5096,7 @@
     frame.style.display = 'block';
     closeBtn.style.display = 'block';
   }
-  function printGlulamSheet(){
+  function glulamSheetCfg(){
     const c = lastGlulamCalc;
     const loadsRows = c ? [
       {label:'Load type', value:'Uniform (Dead + Live &times; Tributary)'},
@@ -5077,9 +5108,12 @@
     ] : null;
     const pgTypeVal = document.getElementById('g-member-type') ? document.getElementById('g-member-type').value : 'glulam';
     const pgTitle = pgTypeVal==='sawn' ? 'Beam Sizing — Bundled Sawn Lumber' : pgTypeVal==='wf' ? 'Beam Sizing — Steel Wide Flange' : pgTypeVal==='hss' ? 'Beam Sizing — Steel HSS' : 'Beam Sizing — Glulam';
-    generatePrintSheet({panelId:'glulam', title:pgTitle, diagramIds:['g-beam-svg','g-shear-svg','g-moment-svg'], resultId:'g-result', calc:c, loadsRows});
+    const proj = ((document.getElementById('gb-project')||{}).value||'').trim(), bt = ((document.getElementById('gb-title')||{}).value||'').trim();
+    const named = [proj, bt].filter(Boolean).join(' — ');
+    return {panelId:'glulam', title: named ? `${pgTitle}: ${named}` : pgTitle, diagramIds:['g-beam-svg','g-shear-svg','g-moment-svg'], resultId:'g-result', calc:c, loadsRows};
   }
-  function printSpanCalcSheet(){
+  function printGlulamSheet(){ generatePrintSheet(glulamSheetCfg()); }
+  function spanSheetCfg(){
     const c = lastSpanCalc;
     const loadsRows = c ? [
       {label:'Load type', value: c.P ? 'Uniform (Dead + Live) + point load at midspan' : 'Uniform (Dead + Live)'},
@@ -5090,9 +5124,10 @@
       {label:'Span', value:`${c.span} ft`},
       {label:'Section provided', value:c.size}
     ] : null;
-    generatePrintSheet({panelId:'spancalc', title:'LVL / I-Joist Calc', diagramIds:[], resultId:'sp-result', calc:c, loadsRows});
+    return {panelId:'spancalc', title: slLib ? slLib.titled('LVL / I-Joist Calc') : 'LVL / I-Joist Calc', diagramIds:[], resultId:'sp-result', calc:c, loadsRows};
   }
-  function printJoistSheet(){
+  function printSpanCalcSheet(){ generatePrintSheet(spanSheetCfg()); }
+  function joistSheetCfg(){
     const c = lastJoistCalc;
     const loadsRows = c ? [
       {label:'Load type', value:'Uniform (Dead + Live &times; Tributary)'},
@@ -5102,8 +5137,9 @@
       {label:'Resulting uniform load, w', value:`${Math.round(c.wTotal).toLocaleString()} plf`},
       {label:'Section provided', value:c.size}
     ] : null;
-    generatePrintSheet({panelId:'joist', title:'Joist Spans', diagramIds:['j-beam-svg'], resultId:'j-result', calc:c, loadsRows});
+    return {panelId:'joist', title: jlLib ? jlLib.titled('Joist Spans') : 'Joist Spans', diagramIds:['j-beam-svg'], resultId:'j-result', calc:c, loadsRows};
   }
+  function printJoistSheet(){ generatePrintSheet(joistSheetCfg()); }
   function printFootingSheet(){
     const mode = document.getElementById('f-mode-seg') ? document.getElementById('f-mode-seg').querySelector('.active').dataset.mode : 'size';
     const c = lastFootingCalc;
@@ -5756,7 +5792,8 @@
   // localStorage on every change and restored on reload. "Save" puts a named
   // copy - plus an optional PDF - into IndexedDB (tfr-beams), listed above.
   const GB_KEY = 'tfrBeamWorking', GB_DB = 'tfr-beams', GB_STORE = 'beams';
-  let gbRestoring = false, gbTimer = null, gbLoadedId = null, gbPdf = null; // gbPdf = {name, buf}
+  let gbRestoring = false, gbTimer = null, gbLoadedId = null, gbPdf = null; // gbPdf = {name, buf} - the beam's own exported calc PDF
+  let gbPdfHandle = null, gbSyncTimer = null, gbSyncing = false, gbSyncAgain = false;
   function gbCapture(){
     const vals = {};
     document.querySelectorAll('#g-side-panel input[id], #g-side-panel select[id]').forEach(el=>{
@@ -5787,7 +5824,8 @@
   function gbAutoSave(){
     if(gbRestoring) return;
     clearTimeout(gbTimer);
-    gbTimer = setTimeout(()=>{ try{ localStorage.setItem(GB_KEY, JSON.stringify({state:gbCapture(), loadedId:gbLoadedId, title:(document.getElementById('gb-title')||{}).value||'', project:(document.getElementById('gb-project')||{}).value||'', filter:(document.getElementById('gb-filter')||{}).value||''})); }catch(e){} }, 300);
+    gbQueueSync();
+    gbTimer = setTimeout(()=>{ try{ localStorage.setItem(GB_KEY, JSON.stringify({state:gbCapture(), loadedId:gbLoadedId, title:(document.getElementById('gb-title')||{}).value||'', project:(document.getElementById('gb-project')||{}).value||''})); }catch(e){} }, 300);
   }
   function gbIdb(mode, fn){
     return new Promise((resolve, reject)=>{
@@ -5796,17 +5834,151 @@
       req.onerror = ()=> reject(req.error);
       req.onsuccess = ()=>{
         const tx = req.result.transaction(GB_STORE, mode), st = tx.objectStore(GB_STORE);
-        const r = fn(st); tx.oncomplete = ()=> resolve(r && r.result); tx.onerror = ()=> reject(tx.error);
+        let r; try{ r = fn(st); }catch(e){ try{ tx.abort(); }catch(_){} reject(e); return; }
+        tx.oncomplete = ()=> resolve(r && r.result); tx.onerror = ()=> reject(tx.error); tx.onabort = ()=> reject(tx.error || new Error('aborted'));
       };
     });
   }
-  function gbPickPdf(f){
-    if(!f) return;
-    f.arrayBuffer().then(buf=>{ gbPdf = {name:f.name, buf}; gbShowPdf(); });
+  function gbShowPdf(msg){
+    const el = document.getElementById('gb-pdfname'); if(!el) return;
+    if(msg){ el.innerHTML = msg; return; }
+    if(gbPdfHandle) el.innerHTML = `Calc PDF: <b>${smEsc(gbPdfHandle.name)}</b> &mdash; overwritten automatically when this beam changes.`;
+    else if(gbPdf) el.innerHTML = `Calc PDF: <b>${smEsc(gbPdf.name)}</b> (stored here; click Save PDF&hellip; to link a file that auto-updates)`;
+    else el.textContent = 'No calc PDF linked';
   }
-  function gbShowPdf(){ const el = document.getElementById('gb-pdfname'); if(el) el.textContent = gbPdf ? gbPdf.name : 'No PDF'; }
+
+  // ---- calc-sheet PDF: same sheet as "Print / Save as PDF", built straight to a file ----
+  function gbLoadScript(src){
+    return new Promise((res, rej)=>{ const sc = document.createElement('script'); sc.src = src; sc.onload = res; sc.onerror = ()=> rej(new Error('Could not load ' + src)); document.head.appendChild(sc); });
+  }
+  async function gbBuildPdfBytes(){ return tfrSheetPdfBytes(glulamSheetCfg()); }
+  async function tfrSheetPdfBytes(sheetCfg){
+    if(!window.html2canvas) await gbLoadScript('https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js');
+    if(!window.jspdf) await gbLoadScript('https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js');
+    let html = buildPrintSheetHtml(sheetCfg);
+    // inline SVG diagrams -> images, so the rasterizer draws them reliably
+    html = html.replace(/<svg\b[\s\S]*?<\/svg>/g, svg=>{
+      const vb = (svg.match(/viewBox="([^"]+)"/)||[])[1]; const [,,vw,vh] = vb ? vb.split(/\s+/).map(Number) : [0,0,900,300];
+      const src = svg.replace(/^<svg\b/, `<svg width="${vw}" height="${vh}"`).replace(/^(<svg[^>]*?)\s+id="[^"]*"/, '$1');
+      const withNs = /xmlns=/.test(src) ? src : src.replace(/^<svg/, '<svg xmlns="http://www.w3.org/2000/svg"');
+      return `<img src="data:image/svg+xml;charset=utf-8,${encodeURIComponent(withNs)}" style="width:100%;height:auto;border:1px solid #c7c2b4;border-radius:4px;background:#f4f2ec;">`;
+    });
+    const frame = document.createElement('iframe');
+    frame.style.cssText = 'position:fixed;left:-10000px;top:0;width:760px;height:1000px;border:0;';
+    document.body.appendChild(frame);
+    try{
+      await new Promise(r=>{ frame.onload = r; frame.srcdoc = html; });
+      const doc = frame.contentDocument;
+      doc.querySelectorAll('.toolbar').forEach(x=>x.remove());
+      await Promise.all([...doc.images].map(im=> im.complete ? 0 : new Promise(r=>{ im.onload = im.onerror = r; })));
+      const body = doc.body; body.style.width = '720px'; body.style.background = '#fff';
+      const canvas = await window.html2canvas(body, {scale:2, backgroundColor:'#ffffff', windowWidth:760});
+      const {jsPDF} = window.jspdf;
+      const pdf = new jsPDF({unit:'in', format:'letter', orientation:'portrait'});
+      const margin = 0.5, pageW = 8.5 - 2*margin, pageH = 11 - 2*margin;
+      const pxPerIn = canvas.width / pageW, slicePx = Math.floor(pageH * pxPerIn);
+      // break pages between blocks/rows, never through a diagram or table row
+      const k = 2 /* html2canvas scale */, bTop = body.getBoundingClientRect().top;
+      // candidate cuts = just above the top of each block / table row
+      const cuts = [...doc.querySelectorAll('body > *, tr, .diagram-wrap, .result-block, .sd-block')]
+        .filter(el=>{ const pv = el.previousElementSibling; return !(pv && pv.classList.contains('section-label')); }) // keep a heading with what follows it
+        .map(el=> Math.round((el.getBoundingClientRect().top - bTop) * k) - Math.round(3*k)).filter(v=> v>0).sort((a,b)=>a-b);
+      const pages = []; let y = 0;
+      while(y < canvas.height - 2){
+        let end = Math.min(canvas.height, y + slicePx);
+        if(end < canvas.height){ const ok = cuts.filter(c=> c > y + slicePx*0.4 && c <= end); if(ok.length) end = ok[ok.length-1]; }
+        pages.push([y, Math.min(end, canvas.height)]); y = end;
+      }
+      for(let n = 0; n < pages.length; n++){
+        const y = pages[n][0], h = pages[n][1] - y;
+        const c = document.createElement('canvas'); c.width = canvas.width; c.height = h;
+        const cx = c.getContext('2d'); cx.fillStyle = '#fff'; cx.fillRect(0,0,c.width,h); cx.drawImage(canvas, 0, y, canvas.width, h, 0, 0, canvas.width, h);
+        if(n) pdf.addPage();
+        pdf.addImage(c.toDataURL('image/jpeg', 0.92), 'JPEG', margin, margin, pageW, h / pxPerIn);
+      }
+      return pdf.output('arraybuffer');
+    } finally { frame.remove(); }
+  }
+  async function gbWriteHandle(handle, buf){
+    const w = await handle.createWritable(); await w.write(new Blob([buf], {type:'application/pdf'})); await w.close();
+  }
+  function gbPdfName(){
+    const proj = document.getElementById('gb-project').value.trim(), t = document.getElementById('gb-title').value.trim();
+    return ([proj, t].filter(Boolean).join(' - ') || 'Beam calc').replace(/[\\/:*?"<>|]+/g, '-') + '.pdf';
+  }
+  // "Save PDF..." - saves the beam (if needed), asks where to put the PDF once,
+  // then remembers that file so every later change overwrites it.
+  async function gbSavePdf(){
+    if(!gbLoadedId){ await gbSave(); if(!gbLoadedId) return; }
+    let buf;
+    gbShowPdf('Building calc PDF&hellip;');
+    try{ buf = await gbBuildPdfBytes(); }
+    catch(e){ gbShowPdf(`<span style="color:#c62828">Couldn't build the PDF: ${smEsc(e.message||e)}</span>`); return; }
+    const name = gbPdfName();
+    if(window.showSaveFilePicker){
+      let handle;
+      try{ handle = await window.showSaveFilePicker({suggestedName: name, id:'beam-calc-pdf', types:[{description:'PDF', accept:{'application/pdf':['.pdf']}}]}); }
+      catch(e){ gbShowPdf(); return; } // cancelled
+      try{ await gbWriteHandle(handle, buf); }
+      catch(e){ gbShowPdf(`<span style="color:#c62828">Couldn't write the PDF: ${smEsc(e.message||e)}</span>`); return; }
+      gbPdfHandle = handle;
+    } else {
+      const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([buf], {type:'application/pdf'})); a.download = name; a.click(); setTimeout(()=> URL.revokeObjectURL(a.href), 4000);
+    }
+    gbPdf = {name: gbPdfHandle ? gbPdfHandle.name : name, buf};
+    await gbPutCurrent();
+    gbShowPdf();
+    if(!gbPdfHandle) gbShowPdf(`Calc PDF downloaded as <b>${smEsc(name)}</b>. This browser can't overwrite files, so it won't auto-update &mdash; use Chrome or Edge for that.`);
+    if(typeof showLoadToast==='function') showLoadToast(`Saved the calc PDF for "${document.getElementById('gb-title').value}".`);
+  }
+  // Writes the loaded beam's record (inputs, summary, PDF bytes + file link).
+  async function gbPutCurrent(){
+    if(!gbLoadedId) return;
+    const old = await gbIdb('readonly', st=> st.get(gbLoadedId));
+    if(!old) return;
+    const rec = Object.assign({}, old, {state:gbCapture(), summary:gbSummary(), savedAt:new Date().toISOString(),
+      project: document.getElementById('gb-project').value.trim() || old.project, title: document.getElementById('gb-title').value.trim() || old.title,
+      pdfName: gbPdf ? gbPdf.name : '', pdf: gbPdf ? gbPdf.buf : null, pdfHandle: gbPdfHandle || null});
+    try{ await gbIdb('readwrite', st=> st.put(rec)); }
+    catch(e){ delete rec.pdfHandle; await gbIdb('readwrite', st=> st.put(rec)); }
+  }
+  // Every change to a saved beam that has a linked calc PDF: update the saved
+  // beam and overwrite that PDF (debounced; one rebuild at a time).
+  function gbQueueSync(){
+    if(!gbLoadedId || !gbPdfHandle) return;
+    clearTimeout(gbSyncTimer);
+    gbSyncTimer = setTimeout(gbSyncNow, 1500);
+  }
+  async function gbSyncNow(){
+    if(gbSyncing){ gbSyncAgain = true; return; }
+    gbSyncing = true;
+    try{
+      let perm = 'granted';
+      try{ perm = await gbPdfHandle.queryPermission({mode:'readwrite'}); }catch(e){}
+      if(perm!=='granted'){
+        gbShowPdf(`Calc PDF <b>${smEsc(gbPdfHandle.name)}</b> is out of date &mdash; <a href="#" onclick="gbReallow();return false;">click to allow updating it</a>.`);
+        return;
+      }
+      gbShowPdf(`Updating <b>${smEsc(gbPdfHandle.name)}</b>&hellip;`);
+      const buf = await gbBuildPdfBytes();
+      await gbWriteHandle(gbPdfHandle, buf);
+      gbPdf = {name: gbPdfHandle.name, buf};
+      await gbPutCurrent();
+      gbShowPdf(`Calc PDF: <b>${smEsc(gbPdfHandle.name)}</b> &mdash; updated ${new Date().toLocaleTimeString([], {hour:'numeric', minute:'2-digit'})}, overwritten automatically when this beam changes.`);
+      gbRenderList();
+    } catch(e){
+      gbShowPdf(`<span style="color:#c62828">Couldn't update ${smEsc(gbPdfHandle ? gbPdfHandle.name : 'the PDF')}: ${smEsc(e.message||e)}</span>`);
+    } finally {
+      gbSyncing = false;
+      if(gbSyncAgain){ gbSyncAgain = false; gbQueueSync(); }
+    }
+  }
+  async function gbReallow(){
+    if(!gbPdfHandle) return;
+    try{ if(await gbPdfHandle.requestPermission({mode:'readwrite'})==='granted') gbSyncNow(); }catch(e){}
+  }
   function gbNew(){
-    gbLoadedId = null; gbPdf = null;
+    gbLoadedId = null; gbPdf = null; gbPdfHandle = null;
     document.getElementById('gb-title').value = ''; // project stays, so the next beam goes in the same job
     document.getElementById('gb-update').style.display = 'none';
     gbShowPdf(); gbAutoSave(); gbRenderList();
@@ -5824,13 +5996,14 @@
     const same = all.find(r=> (r.project||'').toLowerCase()===project.toLowerCase() && r.title.toLowerCase()===title.toLowerCase());
     if(same && same.id!==gbLoadedId && !confirm(`"${title}" already exists in ${project}. Replace it?`)) return;
     const id = same ? same.id : ('b' + Date.now().toString(36));
-    const rec = {id, project, title, savedAt:new Date().toISOString(), state:gbCapture(), summary:gbSummary(), pdfName:gbPdf?gbPdf.name:'', pdf:gbPdf?gbPdf.buf:null};
-    try{ await gbIdb('readwrite', st=> st.put(rec)); }
+    const keepPdf = same && same.id===gbLoadedId;
+    if(!keepPdf){ gbPdf = null; gbPdfHandle = null; } // a different beam's PDF never follows you into this one
+    const rec = {id, project, title, savedAt:new Date().toISOString(), state:gbCapture(), summary:gbSummary(), pdfName:gbPdf?gbPdf.name:'', pdf:gbPdf?gbPdf.buf:null, pdfHandle:gbPdfHandle||null};
+    try{ try{ await gbIdb('readwrite', st=> st.put(rec)); }catch(e){ if(!rec.pdfHandle) throw e; delete rec.pdfHandle; await gbIdb('readwrite', st=> st.put(rec)); } }
     catch(e){ alert('Could not save the beam: ' + (e && e.message || e)); return; }
     gbLoadedId = id;
     document.getElementById('gb-update').style.display = '';
     gbAutoSave(); gbRenderList();
-    const f = document.getElementById('gb-filter'); if(f && f.value && f.value!==project) f.value = project;
     if(typeof showLoadToast==='function') showLoadToast(`Saved "${title}" to ${project}${gbPdf?' with '+gbPdf.name:''}.`);
   }
   async function gbLoad(id){
@@ -5841,6 +6014,7 @@
     document.getElementById('gb-title').value = rec.title;
     document.getElementById('gb-project').value = rec.project || '';
     gbPdf = rec.pdf ? {name:rec.pdfName||'attached.pdf', buf:rec.pdf} : null;
+    gbPdfHandle = rec.pdfHandle || null;
     gbShowPdf();
     document.getElementById('gb-update').style.display = '';
     gbAutoSave(); gbRenderList();
@@ -5861,32 +6035,227 @@
   }
   let gbFilterWanted = '';
   async function gbRenderList(){
-    const el = document.getElementById('gb-list'); if(!el) return;
+    const sel = document.getElementById('gb-pick'); if(!sel) return;
     let all = [];
     try{ all = await gbIdb('readonly', st=> st.getAll()) || []; }catch(e){}
-    // project pickers
     const projects = [...new Set(all.map(r=> r.project || '(no project)'))].sort((a,b)=> b.localeCompare(a, undefined, {numeric:true}));
     const dl = document.getElementById('gb-projects'); if(dl) dl.innerHTML = projects.filter(p=>p!=='(no project)').map(p=>`<option value="${smEsc(p)}">`).join('');
-    const fsel = document.getElementById('gb-filter');
-    if(fsel){
-      const cur = gbFilterWanted || fsel.value; gbFilterWanted = '';
-      fsel.innerHTML = '<option value="">All projects</option>' + projects.map(p=>`<option value="${smEsc(p)}">${smEsc(p)} (${all.filter(r=>(r.project||'(no project)')===p).length})</option>`).join('');
-      if(projects.includes(cur)) fsel.value = cur;
-    }
-    const pf = fsel ? fsel.value : '';
-    const q = ((document.getElementById('gb-search')||{}).value||'').toLowerCase().trim();
-    all = all.filter(r=> (!pf || (r.project||'(no project)')===pf) && (!q || ((r.project||'')+' '+r.title+' '+(r.summary||'')+' '+(r.pdfName||'')).toLowerCase().includes(q)));
-    if(!all.length){ el.innerHTML = `<div class="note" style="margin:4px 0 0;">${q||pf?'No matches.':'Nothing saved yet.'}</div>`; return; }
-    const groups = {};
-    all.forEach(r=>{ const k = r.project || '(no project)'; (groups[k] = groups[k] || []).push(r); });
-    el.innerHTML = Object.keys(groups).sort((a,b)=> b.localeCompare(a, undefined, {numeric:true})).map(k=>
-      `<div class="grp-label" style="margin:6px 0 3px;">${smEsc(k)}</div>` +
-      groups[k].sort((a,b)=> a.title.localeCompare(b.title, undefined, {numeric:true})).map(r=>`<div class="sm-listitem${r.id===gbLoadedId?' sel':''}" style="padding:5px 7px;margin-bottom:4px;" onclick="gbLoad('${r.id}')" title="Load this beam's inputs">
-        <div style="display:flex;justify-content:space-between;gap:6px;align-items:center;"><b style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${smEsc(r.title)}</b>
-          <span style="display:flex;gap:4px;flex:none;">${r.pdf?`<a href="#" onclick="event.stopPropagation();gbOpenPdf('${r.id}');return false;" title="Open ${smEsc(r.pdfName||'')} in PDF Viewer">PDF</a>`:''}<a href="#" onclick="event.stopPropagation();gbDelete('${r.id}');return false;" style="color:#c62828;" title="Remove from the list">&times;</a></span></div>
-        <div class="note" style="margin:0;">${smEsc(r.summary||'')}${r.summary?' &middot; ':''}${new Date(r.savedAt).toLocaleDateString()}</div>
-      </div>`).join('')).join('');
+    // one compact dropdown, grouped by project, newest job number first
+    sel.innerHTML = `<option value="">${all.length ? `— ${all.length} saved beam${all.length>1?'s':''} —` : '— nothing saved yet —'}</option>` +
+      projects.map(p=> `<optgroup label="${smEsc(p)}">` + all.filter(r=>(r.project||'(no project)')===p)
+        .sort((a,b)=> a.title.localeCompare(b.title, undefined, {numeric:true}))
+        .map(r=> `<option value="${r.id}">${smEsc(r.title)}${r.summary?' — '+smEsc(r.summary.replace(/\s*\(.*$/,'')):''}</option>`).join('') + '</optgroup>').join('');
+    sel.value = (gbLoadedId && all.some(r=>r.id===gbLoadedId)) ? gbLoadedId : '';
+    const vb = document.getElementById('gb-openpdf'), cur = all.find(r=>r.id===gbLoadedId);
+    if(vb) vb.disabled = !(cur && cur.pdf);
   }
+  // ---- Shared "remember + saved-by-project + auto-updating calc PDF" library ----
+  // Same behavior as Beam Sizing's, reused by Joist Spans and LVL/I-Joist.
+  // cfg: {key, sideId, label, capture()->extra, apply(extra), recalc(), sheetCfg(), summary()}
+  function tfrMakeCalcLib(cfg){
+    const K = cfg.key, DB = 'tfr-calc-' + K, STORE = 'items', LS = 'tfrCalcWorking-' + K;
+    const $ = id=> document.getElementById(K + '-' + id);
+    let restoring = false, timer = null, loadedId = null, pdf = null, handle = null, syncT = null, syncing = false, again = false;
+    function idb(mode, fn){
+      return new Promise((resolve, reject)=>{
+        const req = indexedDB.open(DB, 1);
+        req.onupgradeneeded = ()=> req.result.createObjectStore(STORE, {keyPath:'id'});
+        req.onerror = ()=> reject(req.error);
+        req.onsuccess = ()=>{
+          const tx = req.result.transaction(STORE, mode), st = tx.objectStore(STORE);
+          let r; try{ r = fn(st); }catch(e){ try{ tx.abort(); }catch(_){} reject(e); return; }
+          tx.oncomplete = ()=> resolve(r && r.result); tx.onerror = ()=> reject(tx.error); tx.onabort = ()=> reject(tx.error || new Error('aborted'));
+        };
+      });
+    }
+    function capture(){
+      const vals = {};
+      document.querySelectorAll(`#${cfg.sideId} input[id], #${cfg.sideId} select[id]`).forEach(el=>{
+        if(el.id.startsWith(K+'-') || el.type==='file') return;
+        vals[el.id] = el.type==='checkbox' ? el.checked : el.value;
+      });
+      return {vals, extra: cfg.capture ? cfg.capture() : null};
+    }
+    function apply(st){
+      if(!st || !st.vals) return;
+      restoring = true;
+      try{
+        Object.keys(st.vals).forEach(id=>{ const el = document.getElementById(id); if(!el) return; if(el.type==='checkbox') el.checked = !!st.vals[id]; else el.value = st.vals[id]; });
+        if(cfg.apply) cfg.apply(st.extra);
+        cfg.recalc();
+      } finally { restoring = false; }
+    }
+    function summary(){ try{ return cfg.summary ? cfg.summary() : ''; }catch(e){ return ''; } }
+    function show(msg){
+      const el = $('pdfname'); if(!el) return;
+      if(msg){ el.innerHTML = msg; return; }
+      if(handle) el.innerHTML = `Calc PDF: <b>${smEsc(handle.name)}</b> &mdash; overwritten automatically when this changes.`;
+      else if(pdf) el.innerHTML = `Calc PDF: <b>${smEsc(pdf.name)}</b> (stored here; Save PDF&hellip; links a file that auto-updates)`;
+      else el.textContent = 'No calc PDF linked';
+    }
+    function persist(){
+      if(restoring) return;
+      queueSync();
+      clearTimeout(timer);
+      timer = setTimeout(()=>{ try{ localStorage.setItem(LS, JSON.stringify({state:capture(), loadedId, title:$('title').value, project:$('project').value})); }catch(e){} }, 300);
+    }
+    async function putCurrent(){
+      if(!loadedId) return;
+      const old = await idb('readonly', st=> st.get(loadedId)); if(!old) return;
+      const rec = Object.assign({}, old, {state:capture(), summary:summary(), savedAt:new Date().toISOString(),
+        project:$('project').value.trim() || old.project, title:$('title').value.trim() || old.title,
+        pdfName: pdf ? pdf.name : '', pdf: pdf ? pdf.buf : null, pdfHandle: handle || null});
+      try{ await idb('readwrite', st=> st.put(rec)); }catch(e){ delete rec.pdfHandle; await idb('readwrite', st=> st.put(rec)); }
+    }
+    async function save(){
+      let title = $('title').value.trim(), project = $('project').value.trim();
+      if(!project){ project = (prompt('Project (e.g. 26-027 River Ranch):', '') || '').trim(); if(!project) return; $('project').value = project; }
+      if(!title){ title = (prompt(`Title for this ${cfg.label}:`, '') || '').trim(); if(!title) return; $('title').value = title; }
+      let all = []; try{ all = await idb('readonly', st=> st.getAll()) || []; }catch(e){}
+      const same = all.find(r=> (r.project||'').toLowerCase()===project.toLowerCase() && r.title.toLowerCase()===title.toLowerCase());
+      if(same && same.id!==loadedId && !confirm(`"${title}" already exists in ${project}. Replace it?`)) return;
+      const keep = same && same.id===loadedId;
+      if(!keep){ pdf = null; handle = null; } // a different item's PDF never follows you into this one
+      const id = same ? same.id : (K + Date.now().toString(36));
+      const rec = {id, project, title, savedAt:new Date().toISOString(), state:capture(), summary:summary(), pdfName:pdf?pdf.name:'', pdf:pdf?pdf.buf:null, pdfHandle:handle||null};
+      try{ try{ await idb('readwrite', st=> st.put(rec)); }catch(e){ if(!rec.pdfHandle) throw e; delete rec.pdfHandle; await idb('readwrite', st=> st.put(rec)); } }
+      catch(e){ alert('Could not save: ' + (e && e.message || e)); return; }
+      loadedId = id; show(); persist(); render();
+      if(typeof showLoadToast==='function') showLoadToast(`Saved "${title}" to ${project}.`);
+    }
+    async function load(id){
+      const rec = await idb('readonly', st=> st.get(id)); if(!rec) return;
+      apply(rec.state);
+      loadedId = rec.id; $('title').value = rec.title; $('project').value = rec.project || '';
+      pdf = rec.pdf ? {name:rec.pdfName||'calc.pdf', buf:rec.pdf} : null; handle = rec.pdfHandle || null;
+      show(); persist(); render();
+    }
+    function fresh(){ loadedId = null; pdf = null; handle = null; $('title').value = ''; show(); persist(); render(); }
+    async function remove(){
+      if(!loadedId) return;
+      const rec = await idb('readonly', st=> st.get(loadedId));
+      if(!rec || !confirm(`Remove "${rec.title}" from the saved list?`)) return;
+      await idb('readwrite', st=> st.delete(loadedId)); fresh();
+    }
+    async function openPdf(){
+      if(!loadedId) return;
+      const rec = await idb('readonly', st=> st.get(loadedId)); if(!rec || !rec.pdf) return;
+      if(typeof showPanel==='function') showPanel('pdfcompare');
+      if(typeof pcSetMode==='function') pcSetMode('single');
+      if(typeof pvLoadFiles==='function') await pvLoadFiles([new File([rec.pdf.slice(0)], rec.pdfName||'calc.pdf', {type:'application/pdf'})]);
+    }
+    function pdfName(){ return ([$('project').value.trim(), $('title').value.trim()].filter(Boolean).join(' - ') || cfg.label).replace(/[\\/:*?"<>|]+/g, '-') + '.pdf'; }
+    async function savePdf(){
+      if(!loadedId){ await save(); if(!loadedId) return; }
+      show('Building calc PDF&hellip;');
+      let buf; try{ buf = await tfrSheetPdfBytes(cfg.sheetCfg()); }catch(e){ show(`<span style="color:#c62828">Couldn't build the PDF: ${smEsc(e.message||e)}</span>`); return; }
+      const name = pdfName();
+      if(window.showSaveFilePicker){
+        let h; try{ h = await window.showSaveFilePicker({suggestedName:name, id:'calc-pdf-'+K, types:[{description:'PDF', accept:{'application/pdf':['.pdf']}}]}); }catch(e){ show(); return; }
+        try{ await gbWriteHandle(h, buf); }catch(e){ show(`<span style="color:#c62828">Couldn't write the PDF: ${smEsc(e.message||e)}</span>`); return; }
+        handle = h;
+      } else {
+        const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([buf], {type:'application/pdf'})); a.download = name; a.click(); setTimeout(()=> URL.revokeObjectURL(a.href), 4000);
+      }
+      pdf = {name: handle ? handle.name : name, buf};
+      await putCurrent(); render();
+      show(handle ? '' : `Calc PDF downloaded as <b>${smEsc(name)}</b>. This browser can't overwrite files, so it won't auto-update &mdash; use Chrome or Edge for that.`);
+    }
+    function queueSync(){ if(!loadedId || !handle) return; clearTimeout(syncT); syncT = setTimeout(syncNow, 1500); }
+    async function syncNow(){
+      if(syncing){ again = true; return; }
+      syncing = true;
+      try{
+        let perm = 'granted'; try{ perm = await handle.queryPermission({mode:'readwrite'}); }catch(e){}
+        if(perm!=='granted'){ show(`Calc PDF <b>${smEsc(handle.name)}</b> is out of date &mdash; <a href="#" onclick="${K}Lib.reallow();return false;">click to allow updating it</a>.`); return; }
+        show(`Updating <b>${smEsc(handle.name)}</b>&hellip;`);
+        const buf = await tfrSheetPdfBytes(cfg.sheetCfg());
+        await gbWriteHandle(handle, buf);
+        pdf = {name:handle.name, buf}; await putCurrent();
+        show(`Calc PDF: <b>${smEsc(handle.name)}</b> &mdash; updated ${new Date().toLocaleTimeString([], {hour:'numeric', minute:'2-digit'})}, overwritten automatically when this changes.`);
+        render();
+      } catch(e){ show(`<span style="color:#c62828">Couldn't update the PDF: ${smEsc(e.message||e)}</span>`); }
+      finally { syncing = false; if(again){ again = false; queueSync(); } }
+    }
+    async function reallow(){ if(handle){ try{ if(await handle.requestPermission({mode:'readwrite'})==='granted') syncNow(); }catch(e){} } }
+    async function render(){
+      const sel = $('pick'); if(!sel) return;
+      let all = []; try{ all = await idb('readonly', st=> st.getAll()) || []; }catch(e){}
+      const projects = [...new Set(all.map(r=> r.project || '(no project)'))].sort((a,b)=> b.localeCompare(a, undefined, {numeric:true}));
+      const dl = $('projects'); if(dl) dl.innerHTML = projects.filter(p=>p!=='(no project)').map(p=>`<option value="${smEsc(p)}">`).join('');
+      sel.innerHTML = `<option value="">${all.length ? `— ${all.length} saved —` : '— nothing saved yet —'}</option>` +
+        projects.map(p=> `<optgroup label="${smEsc(p)}">` + all.filter(r=>(r.project||'(no project)')===p).sort((a,b)=> a.title.localeCompare(b.title, undefined, {numeric:true}))
+          .map(r=> `<option value="${r.id}">${smEsc(r.title)}${r.summary?' — '+smEsc(r.summary):''}</option>`).join('') + '</optgroup>').join('');
+      sel.value = (loadedId && all.some(r=>r.id===loadedId)) ? loadedId : '';
+      const cur = all.find(r=>r.id===loadedId), vb = $('openpdf'); if(vb) vb.disabled = !(cur && cur.pdf);
+    }
+    function mount(){
+      const host = document.getElementById(K + '-lib'); if(!host) return;
+      const inp = 'flex:1;max-width:230px;padding:3px 6px;font-size:.76rem;';
+      host.innerHTML = `<p class="grp-label">Saved ${cfg.label}s</p>
+        <div class="row" style="flex-direction:column;align-items:stretch;gap:5px;margin-bottom:0;">
+          <div class="pv-field" style="justify-content:space-between;">Project<input id="${K}-project" type="text" list="${K}-projects" placeholder="e.g. 26-027 River Ranch" style="${inp}"><datalist id="${K}-projects"></datalist></div>
+          <div class="pv-field" style="justify-content:space-between;">Title<input id="${K}-title" type="text" placeholder="e.g. Floor joists, main level" style="${inp}"></div>
+          <div style="display:flex;gap:6px;flex-wrap:wrap;">
+            <button class="pv-btn" onclick="${K}Lib.save()" title="Save under this project + title (asks before replacing one with the same name)">Save</button>
+            <button class="pv-btn" onclick="${K}Lib.savePdf()" title="Save the calc sheet as a PDF file. From then on it's overwritten automatically every time this changes.">Save PDF&hellip;</button>
+            <button class="pv-btn" onclick="${K}Lib.fresh()" title="Clear the title/PDF and start a new one (inputs stay)">New</button>
+          </div>
+          <div id="${K}-pdfname" class="note" style="margin:0;">No calc PDF linked</div>
+          <div class="pv-field" style="justify-content:space-between;">Open<select id="${K}-pick" onchange="if(this.value) ${K}Lib.load(this.value)" style="flex:1;max-width:230px;"><option value="">— saved —</option></select></div>
+          <div style="display:flex;gap:6px;">
+            <button class="pv-btn" id="${K}-openpdf" onclick="${K}Lib.openPdf()" disabled title="Open the calc PDF in PDF Viewer">View PDF</button>
+            <button class="pv-btn" style="color:#c62828;border-color:#c62828;" onclick="${K}Lib.remove()" title="Remove the open one from the saved list">Remove</button>
+          </div>
+        </div>`;
+      $('project').addEventListener('input', persist); $('title').addEventListener('input', persist);
+      // any input change in the side panel counts as a change
+      const side = document.getElementById(cfg.sideId);
+      if(side){ side.addEventListener('input', e=>{ if(!e.target.id.startsWith(K+'-')) persist(); }); side.addEventListener('change', e=>{ if(!e.target.id.startsWith(K+'-')) persist(); }); }
+      try{
+        const raw = localStorage.getItem(LS);
+        if(raw){
+          const w = JSON.parse(raw);
+          apply(w.state); loadedId = w.loadedId || null;
+          $('title').value = w.title || ''; $('project').value = w.project || '';
+          if(loadedId) idb('readonly', st=> st.get(loadedId)).then(rec=>{ if(!rec){ loadedId = null; render(); return; } pdf = rec.pdf ? {name:rec.pdfName, buf:rec.pdf} : null; handle = rec.pdfHandle || null; show(); render(); }).catch(()=>{});
+        }
+      }catch(e){ console.warn('could not restore', K, e); }
+      render();
+    }
+    return {save, load, fresh, remove, openPdf, savePdf, reallow, persist, mount,
+      titled: base=>{ const n = [ (($('project')||{}).value||'').trim(), (($('title')||{}).value||'').trim() ].filter(Boolean).join(' — '); return n ? `${base}: ${n}` : base; }};
+  }
+  var jlLib = null, slLib = null;
+  window.addEventListener('load', ()=> setTimeout(()=>{
+    try{
+      jlLib = window.jlLib = tfrMakeCalcLib({key:'jl', sideId:'j-side-panel', label:'joist',
+        capture: ()=> ({supports:[...jSupports], types:[...jSupportTypes], locked:jLockedTotal}),
+        apply: x=>{ if(x && Array.isArray(x.supports) && x.supports.length>=2){ jSupports = x.supports.slice(); jSupportTypes = (x.types||[]).slice(); while(jSupportTypes.length<jSupports.length) jSupportTypes.push('wall'); } if(x) jLockedTotal = x.locked==null ? null : x.locked; },
+        recalc: ()=> updateJoistAnalysis(),
+        sheetCfg: ()=> joistSheetCfg(),
+        summary: ()=> (lastJoistCalc && lastJoistCalc.size) || ''});
+      jlLib.mount();
+      // diagram drags/edits redraw via updateJoistAnalysis - count those as changes too
+      const _uja = updateJoistAnalysis;
+      updateJoistAnalysis = function(){ _uja.apply(this, arguments); if(jlLib) jlLib.persist(); };
+    }catch(e){ console.warn('Joist library init failed', e); }
+    try{
+      slLib = window.slLib = tfrMakeCalcLib({key:'sl', sideId:'sp-side-panel', label:'member',
+        capture: ()=> ({type: spanType}),
+        apply: x=>{ if(x && x.type) setSpanType(x.type); },
+        recalc: ()=> calcSpan(),
+        sheetCfg: ()=> spanSheetCfg(),
+        summary: ()=> (lastSpanCalc && lastSpanCalc.size) || ''});
+      // LVL tab: results now update live (it used to need a button press)
+      const side = document.getElementById('sp-side-panel');
+      if(side){ side.addEventListener('input', e=>{ if(!e.target.id.startsWith('sl-')) calcSpan(); }); side.addEventListener('change', e=>{ if(!e.target.id.startsWith('sl-')) calcSpan(); }); }
+      const _sst = setSpanType;
+      setSpanType = function(t){ _sst(t); try{ calcSpan(); }catch(e){} if(slLib) slLib.persist(); };
+      slLib.mount();
+      calcSpan();
+    }catch(e){ console.warn('LVL library init failed', e); }
+  }, 0));
   window.addEventListener('load', ()=> setTimeout(()=>{
     try{
       const raw = localStorage.getItem(GB_KEY);
@@ -5896,10 +6265,9 @@
         gbLoadedId = w.loadedId || null;
         if(w.title) document.getElementById('gb-title').value = w.title;
         if(w.project) document.getElementById('gb-project').value = w.project;
-        gbFilterWanted = w.filter || '';
         if(gbLoadedId){
           document.getElementById('gb-update').style.display = '';
-          gbIdb('readonly', st=> st.get(gbLoadedId)).then(rec=>{ if(rec && rec.pdf){ gbPdf = {name:rec.pdfName, buf:rec.pdf}; gbShowPdf(); } else if(!rec){ gbLoadedId = null; document.getElementById('gb-update').style.display = 'none'; } }).catch(()=>{});
+          gbIdb('readonly', st=> st.get(gbLoadedId)).then(rec=>{ if(rec && (rec.pdf || rec.pdfHandle)){ if(rec.pdf) gbPdf = {name:rec.pdfName, buf:rec.pdf}; gbPdfHandle = rec.pdfHandle || null; gbShowPdf(); } else if(!rec){ gbLoadedId = null; document.getElementById('gb-update').style.display = 'none'; } }).catch(()=>{});
         }
       }
     }catch(e){ console.warn('Beam Sizing: could not restore last beam', e); }
@@ -6381,10 +6749,10 @@
     if(tw) tw.classList.toggle('hide', t!=='hss');
     if(t==='hss') steelFill('g-steel-thick', u(cat.map(steelThickOf)), steelFracTxt);
   }
-  const widths = [3.125, 5.125, 5.5, 6.75, 7.5, 8.75, 9.5];
+  const widths = [3.125, 5.125, 5.5, 6.75, 7.5, 8.75, 9.5, 10.75, 12.25, 14.25];
   function depthsForWidth(b){
     const sizes = [];
-    for(let d=6; d<=30; d+=1.5){
+    for(let d=6; d<=72; d+=1.5){
       sizes.push({b, d, Sx: (b*d*d/6), I: (b*d*d*d/12)});
     }
     return sizes;
