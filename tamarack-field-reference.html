@@ -60,10 +60,29 @@
   main{ flex:1; padding:22px 26px 90px; min-width:0; }
   .panel{ display:none; }
   .panel.active{ display:block; }
+  /* ---- full-bleed layout for the interactive sheet tools (Snow Drift, SE
+     Markup, PDF Viewer) - while one of these is open the outer page never
+     scrolls; only the tool's own sheet/thumbnail panes do, so mouse-wheel
+     zoom on the sheet can never turn into a page scroll instead. ---- */
+  body.tfr-fullbleed{ height:100vh; overflow:hidden; }
+  body.tfr-fullbleed .layout{ height:100vh; }
+  body.tfr-fullbleed nav{ height:100vh; overflow-y:auto; box-sizing:border-box; }
+  body.tfr-fullbleed main{ height:100vh; overflow:hidden; display:flex; flex-direction:column; box-sizing:border-box; padding-bottom:16px; }
+  body.tfr-fullbleed .panel.active{ display:flex; flex-direction:column; min-height:0; flex:1; }
+  body.tfr-fullbleed .panel.active > *{ flex:none; }
+  body.tfr-fullbleed #snowdrift.panel.active > #sd-layout{ flex:1; min-height:0; margin-top:6px; }
+  body.tfr-fullbleed #pdfcompare.panel.active > #pcSingleMode{ flex:1; min-height:0; display:flex; flex-direction:column; }
+  body.tfr-fullbleed #pdfcompare.panel.active > #pcSingleMode > *{ flex:none; }
+  body.tfr-fullbleed #pdfcompare.panel.active > #pcSingleMode > .sm-layout{ flex:1; min-height:0; margin-top:6px; }
+  body.tfr-fullbleed #semarkup.panel.active{ display:block; }
+  body.tfr-fullbleed #semarkup.panel.active iframe{ height:100% !important; }
+  body.tfr-fullbleed .sm-layout{ align-items:stretch; }
+  body.tfr-fullbleed .sm-viewer{ height:auto !important; flex:1; min-height:0; }
+  body.tfr-fullbleed .sm-side, body.tfr-fullbleed .thumb-rail{ height:auto !important; max-height:none !important; overflow:auto; }
   h2{ font-family:var(--sans); font-size:1.15rem; font-weight:700; margin:0 0 4px; color:var(--ink); }
   .sub{ color:var(--steel); font-size:.85rem; margin:0 0 16px; max-width:70ch; }
   .card{ background:#fff; border:1px solid var(--line); border-radius:8px; padding:16px; margin-bottom:16px; box-shadow:0 1px 2px rgba(20,20,40,.04); }
-  .grp{ background:#f4f5f7; border:1px solid var(--line); border-radius:8px; padding:10px 12px; margin-top:10px; }
+  .grp{ background:#f4f5f7; border:1px solid var(--line); border-radius:8px; padding:6px 10px; margin-top:6px; }
   .grp:first-child{ margin-top:0; }
   .grp-label{ font-size:.72rem; font-weight:700; text-transform:uppercase; letter-spacing:.04em; color:#7a8493; margin:0 0 6px; }
   .beam-diagram-wrap{ width:100%; background:#f4f2ec; border:1px solid var(--line); border-radius:8px; padding:4px 4px 0; overflow:hidden; }
@@ -362,7 +381,18 @@
   .sd-iso img{ width:100%; border:1px solid var(--line); border-radius:4px; cursor:zoom-in; background:#fff; }
   .sm-listitem{ padding:6px 8px; border:1px solid var(--line); border-radius:6px; margin-bottom:6px; cursor:pointer; }
   .sm-listitem.sel{ border-color:#1565c0; background:#e8f0fb; }
-  @media (max-width: 900px){ .sm-layout{ flex-direction:column; } .sm-side{ width:auto; } }
+  @media (max-width: 900px){ .sm-layout{ flex-direction:column; } .sm-side{ width:auto; }
+    /* Narrow/mobile screens keep normal page scroll - the fixed-viewport
+       lock below is a desktop convenience (mouse-wheel zoom, toolbar
+       always visible) that would just clip content on a small screen. */
+    body.tfr-fullbleed{ height:auto; overflow:visible; }
+    body.tfr-fullbleed .layout{ height:auto; }
+    body.tfr-fullbleed nav{ height:auto; overflow-y:visible; }
+    body.tfr-fullbleed main{ height:auto; overflow:visible; display:block; }
+    body.tfr-fullbleed .panel.active{ display:block; }
+    body.tfr-fullbleed .panel.active > *{ flex:initial; }
+    body.tfr-fullbleed .sm-viewer{ height:calc(100vh - 120px) !important; }
+  }
 
   .dc-req-list{ display:grid; grid-template-columns:repeat(auto-fill,minmax(260px,1fr)); gap:10px; margin-top:8px; }
   .dc-req{ border:1px solid var(--line); border-radius:8px; padding:8px; background:#fff; display:flex; flex-direction:column; gap:6px; }
@@ -1608,24 +1638,24 @@
     --red:#ff6b5e; --red-soft:#3a2220; --blue:#7fb3e6; --blue-soft:#1e2f40; --ok:#7bc47f; --sheet:#0d1013; }
   html,body{ height:100%; }
   body{ background:var(--ground); color:var(--ink); font-family:var(--font); font-size:15px; }
-  .wrap{ padding-inline:10px; padding-block:10px; max-width:none; margin:0 auto; display:flex; flex-direction:column; gap:12px; min-height:100%; box-sizing:border-box; }
-  header{ display:flex; flex-wrap:wrap; align-items:baseline; gap:6px 14px; }
-  h1{ font-family:var(--cond); font-weight:600; font-size:1.7rem; letter-spacing:.02em; margin:0; text-transform:uppercase; }
+  .wrap{ padding-inline:10px; padding-block:8px; max-width:none; margin:0 auto; display:flex; flex-direction:column; gap:6px; min-height:100%; box-sizing:border-box; }
+  header{ display:flex; flex-wrap:wrap; align-items:baseline; gap:4px 14px; }
+  h1{ font-family:var(--cond); font-weight:600; font-size:1.3rem; letter-spacing:.02em; margin:0; text-transform:uppercase; }
   h1 span{ color:var(--red); }
-  .sub{ color:var(--muted); margin:0; font-size:.92rem; max-width:70ch; }
-  .bar{ background:var(--panel); border:1px solid var(--line); border-radius:8px; padding:10px 12px; display:flex; flex-wrap:wrap; gap:8px; align-items:center; }
+  .sub{ color:var(--muted); margin:0; font-size:.8rem; max-width:70ch; }
+  .bar{ background:var(--panel); border:1px solid var(--line); border-radius:8px; padding:5px 8px; display:flex; flex-wrap:wrap; gap:5px; align-items:center; }
   .label{ font-family:var(--cond); text-transform:uppercase; letter-spacing:.06em; font-size:.8rem; color:var(--muted); }
   button, select, input{ font:inherit; color:var(--ink); }
-  .btn{ border:1px solid var(--line); background:var(--panel); border-radius:6px; padding:6px 11px; cursor:pointer; white-space:nowrap; }
+  .btn{ border:1px solid var(--line); background:var(--panel); border-radius:5px; padding:4px 8px; font-size:.8rem; cursor:pointer; white-space:nowrap; }
   .btn:hover{ border-color:var(--blue); }
   .btn:focus-visible, .tool:focus-visible, select:focus-visible, input:focus-visible{ outline:2px solid var(--blue); outline-offset:1px; }
   .btn.primary{ background:var(--blue); border-color:var(--blue); color:#fff; }
   .btn.danger{ color:var(--red); border-color:var(--red); }
   .btn:disabled{ opacity:.45; cursor:default; }
-  select, input[type=text]{ border:1px solid var(--line); border-radius:6px; padding:6px 8px; background:var(--panel); }
-  .tools{ display:flex; flex-wrap:wrap; gap:5px; }
-  .tool{ border:1px solid var(--line); background:var(--panel); border-radius:6px; padding:4px 6px; cursor:pointer; font-weight:500; display:inline-flex; flex-direction:column; align-items:center; gap:1px; min-width:52px; font-size:.72rem; line-height:1.1; }
-  .tool svg{ width:22px; height:22px; stroke:currentColor; fill:none; stroke-width:1.7; stroke-linecap:round; stroke-linejoin:round; }
+  select, input[type=text]{ border:1px solid var(--line); border-radius:5px; padding:4px 7px; font-size:.8rem; background:var(--panel); }
+  .tools{ display:flex; flex-wrap:wrap; gap:4px; }
+  .tool{ border:1px solid var(--line); background:var(--panel); border-radius:5px; padding:3px 5px; cursor:pointer; font-weight:500; display:inline-flex; flex-direction:column; align-items:center; gap:1px; min-width:44px; font-size:.66rem; line-height:1.1; }
+  .tool svg{ width:18px; height:18px; stroke:currentColor; fill:none; stroke-width:1.7; stroke-linecap:round; stroke-linejoin:round; }
   .tgroup{ display:flex; gap:4px; padding-right:8px; margin-right:4px; border-right:1px solid var(--line); align-items:stretch; }
   .tgroup:last-child{ border-right:0; }
   .tgroup .gl{ writing-mode:vertical-rl; transform:rotate(180deg); font-family:var(--cond); font-size:.66rem; letter-spacing:.08em; text-transform:uppercase; color:var(--muted); }
@@ -1637,13 +1667,13 @@
   .tool.active kbd{ color:#fde; }
   .spacer{ flex:1; }
   .main{ display:flex; gap:12px; flex:1; min-height:0; }
-  .viewer{ flex:1; min-width:0; height:calc(100vh - 250px); min-height:420px; overflow:auto; background:var(--sheet); border-radius:8px; padding:12px; position:relative; }
+  .viewer{ flex:1; min-width:0; height:calc(100vh - 190px); min-height:420px; overflow:auto; overscroll-behavior:contain; background:var(--sheet); border-radius:8px; padding:12px; position:relative; }
   .page{ position:relative; margin:0 auto; background:#fff; box-shadow:0 2px 12px rgba(0,0,0,.35); }
   .page canvas, .page svg{ position:absolute; left:0; top:0; }
   #hires{ pointer-events:none; }
   .page svg{ touch-action:none; }
   .empty{ color:#fff; text-align:center; padding:60px 20px; font-size:1.05rem; }
-  .side{ width:320px; flex:none; display:flex; flex-direction:column; gap:10px; max-height:calc(100vh - 250px); overflow:auto; }
+  .side{ width:320px; flex:none; display:flex; flex-direction:column; gap:10px; max-height:calc(100vh - 190px); overflow:auto; overscroll-behavior:contain; }
   .main.noside .side{ display:none; }
   .card{ background:var(--panel); border:1px solid var(--line); border-radius:8px; padding:10px 12px; }
   .card h2{ font-family:var(--cond); font-weight:600; text-transform:uppercase; letter-spacing:.05em; font-size:.95rem; margin:0 0 6px; }
@@ -1765,7 +1795,7 @@
   let noteMaps = {};      // sheetNumber -&gt; {outline:[u0,v0,u1,v1], notes:[...]}
   let pageNotes = [];     // Revit text notes on the current page, in page coords
   let unsubMarkups = null, unsubPages = null;
-  let tool = &#x27;edit&#x27;, drag = null, undo = [], undoGroup = null, poly = null, guides = [];
+  let tool = &#x27;edit&#x27;, drag = null, undo = [], undoGroup = null, poly = null, guides = [], textLeader = null, textLeaderPreview = null;
   const sels = new Set();           // selected: markup ids, or &#x27;n:&#x27;+uid for untouched Revit notes
   let findHits = [], findPos = -1, findQ = &#x27;&#x27;, pageIndex = null;
   function pushUndo(u){ if(undoGroup) undoGroup.push(u); else undo.push(u); }
@@ -2355,7 +2385,7 @@
     [&#x27;Measure&#x27;,[[&#x27;length&#x27;,&#x27;Length&#x27;,&#x27;M&#x27;],[&#x27;polylength&#x27;,&#x27;Poly-length&#x27;,&#x27;W&#x27;],[&#x27;area&#x27;,&#x27;Area&#x27;,&#x27;G&#x27;]]],
   ];
   const TOOL_LIST = [].concat(...TOOLS.map(g=&gt;g[1]));
-  const TIP = {select:&#x27;Select / move - drag a box to pick several&#x27;, edit:&#x27;Click a Revit note to rewrite it; drag to move it&#x27;, text:&#x27;Click to place new text&#x27;, callout:&#x27;Drag from the thing to where the text goes&#x27;, cloud:&#x27;Drag a cloud&#x27;, cloudplus:&#x27;Drag a cloud, then type the note (placed with a leader)&#x27;, arrow:&#x27;Drag an arrow&#x27;, line:&#x27;Drag a line&#x27;, pen:&#x27;Freehand&#x27;, highlight:&#x27;Drag to highlight&#x27;, rect:&#x27;Drag a rectangle&#x27;, ellipse:&#x27;Drag an ellipse&#x27;, x:&#x27;Drag over text to delete it, or click to mark &quot;remove&quot;&#x27;, check:&#x27;Click to stamp OK&#x27;, count:&#x27;Click each item - numbered 1, 2, 3…&#x27;, length:&#x27;Drag to measure a length&#x27;, polylength:&#x27;Click points, double-click to finish&#x27;, area:&#x27;Click corners, double-click to finish&#x27;};
+  const TIP = {select:&#x27;Select / move - drag a box to pick several&#x27;, edit:&#x27;Click a Revit note to rewrite it; drag to move it&#x27;, text:&#x27;Click the feature, then click where the text should sit - draws a leader arrow between them (Esc cancels)&#x27;, callout:&#x27;Drag from the thing to where the text goes&#x27;, cloud:&#x27;Drag a cloud&#x27;, cloudplus:&#x27;Drag a cloud, then type the note (placed with a leader)&#x27;, arrow:&#x27;Drag an arrow&#x27;, line:&#x27;Drag a line&#x27;, pen:&#x27;Freehand&#x27;, highlight:&#x27;Drag to highlight&#x27;, rect:&#x27;Drag a rectangle&#x27;, ellipse:&#x27;Drag an ellipse&#x27;, x:&#x27;Drag over text to delete it, or click to mark &quot;remove&quot;&#x27;, check:&#x27;Click to stamp OK&#x27;, count:&#x27;Click each item - numbered 1, 2, 3…&#x27;, length:&#x27;Drag to measure a length&#x27;, polylength:&#x27;Click points, double-click to finish&#x27;, area:&#x27;Click corners, double-click to finish&#x27;};
   function buildTools(){
     $(&#x27;tools&#x27;).innerHTML = TOOLS.map(([g, ts])=&gt; `&lt;div class=&quot;tgroup&quot;&gt;&lt;span class=&quot;gl&quot;&gt;${g}&lt;/span&gt;` + ts.map(([id,l,k])=&gt;`&lt;button class=&quot;tool&quot; data-t=&quot;${id}&quot; title=&quot;${esc(TIP[id]||l)} (${k})&quot;&gt;&lt;svg viewBox=&quot;0 0 24 24&quot; aria-hidden=&quot;true&quot;&gt;${ICON[id]||&#x27;&#x27;}&lt;/svg&gt;&lt;span&gt;${l}&lt;/span&gt;&lt;kbd&gt;${k}&lt;/kbd&gt;&lt;/button&gt;`).join(&#x27;&#x27;) + &#x27;&lt;/div&gt;&#x27;).join(&#x27;&#x27;);
     $(&#x27;tools&#x27;).onclick = e=&gt;{ const b = e.target.closest(&#x27;[data-t]&#x27;); if(b) setTool(b.dataset.t); };
@@ -2365,7 +2395,7 @@
   }
   function cancelPoly(){ poly = null; }
   function setTool(t){
-    tool = t; drag = null; poly = null; guides = [];
+    tool = t; drag = null; poly = null; guides = []; textLeader = null; textLeaderPreview = null;
     if(t!==&#x27;select&#x27;) sels.clear();
     document.querySelectorAll(&#x27;.tool&#x27;).forEach(b=&gt; b.classList.toggle(&#x27;active&#x27;, b.dataset.t===t));
     $(&#x27;svg&#x27;).style.cursor = t===&#x27;select&#x27; ? &#x27;default&#x27; : t===&#x27;edit&#x27; ? &#x27;text&#x27; : &#x27;crosshair&#x27;;
@@ -2378,7 +2408,7 @@
     if(e.code===&#x27;Space&#x27;){ spaceDown = true; e.preventDefault(); return; }
     if((e.ctrlKey||e.metaKey) &amp;&amp; e.key.toLowerCase()===&#x27;z&#x27;){ e.preventDefault(); doUndo(); return; }
     if(poly &amp;&amp; e.key===&#x27;Enter&#x27;){ e.preventDefault(); finishPoly(); return; }
-    if(e.key===&#x27;Escape&#x27;){ if(poly || drag){ poly = null; drag = null; guides = []; draw(); } else if(sels.size){ sels.clear(); draw(); renderList(); } return; }
+    if(e.key===&#x27;Escape&#x27;){ if(poly || drag || textLeader){ poly = null; drag = null; guides = []; textLeader = null; textLeaderPreview = null; draw(); } else if(sels.size){ sels.clear(); draw(); renderList(); } return; }
     if((e.key===&#x27;Delete&#x27;||e.key===&#x27;Backspace&#x27;) &amp;&amp; sels.size){ e.preventDefault(); delSelected(); return; }
     if(e.key.startsWith(&#x27;Arrow&#x27;) &amp;&amp; sels.size &amp;&amp; !e.altKey){ e.preventDefault(); const st = (e.shiftKey?10:1)*ppx(); nudge(e.key===&#x27;ArrowLeft&#x27;?-st:e.key===&#x27;ArrowRight&#x27;?st:0, e.key===&#x27;ArrowUp&#x27;?-st:e.key===&#x27;ArrowDown&#x27;?st:0); return; }
     if(e.key===&#x27;ArrowRight&#x27; &amp;&amp; e.altKey){ go(1); return; }
@@ -2463,7 +2493,7 @@
   function snapTargets(excludeKeys){
     const out = [];
     pageNotes.forEach(n=&gt;{ if(excludeKeys.has(&#x27;n:&#x27;+n.uid) || excludeKeys.has(noteDocId(n.uid))) return; out.push(noteBoxNow(n)); });
-    here().forEach(i=&gt;{ if(i.kind===&#x27;note&#x27; || excludeKeys.has(i.id)) return; if([&#x27;text&#x27;,&#x27;callout&#x27;,&#x27;cloudplus&#x27;].includes(i.kind)) out.push(bbox(i)); });
+    here().forEach(i=&gt;{ if(i.kind===&#x27;note&#x27; || excludeKeys.has(i.id)) return; if([&#x27;text&#x27;,&#x27;leadertext&#x27;,&#x27;callout&#x27;,&#x27;cloudplus&#x27;].includes(i.kind)) out.push(bbox(i)); });
     return out;
   }
   function snap(box, dx, dy, excludeKeys, ev){
@@ -2619,9 +2649,13 @@
       return;
     }
     if(tool===&#x27;text&#x27;){
+      if(type===&#x27;move&#x27;){ if(textLeader){ textLeaderPreview = {x:p.x, y:p.y}; draw(); } return; }
       if(type!==&#x27;down&#x27;) return;
+      if(!textLeader){ textLeader = {x:p.x, y:p.y}; textLeaderPreview = {x:p.x, y:p.y}; draw(); return; }
+      const leader = textLeader; textLeader = null; textLeaderPreview = null; draw();
       const v = await dialog(&#x27;New note&#x27;, &#x27;&#x27;, {ok:&#x27;Add note&#x27;});
-      if(v &amp;&amp; v.trim()) addItem({kind:&#x27;text&#x27;, x:p.x, y:p.y, text:v.trim(), size: Math.max(6, 12*ppx())});
+      if(v &amp;&amp; v.trim()) addItem({kind:&#x27;leadertext&#x27;, x0:leader.x, y0:leader.y, x:p.x, y:p.y, text:v.trim(), size: Math.max(6, 12*ppx())});
+      else draw();
       return;
     }
     if(tool===&#x27;check&#x27;){ if(type===&#x27;down&#x27;) addItem({kind:&#x27;check&#x27;, x:p.x, y:p.y, s: 10*ppx()}); return; }
@@ -2685,6 +2719,7 @@
     if(i.kind===&#x27;cloudplus&#x27;){ const ls = String(i.text).split(&#x27;\n&#x27;); const w = Math.max(...ls.map(l=&gt;l.length))*i.size*0.55; const xs=[i.x0,i.x1,i.lx+w], ys=[i.y0,i.y1,i.ly-i.size,i.ly+ls.length*i.size*1.25]; return {x:Math.min(...xs), y:Math.min(...ys), w:Math.max(...xs)-Math.min(...xs), h:Math.max(...ys)-Math.min(...ys)}; }
     if(i.pts){ const xs=i.pts.map(q=&gt;q[0]), ys=i.pts.map(q=&gt;q[1]); return {x:Math.min(...xs), y:Math.min(...ys), w:Math.max(...xs)-Math.min(...xs), h:Math.max(...ys)-Math.min(...ys)}; }
     if(i.kind===&#x27;callout&#x27;){ const ls = String(i.text).split(&#x27;\n&#x27;); const w = Math.max(...ls.map(l=&gt;l.length))*i.size*0.55; const xs=[i.x0,i.x1,i.x1+w], ys=[i.y0,i.y1-i.size,i.y1+ls.length*i.size*1.25]; return {x:Math.min(...xs), y:Math.min(...ys), w:Math.max(...xs)-Math.min(...xs), h:Math.max(...ys)-Math.min(...ys)}; }
+    if(i.kind===&#x27;leadertext&#x27;){ const ls = String(i.text).split(&#x27;\n&#x27;); const w = Math.max(...ls.map(l=&gt;l.length))*i.size*0.55; const xs=[i.x0,i.x,i.x+w], ys=[i.y0,i.y-i.size,i.y+ls.length*i.size*1.25]; return {x:Math.min(...xs), y:Math.min(...ys), w:Math.max(...xs)-Math.min(...xs), h:Math.max(...ys)-Math.min(...ys)}; }
     return {x:Math.min(i.x0,i.x1), y:Math.min(i.y0,i.y1), w:Math.abs(i.x1-i.x0), h:Math.abs(i.y1-i.y0)};
   }
   function hit(p){ const pad = 4*ppx(), h = here(); for(let k=h.length-1;k&gt;=0;k--){ const b = bbox(h[k]); if(p.x&gt;=b.x-pad &amp;&amp; p.x&lt;=b.x+b.w+pad &amp;&amp; p.y&gt;=b.y-pad &amp;&amp; p.y&lt;=b.y+b.h+pad) return h[k]; } return null; }
@@ -2700,7 +2735,7 @@
     if(it.kind===&#x27;edit&#x27; || it.kind===&#x27;delete&#x27;){
       const v = await dialog(&#x27;Edit text&#x27;, it.replacement, {original: it.original, ok:&#x27;Save edit&#x27;}); if(v===null) return;
       it.replacement = v.trim(); it.kind = it.replacement ? &#x27;edit&#x27; : &#x27;delete&#x27;;
-    } else if(it.kind===&#x27;text&#x27; || it.kind===&#x27;callout&#x27; || it.kind===&#x27;cloudplus&#x27;){
+    } else if(it.kind===&#x27;text&#x27; || it.kind===&#x27;leadertext&#x27; || it.kind===&#x27;callout&#x27; || it.kind===&#x27;cloudplus&#x27;){
       const v = await dialog(&#x27;Change text&#x27;, it.text); if(v===null) return;
       if(!v.trim()){ sels.clear(); sels.add(it.id); delSelected(); return; }
       it.text = v.trim();
@@ -2756,6 +2791,7 @@
         break;
       }
       case &#x27;text&#x27;: g += tsvg(i.x, i.y, i.text, i.size, RED); break;
+      case &#x27;leadertext&#x27;: g += `&lt;line x1=&quot;${i.x}&quot; y1=&quot;${i.y}&quot; x2=&quot;${i.x0}&quot; y2=&quot;${i.y0}&quot; ${st}/&gt;&lt;g ${st}&gt;${head(i.x,i.y,i.x0,i.y0,6*ppx())}&lt;/g&gt;` + tsvg(i.x, i.y, i.text, i.size, RED); break;
       case &#x27;callout&#x27;: g += `&lt;line x1=&quot;${i.x1}&quot; y1=&quot;${i.y1}&quot; x2=&quot;${i.x0}&quot; y2=&quot;${i.y0}&quot; ${st}/&gt;&lt;g ${st}&gt;${head(i.x1,i.y1,i.x0,i.y0,6*ppx())}&lt;/g&gt;` + tsvg(i.x1+2, i.y1+i.size*0.35, i.text, i.size, RED); break;
       case &#x27;x&#x27;: g += `&lt;line x1=&quot;${i.x0}&quot; y1=&quot;${i.y0}&quot; x2=&quot;${i.x1}&quot; y2=&quot;${i.y1}&quot; ${st}/&gt;&lt;line x1=&quot;${i.x1}&quot; y1=&quot;${i.y0}&quot; x2=&quot;${i.x0}&quot; y2=&quot;${i.y1}&quot; ${st}/&gt;`; break;
       case &#x27;cloud&#x27;: g += `&lt;path d=&quot;${cloudPath(i.x0,i.y0,i.x1,i.y1)}&quot; ${st}/&gt;`; break;
@@ -2823,9 +2859,10 @@
       else o += `&lt;rect x=&quot;${Math.min(drag.x0,drag.x1)}&quot; y=&quot;${Math.min(drag.y0,drag.y1)}&quot; width=&quot;${Math.abs(drag.x1-drag.x0)}&quot; height=&quot;${Math.abs(drag.y1-drag.y0)}&quot; ${st}/&gt;`;
     }
     if(drag &amp;&amp; drag.pts) o += `&lt;path d=&quot;M ${drag.pts.map(q=&gt;q.join(&#x27; &#x27;)).join(&#x27; L &#x27;)}&quot; stroke=&quot;${RED}&quot; stroke-width=&quot;1.5&quot; vector-effect=&quot;non-scaling-stroke&quot; fill=&quot;none&quot;/&gt;`;
+    if(textLeader &amp;&amp; textLeaderPreview) o += `&lt;line x1=&quot;${textLeader.x}&quot; y1=&quot;${textLeader.y}&quot; x2=&quot;${textLeaderPreview.x}&quot; y2=&quot;${textLeaderPreview.y}&quot; stroke=&quot;${RED}&quot; stroke-width=&quot;1.5&quot; vector-effect=&quot;non-scaling-stroke&quot; fill=&quot;none&quot; stroke-dasharray=&quot;4 3&quot;/&gt;`;
     svg.innerHTML = o;
   }
-  const KIND = {note:&#x27;Note&#x27;, edit:&#x27;Text change&#x27;, delete:&#x27;Delete text&#x27;, text:&#x27;New note&#x27;, callout:&#x27;Callout&#x27;, x:&#x27;X / remove&#x27;, cloud:&#x27;Cloud&#x27;, arrow:&#x27;Arrow&#x27;, line:&#x27;Line&#x27;, check:&#x27;OK&#x27;, highlight:&#x27;Highlight&#x27;, pen:&#x27;Pen&#x27;, rect:&#x27;Box&#x27;, ellipse:&#x27;Ellipse&#x27;, cloudplus:&#x27;Cloud+&#x27;, count:&#x27;Count&#x27;, length:&#x27;Length&#x27;, polylength:&#x27;Poly-length&#x27;, area:&#x27;Area&#x27;};
+  const KIND = {note:&#x27;Note&#x27;, edit:&#x27;Text change&#x27;, delete:&#x27;Delete text&#x27;, text:&#x27;New note&#x27;, leadertext:&#x27;Note (leader)&#x27;, callout:&#x27;Callout&#x27;, x:&#x27;X / remove&#x27;, cloud:&#x27;Cloud&#x27;, arrow:&#x27;Arrow&#x27;, line:&#x27;Line&#x27;, check:&#x27;OK&#x27;, highlight:&#x27;Highlight&#x27;, pen:&#x27;Pen&#x27;, rect:&#x27;Box&#x27;, ellipse:&#x27;Ellipse&#x27;, cloudplus:&#x27;Cloud+&#x27;, count:&#x27;Count&#x27;, length:&#x27;Length&#x27;, polylength:&#x27;Poly-length&#x27;, area:&#x27;Area&#x27;};
   function renderList(){
     const h = here().sort((a,b)=&gt; (a.at||&#x27;&#x27;).localeCompare(b.at||&#x27;&#x27;));
     if(!h.length){ $(&#x27;list&#x27;).innerHTML = &#x27;&lt;span class=&quot;status&quot;&gt;None yet.&lt;/span&gt;&#x27;; return; }
@@ -2896,44 +2933,41 @@
             <div id="sd-criteria" class="note" style="margin-top:8px;"></div>
           </div>
           <div class="grp">
-            <p class="grp-label">Project (shared SE Review folder)</p>
-            <div class="row" style="flex-wrap:wrap;gap:8px;align-items:center;">
+            <p class="grp-label">Project &amp; files (shared SE Review folder)</p>
+            <div class="row" style="flex-wrap:wrap;gap:6px;align-items:center;">
               <label style="display:flex;align-items:center;gap:6px;margin:0;font-weight:600;">Project
-                <select id="sd-proj" style="min-width:320px" onchange="sdOpenProject(this.value)"><option value="">Connect the SE Review folder to list projects</option></select></label>
-              <button class="run secondary" id="sd-folderbtn" onclick="sdConnectFolder(true)" title="The shared Dropbox SE Review folder - asked once, then remembered">Connect SE Review folder&hellip;</button>
-              <button class="run secondary" onclick="sdListProjects()" title="Re-read the folder">Refresh</button>
-              <button class="run secondary" style="color:#c62828;border-color:#c62828;" onclick="sdDeleteProject()" title="Move the selected project to _archive (nothing is permanently destroyed)">Delete project&hellip;</button>
+                <select id="sd-proj" style="min-width:260px" onchange="sdOpenProject(this.value)"><option value="">Connect the SE Review folder to list projects</option></select></label>
+              <button class="pv-btn" id="sd-folderbtn" onclick="sdConnectFolder(true)" title="The shared Dropbox SE Review folder - asked once, then remembered">Connect folder&hellip;</button>
+              <button class="pv-btn" onclick="sdListProjects()" title="Re-read the folder">Refresh</button>
+              <button class="pv-btn" style="color:#c62828;border-color:#c62828;" onclick="sdDeleteProject()" title="Move the selected project to _archive (nothing is permanently destroyed)">Delete project&hellip;</button>
+              <div class="sep"></div>
+              <button class="pv-btn" onclick="document.getElementById('fi78076').click()" title="Pick the PDF - and, from Export for Snow Drift, the snow model .json and iso .png files too (select them all together)">Open roof plan&hellip;</button><input id="fi78076" type="file" multiple accept="application/pdf,image/*,.json,application/json" style="display:none" onchange="sdOpenFiles(this.files); this.value='';">
+              <button class="pv-btn" onclick="document.getElementById('fi16440').click()">Open drift file&hellip;</button><input id="fi16440" type="file" accept=".json,application/json" style="display:none" onchange="sdOpenDriftFile(this.files[0])">
+              <button class="pv-btn" onclick="sdDownload()">Save drift file</button>
+              <button class="pv-btn" onclick="sdExportCalcPdf()" title="Roof plan + a loading diagram and ASCE 7 calc for each drift on this sheet - for the truss manufacturer or plan reviewer">Export calc PDF</button>
+              <div class="pv-field">Scale
+                <select id="sd-scale" onchange="sdOnScale()">
+                  <option value="4.5">1/16" = 1'-0"</option><option value="6.75">3/32" = 1'-0"</option><option value="9" selected>1/8" = 1'-0"</option><option value="13.5">3/16" = 1'-0"</option><option value="18">1/4" = 1'-0"</option><option value="cal">Calibrated (2 clicks)</option><option value="revit" disabled>From Revit</option>
+                </select></div>
               <span class="note" id="sd-projstatus" style="margin:0"></span>
             </div>
           </div>
-          <div class="grp">
-            <p class="grp-label">Files &amp; drawing scale</p>
-            <div class="row" style="flex-wrap:wrap;gap:8px;align-items:center;">
-              <button class="run" onclick="document.getElementById('fi78076').click()" title="Pick the PDF - and, from Export for Snow Drift, the snow model .json and iso .png files too (select them all together)">Open roof plan (PDF + Revit files)&hellip;</button><input id="fi78076" type="file" multiple accept="application/pdf,image/*,.json,application/json" style="display:none" onchange="sdOpenFiles(this.files); this.value='';">
-              <button class="run secondary" onclick="document.getElementById('fi16440').click()">Open drift file&hellip;</button><input id="fi16440" type="file" accept=".json,application/json" style="display:none" onchange="sdOpenDriftFile(this.files[0])">
-              <button class="run secondary" onclick="sdDownload()">Save drift file</button>
-              <button class="run secondary" onclick="sdExportCalcPdf()" title="Roof plan + a loading diagram and ASCE 7 calc for each drift on this sheet - for the truss manufacturer or plan reviewer">Export drift calc PDF</button>
-              <label style="display:flex;align-items:center;gap:6px;margin:0;font-weight:normal;">Drawing scale
-                <select id="sd-scale" onchange="sdOnScale()">
-                  <option value="4.5">1/16" = 1'-0"</option><option value="6.75">3/32" = 1'-0"</option><option value="9" selected>1/8" = 1'-0"</option><option value="13.5">3/16" = 1'-0"</option><option value="18">1/4" = 1'-0"</option><option value="cal">Calibrated (2 clicks)</option><option value="revit" disabled>From Revit</option>
-                </select></label>
-            </div>
-          </div>
-          <div id="sd-toolbar" class="sm-toolbar" style="margin-top:10px;"></div>
+          <div id="sd-toolbar" class="sm-toolbar" style="margin-top:6px;"></div>
           <div class="grp">
             <p class="grp-label">Navigation &amp; view tools</p>
-            <div class="row" style="gap:8px;align-items:center;flex-wrap:wrap;">
-              <button class="run secondary" onclick="sdBoard.go(-1)" title="Previous sheet">&larr;</button>
-              <button class="run secondary" onclick="sdBoard.go(1)" title="Next sheet">&rarr;</button>
+            <div class="row" style="gap:6px;align-items:center;flex-wrap:wrap;">
+              <button class="pv-btn" onclick="sdBoard.go(-1)" title="Previous sheet">&larr;</button>
+              <button class="pv-btn" onclick="sdBoard.go(1)" title="Next sheet">&rarr;</button>
               <span id="sd-pageinfo" class="note" style="margin:0"></span>
-              <label style="display:flex;align-items:center;gap:6px;margin:0;font-weight:normal;">Sheet # <input id="sd-sheetnum" type="text" style="width:90px;" onchange="sdSetSheetNumber(this.value)"></label>
-              <button class="run secondary" onclick="sdBoard.zoomBy(1/1.25)">&minus;</button>
-              <button class="run secondary" onclick="sdBoard.zoomBy(1.25)">+</button>
-              <button class="run secondary" onclick="sdBoard.fit()">Fit</button>
-              <button class="run secondary" id="sd-wallsbtn" onclick="sdToggleWalls()" title="Hide everything on the sheet except the walls (heavy lines, or the Revit walls when the snow model is loaded)">Walls only</button>
-              <label id="sd-wallwt-wrap" style="display:none;align-items:center;gap:6px;margin:0;font-weight:normal;" title="Lines at least this heavy count as walls">Line weight &ge; <input id="sd-wallwt" type="range" min="0" max="3" step="0.05" value="1" style="width:110px" oninput="sdDrawWalls()"></label>
-              <label style="display:flex;align-items:center;gap:6px;margin:0;font-weight:normal;" title="Snap to line ends, corners and intersections (hold Alt to turn off). Lines are orthogonal unless you hold Shift."><input type="checkbox" id="sd-snap" checked style="width:18px;height:18px;margin:0;flex:none"> <span style="white-space:nowrap">Snap + ortho</span></label>
-              <button class="run secondary" onclick="sdToggleSide()" id="sd-sidebtn">Hide list</button>
+              <div class="pv-field">Sheet # <input id="sd-sheetnum" type="text" style="width:80px;" onchange="sdSetSheetNumber(this.value)"></div>
+              <div class="sep"></div>
+              <button class="pv-btn" onclick="sdBoard.zoomBy(1/1.25)">&minus;</button>
+              <button class="pv-btn" onclick="sdBoard.zoomBy(1.25)">+</button>
+              <button class="pv-btn" onclick="sdBoard.fit()">Fit</button>
+              <button class="pv-btn" id="sd-wallsbtn" onclick="sdToggleWalls()" title="Hide everything on the sheet except the walls (heavy lines, or the Revit walls when the snow model is loaded)">Walls only</button>
+              <label id="sd-wallwt-wrap" class="pv-field" style="display:none;cursor:pointer;" title="Lines at least this heavy count as walls">Wt &ge; <input id="sd-wallwt" type="range" min="0" max="3" step="0.05" value="1" style="width:90px;min-height:0;" oninput="sdDrawWalls()"></label>
+              <label class="pv-field" style="cursor:pointer;" title="Snap to line ends, corners and intersections (hold Alt to turn off). Lines are orthogonal unless you hold Shift."><input type="checkbox" id="sd-snap" checked style="width:16px;height:16px;min-height:0;margin:0;flex:none"> Snap + ortho</label>
+              <button class="pv-btn" onclick="sdToggleSide()" id="sd-sidebtn">Hide list</button>
             </div>
           </div>
           <div style="height:18px;line-height:18px;margin-top:4px;overflow:hidden;">
@@ -3044,10 +3078,17 @@
 </script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script>
+  // Snow Drift / SE Markup / PDF Viewer are Bluebeam-style tools where the
+  // whole point is that the sheet itself pans and zooms - the outer page
+  // scrolling at the same time just fights the mouse wheel and hides the
+  // toolbar. Lock the page to the viewport while one of these is open;
+  // every other tab (the calculators) keeps normal page scroll.
+  const TFR_FULLBLEED_TABS = ['snowdrift','semarkup','pdfcompare'];
   function showPanel(name){
     document.querySelectorAll('nav button[data-panel]').forEach(b=>b.classList.toggle('active', b.dataset.panel===name));
     document.querySelectorAll('.mobile-more-panel button[data-panel]').forEach(b=>b.classList.toggle('active', b.dataset.panel===name));
     document.querySelectorAll('.panel').forEach(p=>p.classList.toggle('active', p.id===name));
+    document.body.classList.toggle('tfr-fullbleed', TFR_FULLBLEED_TABS.includes(name));
     const moreBtn = document.getElementById('mobileMoreBtn');
     if(moreBtn){
       const inMoreSheet = ['glulam','spancalc','joist','footing','spans','site','loadpath','code','sheetindex','rebar','tutorial','notes'].includes(name);
@@ -9262,11 +9303,12 @@
       if(i.k==='x') return `<line x1="${i.x0}" y1="${i.y0}" x2="${i.x1}" y2="${i.y1}" ${st}/><line x1="${i.x1}" y1="${i.y0}" x2="${i.x0}" y2="${i.y1}" ${st}/>`;
       if(i.k==='line') return `<line x1="${i.x0}" y1="${i.y0}" x2="${i.x1}" y2="${i.y1}" ${st}/>`;
       if(i.k==='arrow'){ const a = Math.atan2(i.y1-i.y0, i.x1-i.x0), L = strokeW*6; return `<line x1="${i.x0}" y1="${i.y0}" x2="${i.x1}" y2="${i.y1}" ${st}/><path d="M ${i.x1-L*Math.cos(a-0.4)} ${i.y1-L*Math.sin(a-0.4)} L ${i.x1} ${i.y1} L ${i.x1-L*Math.cos(a+0.4)} ${i.y1-L*Math.sin(a+0.4)}" ${st}/>`; }
+      if(i.k==='leadertext'){ const a = Math.atan2(i.y-i.y0, i.x-i.x0), L = strokeW*6; return `<line x1="${i.x}" y1="${i.y}" x2="${i.x0}" y2="${i.y0}" ${st}/><path d="M ${i.x0-L*Math.cos(a-0.4)} ${i.y0-L*Math.sin(a-0.4)} L ${i.x0} ${i.y0} L ${i.x0-L*Math.cos(a+0.4)} ${i.y0-L*Math.sin(a+0.4)}" ${st}/>` + i.t.split('\n').map((l,n)=>`<text x="${i.x}" y="${i.y + n*i.s*1.2}" font-size="${i.s}" font-family="Arial, sans-serif" fill="${color}">${smEsc(l)}</text>`).join(''); }
       return '';
     }).join('');
   }
 
-  const PV_TOOLS = [['pen','Pen'],['text','Text'],['cloud','Cloud'],['arrow','Arrow'],['x','X'],['line','Line']];
+  const PV_TOOLS = [['pen','Pen'],['text','Text','Click the feature, then click where the text should sit — draws a leader arrow between them (Esc cancels)'],['cloud','Cloud'],['arrow','Arrow'],['x','X'],['line','Line']];
   const PV_ICON = {
     pen: '<path d="M4 20l1-4L15 6l3 3L8 19l-4 1z"/>',
     text: '<path d="M5 6h14M12 6v12"/>',
@@ -9277,6 +9319,7 @@
   };
   let pvTool = 'pen', pvDrag = null, pvMarks = {}; // pvMarks[pageNum] = [items]
   let pvFile = null; // {name}
+  let pvTextLeader = null, pvTextLeaderPreview = null; // two-click leader/arrow + text placement
 
   const pvBoard = PdfBoard('pv', {
     onLoad(){ pvMarks = {}; document.getElementById('pv-pagenum').value = 1; pvRenderThumbs(); },
@@ -9288,9 +9331,9 @@
   (function pvInitToolbar(){
     const tb = document.getElementById('pv-rl-tools');
     if(!tb) return;
-    tb.innerHTML = PV_TOOLS.map(([k,l])=>`<button class="pv-btn" data-t="${k}" title="${l}"><svg viewBox="0 0 24 24" aria-hidden="true">${PV_ICON[k]||''}</svg>${l}</button>`).join('') +
+    tb.innerHTML = PV_TOOLS.map(([k,l,tt])=>`<button class="pv-btn" data-t="${k}" title="${(tt||l).replace(/"/g,'&quot;')}"><svg viewBox="0 0 24 24" aria-hidden="true">${PV_ICON[k]||''}</svg>${l}</button>`).join('') +
       `<div class="sep"></div><button class="pv-btn" onclick="pvUndo()" title="Undo the last stroke">Undo</button><button class="pv-btn" onclick="pvClearSheet()" title="Clear every redline on this sheet">Clear</button>`;
-    tb.onclick = e=>{ const b = e.target.closest('[data-t]'); if(b){ pvTool = b.dataset.t; pvToolsUI(); } };
+    tb.onclick = e=>{ const b = e.target.closest('[data-t]'); if(b){ pvTool = b.dataset.t; pvTextLeader = null; pvTextLeaderPreview = null; pvDraw(); pvToolsUI(); } };
     pvToolsUI();
   })();
   function pvToolsUI(){ document.querySelectorAll('#pv-rl-tools .pv-btn[data-t]').forEach(b=> b.classList.toggle('active', b.dataset.t===pvTool)); }
@@ -9304,13 +9347,16 @@
     const px = pvBoard.ptPerPx();
     if(type==='down'){
       if(pvTool==='text'){
-        smEditDialog('Redline text', '', {okLabel:'Add'}).then(t=>{ if(t && t.trim()){ pvMarks[n].push({k:'text', x:p.x, y:p.y, t:t.trim(), s:14*px}); pvDraw(); pvSaveState(); } });
+        if(!pvTextLeader){ pvTextLeader = {x:p.x, y:p.y}; pvTextLeaderPreview = {x:p.x, y:p.y}; pvDraw(); return; }
+        const leader = pvTextLeader; pvTextLeader = null; pvTextLeaderPreview = null; pvDraw();
+        smEditDialog('Redline text', '', {okLabel:'Add'}).then(t=>{ if(t && t.trim()){ pvMarks[n].push({k:'leadertext', x0:leader.x, y0:leader.y, x:p.x, y:p.y, t:t.trim(), s:14*px}); pvDraw(); pvSaveState(); } });
         return;
       }
       pvDrag = pvTool==='pen' ? {k:'pen', pts:[[p.x,p.y]]} : {k:pvTool, x0:p.x, y0:p.y, x1:p.x, y1:p.y};
       return;
     }
     if(type==='move'){
+      if(pvTextLeader){ pvTextLeaderPreview = {x:p.x, y:p.y}; pvDraw(); return; }
       if(!pvDrag) return;
       if(pvDrag.k==='pen') pvDrag.pts.push([p.x,p.y]); else { pvDrag.x1 = p.x; pvDrag.y1 = p.y; }
       pvDraw();
@@ -9326,7 +9372,7 @@
   function pvDraw(){
     const svg = document.getElementById('pv-svg');
     if(!svg || !pvBoard.pageW) return;
-    const n = pvBoard.pageNum, items = (pvMarks[n]||[]).concat(pvDrag ? [pvDrag] : []);
+    const n = pvBoard.pageNum, items = (pvMarks[n]||[]).concat(pvDrag ? [pvDrag] : []).concat(pvTextLeader && pvTextLeaderPreview ? [{k:'line', x0:pvTextLeader.x, y0:pvTextLeader.y, x1:pvTextLeaderPreview.x, y1:pvTextLeaderPreview.y}] : []);
     const sw = Math.max(1.2, pvBoard.pageW/500);
     svg.setAttribute('viewBox', `0 0 ${pvBoard.pageW} ${pvBoard.pageH}`);
     svg.innerHTML = rlMarkupSvg(items, sw);
@@ -9350,6 +9396,7 @@
     if(['INPUT','TEXTAREA','SELECT'].includes((document.activeElement||{}).tagName) || document.querySelector('.dc-modal-backdrop.open')) return;
     if(e.key==='ArrowLeft' || e.key==='PageUp'){ e.preventDefault(); pvBoard.go(-1); }
     else if(e.key==='ArrowRight' || e.key==='PageDown'){ e.preventDefault(); pvBoard.go(1); }
+    else if(e.key==='Escape' && pvTextLeader){ pvTextLeader = null; pvTextLeaderPreview = null; pvDraw(); }
   });
 
   async function pvRenderThumbs(){
@@ -12630,8 +12677,8 @@
     }, {passive:false});
   }, 0);
   let dcRequests = [];
-  let dcRl = {id:null, items:[], tool:'pen', drag:null, W:0, H:0};
-  const DC_RL_TOOLS = [['pen','Pen'],['text','Text'],['cloud','Cloud'],['arrow','Arrow'],['x','X'],['line','Line']];
+  let dcRl = {id:null, items:[], tool:'pen', drag:null, W:0, H:0, textLeader:null, textLeaderPreview:null};
+  const DC_RL_TOOLS = [['pen','Pen'],['text','Text','Click the feature, then click where the text should sit — draws a leader arrow between them'],['cloud','Cloud'],['arrow','Arrow'],['x','X'],['line','Line']];
   const DC_RL_ICON = {
     pen: '<path d="M4 20l1-4L15 6l3 3L8 19l-4 1z"/>',
     text: '<path d="M5 6h14M12 6v12"/>',
@@ -12711,7 +12758,7 @@
   function dcOpenRedline(id){
     const d = DC_DATA.find(x=>x.id===id); if(!d) return;
     if(!d.thumb){ alert('This detail has no preview image to mark up yet.'); return; }
-    dcRl = {id, items:[], tool:'pen', drag:null, W:0, H:0};
+    dcRl = {id, items:[], tool:'pen', drag:null, W:0, H:0, textLeader:null, textLeaderPreview:null};
     document.getElementById('dc-rl-name').textContent = d.name;
     document.getElementById('dc-rl-page').style.width = '100%';
     document.getElementById('dc-rl-note').value = '';
@@ -12730,8 +12777,8 @@
     };
     img.src = d.thumb;
     const tb = document.getElementById('dc-rl-tools');
-    tb.innerHTML = DC_RL_TOOLS.map(([k,l])=>`<button class="sm-tool" data-t="${k}" title="${l}"><svg viewBox="0 0 24 24" aria-hidden="true">${DC_RL_ICON[k]||''}</svg><span>${l}</span></button>`).join('') + `<span style="flex:1"></span><button class="run secondary" onclick="dcRl.items.pop();dcRlDraw();">Undo</button><button class="run secondary" onclick="dcRl.items=[];dcRlDraw();">Clear</button>`;
-    tb.onclick = e=>{ const b = e.target.closest('[data-t]'); if(b){ dcRl.tool = b.dataset.t; dcRlTools(); } };
+    tb.innerHTML = DC_RL_TOOLS.map(([k,l,tt])=>`<button class="sm-tool" data-t="${k}" title="${(tt||l).replace(/"/g,'&quot;')}"><svg viewBox="0 0 24 24" aria-hidden="true">${DC_RL_ICON[k]||''}</svg><span>${l}</span></button>`).join('') + `<span style="flex:1"></span><button class="run secondary" onclick="dcRl.items.pop();dcRlDraw();">Undo</button><button class="run secondary" onclick="dcRl.items=[];dcRlDraw();">Clear</button>`;
+    tb.onclick = e=>{ const b = e.target.closest('[data-t]'); if(b){ dcRl.tool = b.dataset.t; dcRl.textLeader = null; dcRl.textLeaderPreview = null; dcRlDraw(); dcRlTools(); } };
     dcRlTools();
     dcCloseModal();
     document.getElementById('dc-redline-backdrop').classList.add('open');
@@ -12745,14 +12792,18 @@
     svg.addEventListener('pointerdown', async ev=>{
       if(!dcRl.W) return; svg.setPointerCapture(ev.pointerId); const p = P(ev);
       if(dcRl.tool==='text'){
+        if(!dcRl.textLeader){ dcRl.textLeader = {x:p.x, y:p.y}; dcRl.textLeaderPreview = {x:p.x, y:p.y}; dcRlDraw(); return; }
+        const leader = dcRl.textLeader; dcRl.textLeader = null; dcRl.textLeaderPreview = null; dcRlDraw();
         const t = await smEditDialog('Redline text', '', {okLabel:'Add'});
-        if(t && t.trim()) dcRl.items.push({k:'text', x:p.x, y:p.y, t:t.trim(), s: 14*px()});
+        if(t && t.trim()) dcRl.items.push({k:'leadertext', x0:leader.x, y0:leader.y, x:p.x, y:p.y, t:t.trim(), s: 14*px()});
         dcRlDraw(); return;
       }
       dcRl.drag = dcRl.tool==='pen' ? {k:'pen', pts:[[p.x,p.y]]} : {k:dcRl.tool, x0:p.x, y0:p.y, x1:p.x, y1:p.y};
     });
     svg.addEventListener('pointermove', ev=>{
-      const d = dcRl.drag; if(!d) return; const p = P(ev);
+      const p = P(ev);
+      if(dcRl.textLeader){ dcRl.textLeaderPreview = {x:p.x, y:p.y}; dcRlDraw(); return; }
+      const d = dcRl.drag; if(!d) return;
       if(d.k==='pen') d.pts.push([p.x,p.y]); else { d.x1 = p.x; d.y1 = p.y; }
       dcRlDraw();
     });
@@ -12772,13 +12823,15 @@
       if(i.k==='x') return `<line x1="${i.x0}" y1="${i.y0}" x2="${i.x1}" y2="${i.y1}" ${st}/><line x1="${i.x1}" y1="${i.y0}" x2="${i.x0}" y2="${i.y1}" ${st}/>`;
       if(i.k==='line') return `<line x1="${i.x0}" y1="${i.y0}" x2="${i.x1}" y2="${i.y1}" ${st}/>`;
       if(i.k==='arrow'){ const a = Math.atan2(i.y1-i.y0, i.x1-i.x0), L = strokeW*6; return `<line x1="${i.x0}" y1="${i.y0}" x2="${i.x1}" y2="${i.y1}" ${st}/><path d="M ${i.x1-L*Math.cos(a-0.4)} ${i.y1-L*Math.sin(a-0.4)} L ${i.x1} ${i.y1} L ${i.x1-L*Math.cos(a+0.4)} ${i.y1-L*Math.sin(a+0.4)}" ${st}/>`; }
+      if(i.k==='leadertext'){ const a = Math.atan2(i.y-i.y0, i.x-i.x0), L = strokeW*6; return `<line x1="${i.x}" y1="${i.y}" x2="${i.x0}" y2="${i.y0}" ${st}/><path d="M ${i.x0-L*Math.cos(a-0.4)} ${i.y0-L*Math.sin(a-0.4)} L ${i.x0} ${i.y0} L ${i.x0-L*Math.cos(a+0.4)} ${i.y0-L*Math.sin(a+0.4)}" ${st}/>` + i.t.split('\n').map((l,n)=>`<text x="${i.x}" y="${i.y + n*i.s*1.2}" font-size="${i.s}" font-family="Arial, sans-serif" fill="#d32f2f">${smEsc(l)}</text>`).join(''); }
       return '';
     }).join('');
   }
   function dcRlDraw(){
     const svg = document.getElementById('dc-rl-svg'); if(!svg || !dcRl.W) return;
     const sw = Math.max(1.5, dcRl.W/400);
-    svg.innerHTML = dcRlSvg(dcRl.items.concat(dcRl.drag ? [dcRl.drag] : []), sw);
+    const preview = (dcRl.textLeader && dcRl.textLeaderPreview) ? [{k:'line', x0:dcRl.textLeader.x, y0:dcRl.textLeader.y, x1:dcRl.textLeaderPreview.x, y1:dcRl.textLeaderPreview.y}] : [];
+    svg.innerHTML = dcRlSvg(dcRl.items.concat(dcRl.drag ? [dcRl.drag] : []).concat(preview), sw);
   }
   async function dcSendRedline(){
     const d = DC_DATA.find(x=>x.id===dcRl.id); if(!d) return;
