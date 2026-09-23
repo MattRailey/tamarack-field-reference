@@ -10060,10 +10060,19 @@
     // pointer plumbing
     setTimeout(()=>{
       const svg = el('svg'); if(!svg) return;
-      svg.addEventListener('pointerdown', ev=>{ if(!b.pdf && !b.img) return; svg.setPointerCapture(ev.pointerId); hooks.onPointer && hooks.onPointer('down', b.toPage(ev), ev); });
+      // Our own double-click detection: the overlay is redrawn on every click,
+      // which stops the browser's dblclick from firing.
+      let lastDown = null;
+      svg.addEventListener('pointerdown', ev=>{
+        if(!b.pdf && !b.img) return; svg.setPointerCapture(ev.pointerId);
+        const now = Date.now(), isDbl = lastDown && now - lastDown.t < 450 && Math.hypot(ev.clientX-lastDown.x, ev.clientY-lastDown.y) < 6;
+        lastDown = isDbl ? null : {t: now, x: ev.clientX, y: ev.clientY};
+        if(isDbl && hooks.dblFromDown){ hooks.onPointer && hooks.onPointer('dbl', b.toPage(ev), ev); return; }
+        hooks.onPointer && hooks.onPointer('down', b.toPage(ev), ev);
+      });
       svg.addEventListener('pointermove', ev=>{ if(!b.pdf && !b.img) return; hooks.onPointer && hooks.onPointer('move', b.toPage(ev), ev); });
       svg.addEventListener('pointerup', ev=>{ if(!b.pdf && !b.img) return; hooks.onPointer && hooks.onPointer('up', b.toPage(ev), ev); });
-      svg.addEventListener('dblclick', ev=>{ if(!b.pdf && !b.img) return; hooks.onPointer && hooks.onPointer('dbl', b.toPage(ev), ev); });
+      svg.addEventListener('dblclick', ev=>{ if(!b.pdf && !b.img || hooks.dblFromDown) return; hooks.onPointer && hooks.onPointer('dbl', b.toPage(ev), ev); });
       // wheel zoom around the cursor, pan with the wheel button (or Space + drag)
       const v = el('viewer'); let pan = null, space = false;
       v.addEventListener('wheel', e=>{ if(!b.pdf && !b.img) return; e.preventDefault(); const dy = e.deltaMode===1 ? e.deltaY*33 : e.deltaMode===2 ? e.deltaY*400 : e.deltaY; b.zoomAt(b.zoom*Math.exp(-dy*0.0015), e.clientX, e.clientY); }, {passive:false});
@@ -10500,13 +10509,14 @@
     onRender(){ document.getElementById('sd-sheetnum').value = sdBoard.sheetNumber(); sdUpdatePageInfo(); sdIndexSnaps(); sdDrawWalls(); sdDraw(); sdRenderModelCard(); },
     onPointer: sdPointer,
     wantSegs: true,
+    dblFromDown: true,
   });
   (function sdInitToolbar(){
     const tb = document.getElementById('sd-toolbar');
     if(!tb) return;
     const tools = [{id:'drift',label:'Add drift'},{id:'measure',label:'Measure'},{id:'select',label:'Select'}];
     tb.innerHTML = tools.map(t=>`<button class="sm-tool" data-tool="${t.id}">${t.label}</button>`).join('') +
-      `<span style="flex:1"></span><button class="run secondary" onclick="sdFlipSelected()" title="Put the selected drift on the other side of its line (F)">Flip side</button><button class="run secondary" onclick="sdDeleteSelected()">Delete selected</button>`;
+      `<span style="flex:1"></span><button class="run secondary" onclick="sdSplitSelected()" title="Cut the selected drift in two, then drag the joint to the right spot">Split</button><button class="run secondary" onclick="sdJoinSelected()" title="Merge the selected drift with the one in line with it">Join</button><button class="run secondary" onclick="sdFlipSelected()" title="Put the selected drift on the other side of its line (F)">Flip side</button><button class="run secondary" onclick="sdDeleteSelected()">Delete selected</button>`;
     tb.addEventListener('click', e=>{ const t = e.target.closest('[data-tool]'); if(t) sdSetTool(t.dataset.tool); });
     sdSetTool('drift');
     sdRecalcAll();
@@ -10515,7 +10525,7 @@
     sdTool = id; sdPending = null; sdSnapMark = null;
     const mini = document.getElementById('sd-mini'); if(mini) mini.hidden = true;
     document.querySelectorAll('#sd-toolbar .sm-tool').forEach(b=> b.classList.toggle('active', b.dataset.tool===id));
-    sdStatus(id==='drift' ? 'Click the two ends of the wall / parapet / step edge.' : id==='measure' ? 'Click the first point.' : 'Click a drift to select it; double-click to edit.');
+    sdStatus(id==='drift' ? 'Click the two ends of the wall / parapet / step edge.' : id==='measure' ? 'Click the first point.' : 'Click a drift to select it; double-click to edit. Drag the square handles to move an end (it snaps to walls); Split / Join to change how the line is divided.');
     sdDraw();
   }
   function sdStatus(t){ const el = document.getElementById('sd-status'); if(el) el.textContent = t||''; }
@@ -10624,14 +10634,20 @@
   var sdGeoCache = null;
   function sdModelGeo(){
     const m = sdModelOnPage(), mp = sdMP(); if(!m || !mp) return null;
-    const key = sdBoard.pageW+'|'+sdBoard.pageH+'|'+m.exportedAt;
+    const vsel = sdViewSel(m);
+    const key = sdBoard.pageW+'|'+sdBoard.pageH+'|'+m.exportedAt+'|'+vsel;
     if(sdGeoCache && sdGeoCache.key===key) return sdGeoCache.bad ? null : sdGeoCache;
     const g = {key, walls:[], tris:[], boxes:[]};
-    m.viewports.forEach(vp=>{
+    m.viewports.forEach((vp, vi)=>{
+      if(vsel !== vi) return;
       const k = mp.ftPerPt*vp.scale;   // real ft per page point
-      vp.walls.forEach(w=> g.walls.push({id:w.id, type:w.type, pts:w.pts.map(q=>[mp.X(q[0]), mp.Y(q[1])]), wPt: w.width/k, width:w.width, base:w.base, top:w.top, k}));
-      vp.surfaces.forEach(sf=> sf.tris.forEach(t=> g.tris.push({cat:sf.cat, name:sf.name, p:t.map(q=>[mp.X(q[0]), mp.Y(q[1]), q[2]]), k})));
-      vp.boxes.forEach(bx=> g.boxes.push({name:bx.name, pts:bx.corners.map(q=>[mp.X(q[0]), mp.Y(q[1])]), base:bx.base, top:bx.top, k}));
+      // keep only what is inside this view's box on the sheet
+      const bx = vp.box ? [mp.X(vp.box[0]), mp.Y(vp.box[3]), mp.X(vp.box[2]), mp.Y(vp.box[1])] : null;
+      const inBox = (x,y)=> !bx || (x >= bx[0]-2 && x <= bx[2]+2 && y >= bx[1]-2 && y <= bx[3]+2);
+      g.box = bx;
+      vp.walls.filter(w=> w.pts.some(q=> inBox(mp.X(q[0]), mp.Y(q[1])))).forEach(w=> g.walls.push({id:w.id, type:w.type, pts:w.pts.map(q=>[mp.X(q[0]), mp.Y(q[1])]), wPt: w.width/k, width:w.width, base:w.base, top:w.top, k}));
+      vp.surfaces.forEach(sf=> sf.tris.filter(t=> t.some(q=> inBox(mp.X(q[0]), mp.Y(q[1])))).forEach(t=> g.tris.push({cat:sf.cat, name:sf.name, p:t.map(q=>[mp.X(q[0]), mp.Y(q[1]), q[2]]), k})));
+      vp.boxes.filter(b=> b.corners.some(q=> inBox(mp.X(q[0]), mp.Y(q[1])))).forEach(bx=> g.boxes.push({name:bx.name, pts:bx.corners.map(q=>[mp.X(q[0]), mp.Y(q[1])]), base:bx.base, top:bx.top, k}));
     });
     g.k = g.walls.length ? g.walls[0].k : (g.tris.length ? g.tris[0].k : mp.ftPerPt*48);
     // Exports from the first version of the Revit button put walls in model
@@ -10641,10 +10657,21 @@
     if(pts.length && on < pts.length*0.5){ sdGeoCache = {key, bad:true}; return null; }
     sdGeoCache = g; return g;
   }
+  // Which plan view on the sheet the Revit data comes from (a key plan sheet
+  // often has an upper and a lower roof plan). Stays until you switch it.
+  var sdView = {};
+  function sdViewSel(m){ const k = m.exportedAt+'|'+m.sheetNumber; if(sdView[k]==null || sdView[k] >= m.viewports.length){ let v = 0; try{ const s = localStorage.getItem('sdView::'+k); if(s!=null && +s < m.viewports.length) v = +s; }catch(e){} sdView[k] = v; } return sdView[k]; }
+  function sdSetView(i){
+    const m = sdModel; if(!m) return; const k = m.exportedAt+'|'+m.sheetNumber;
+    sdView[k] = +i; try{ localStorage.setItem('sdView::'+k, String(i)); }catch(e){}
+    sdGeoCache = null; sdApplyModelScale(); sdIndexSnaps(); sdDrawWalls(); sdDraw(); sdRenderModelCard();
+    sdStatus(`Using Revit view: ${m.viewports[i].view}`);
+  }
   function sdApplyModelScale(){
     const g = sdModelGeo(); if(!g) return;
     const sel = document.getElementById('sd-scale'), o = sel.querySelector('option[value="revit"]');
-    o.disabled = false; o.textContent = `From Revit (1:${sdModel.viewports[0].scale})`;
+    const vp = sdModel.viewports[sdViewSel(sdModel)];
+    o.disabled = false; o.textContent = `From Revit (1:${vp.scale})`;
     sel.value = 'revit'; sdPtsPerFt = 1/g.k; sdRecalcAll();
   }
   function sdRenderModelCard(){
@@ -10655,6 +10682,7 @@
     sdModelGeo();
     if(on && sdGeoCache && sdGeoCache.bad){ el.innerHTML = `<strong>Revit model</strong><br><span style="color:#c8281e">This export doesn't line up with the sheet (made with the first version of the Revit button). Run <b>Export for Snow Drift</b> again, then pick the project again.</span>`; return; }
     el.innerHTML = `<strong>Revit model</strong> <span class="note">${smEsc(m.project||'')} &middot; ${smEsc(m.sheetNumber)}${on?'':' &mdash; <b>not this sheet</b>'}</span><br>` +
+      (m.viewports.length > 1 ? `<label style="display:block;margin:6px 0 2px;font-weight:600">Plan view to use</label><select style="width:100%" onchange="sdSetView(this.value)">${m.viewports.map((v,i)=>`<option value="${i}"${i===sdViewSel(m)?' selected':''}>${smEsc(v.view)} (1:${v.scale})</option>`).join('')}</select><span class="note">Heights, snapping and the section use only this view (outlined in green) until you switch.</span><br>` : '') +
       m.viewports.map(v=>`${smEsc(v.view)} (1:${v.scale}): ${v.walls.length} walls, ${v.surfaces.length} roof/floor, ${v.boxes.length} units`).join('<br>') +
       (sdIsos.length ? `<div class="sd-iso">${sdIsos.map((u,i)=>`<figure style="margin:0"><img src="${u.url}" alt="Isometric ${smEsc(u.name)}" onclick="sdShowIso(${i})"><figcaption class="note" style="margin:0;text-align:center">${smEsc(u.name)}</figcaption></figure>`).join('')}</div>` : '');
   }
@@ -11068,7 +11096,40 @@
     });
   }
   var sdHover = null;
-  var sdPreviewSide = null;
+  var sdPreviewSide = null, sdDragEnd = null;
+  function sdHandleAt(p){
+    const tol = 9*sdBoard.ptPerPx(), here = sdItems.filter(i=> i.page===sdBoard.pageNum);
+    let best = null;
+    here.forEach(it=>['a','b'].forEach(end=>{ const x = it[end+'x'], y = it[end+'y'], d = Math.hypot(x-p.x, y-p.y); if(d <= tol && (!best || d < best.d)) best = {d, x, y}; }));
+    if(!best) return null;
+    // every drift end sitting on that same point moves with it
+    const list = [];
+    here.forEach(it=>['a','b'].forEach(end=>{ if(Math.hypot(it[end+'x']-best.x, it[end+'y']-best.y) < 1) list.push({it, end}); }));
+    const sel = list.findIndex(q=> q.it.id===sdSelected); if(sel > 0) list.unshift(list.splice(sel,1)[0]);
+    return {list};
+  }
+  // Split the selected drift at its middle, or join it with a drift that shares an end and runs the same way.
+  function sdSplitSelected(){
+    const it = sdItems.find(i=> i.id===sdSelected); if(!it){ sdStatus('Select a drift first.'); return; }
+    const mx = (it.ax+it.bx)/2, my = (it.ay+it.by)/2;
+    const b = Object.assign({}, it, {id:'d'+Date.now().toString(36), ax:mx, ay:my});
+    it.bx = mx; it.by = my; sdItems.push(b); sdRecalcAll();
+    sdStatus('Split in two - drag the joint (square handle) to where the height changes, then double-click each part to set its height.');
+  }
+  function sdJoinSelected(){
+    const it = sdItems.find(i=> i.id===sdSelected); if(!it){ sdStatus('Select a drift first.'); return; }
+    const dir = (q)=>{ const L = Math.hypot(q.bx-q.ax, q.by-q.ay)||1; return [(q.bx-q.ax)/L, (q.by-q.ay)/L]; };
+    const [ux,uy] = dir(it);
+    const o = sdItems.find(q=> q!==it && q.page===it.page && Math.abs(Math.abs(dir(q)[0]*ux + dir(q)[1]*uy) - 1) < 0.01 &&
+      [[q.ax,q.ay],[q.bx,q.by]].some(e=> [[it.ax,it.ay],[it.bx,it.by]].some(f=> Math.hypot(e[0]-f[0], e[1]-f[1]) < 1)));
+    if(!o){ sdStatus('No drift in line with this one shares an end.'); return; }
+    const pts = [[it.ax,it.ay],[it.bx,it.by],[o.ax,o.ay],[o.bx,o.by]].map(q=>({q, t:(q[0]-it.ax)*ux + (q[1]-it.ay)*uy}));
+    pts.sort((m,n)=> m.t-n.t);
+    it.ax = pts[0].q[0]; it.ay = pts[0].q[1]; it.bx = pts[3].q[0]; it.by = pts[3].q[1];
+    if((o.h||0) > (it.h||0)) it.h = o.h;
+    sdItems = sdItems.filter(q=> q!==o); sdRecalcAll();
+    sdStatus('Joined - kept the larger height. Double-click to check it.');
+  }
   // Which side of an edge the snow drifts onto: the lower roof (step), or the
   // roof side of a parapet. Without the Revit model: the side toward the
   // middle of the sheet (flip it in the dialog if that's wrong).
@@ -11096,7 +11157,21 @@
     if((e.key==='Delete'||e.key==='Backspace') && sdSelected){ e.preventDefault(); sdDeleteSelected(); }
   });
   async function sdPointer(type, p, ev){
-    if(type==='dbl'){ const hit = sdHit(p); if(hit) await sdEdit(hit); return; }
+    if(type==='dbl'){ const hit = sdHit(p); if(hit){ sdPending = null; sdSnapMark = null; const mini = document.getElementById('sd-mini'); if(mini) mini.hidden = true; sdDraw(); await sdEdit(hit); } return; }
+    // ---- end handles (Select tool): drag a drift's end; joined ends move together ----
+    if(sdTool==='select'){
+      if(type==='down'){
+        const h = sdHandleAt(p);
+        if(h){ sdDragEnd = h; return; }
+      }
+      if(type==='move' && sdDragEnd){
+        const h = sdDragEnd, it = h.list[0].it, other = h.list[0].end==='a' ? {x:it.bx,y:it.by} : {x:it.ax,y:it.ay};
+        const q = sdSnap(p, ev, other);
+        h.list.forEach(({it, end})=>{ if(end==='a'){ it.ax = q.x; it.ay = q.y; } else { it.bx = q.x; it.by = q.y; } });
+        h.moved = true; sdDraw(); return;
+      }
+      if(type==='up' && sdDragEnd){ const h = sdDragEnd; sdDragEnd = null; sdSnapMark = null; if(h.moved) sdRecalcAll(); else sdDraw(); return; }
+    }
     const n0 = sdPending ? sdPending.pts.length : 0;
     const snapped = ()=> (sdTool==='drift' && n0>=2) ? p : sdSnap(p, ev, n0 ? sdPending.pts[n0-1] : null);
     if(type!=='down'){
@@ -11240,6 +11315,10 @@
       out += `<text x="${g.tagPt[0]+2}" y="${g.tagPt[1]+2}" font-size="7" font-family="Arial" fill="#111">${r.tag} PSF</text>`;
       out += `<text x="${g.dimPt[0]}" y="${g.dimPt[1]}" font-size="6" font-family="Arial" fill="#111">${fmtFtIn(r.wDrawn)}</text>`;
       if(sel) out += `<polygon points="${pts(g.band)}" fill="none" stroke="#1565c0" stroke-width="2" stroke-dasharray="4 3" vector-effect="non-scaling-stroke"/>`;
+      // end marks: a short bar square to the line at each end, so where one drift stops and the next starts is clear
+      { const px = sdBoard.ptPerPx(), L = Math.hypot(it.bx-it.ax, it.by-it.ay)||1, qx = -(it.by-it.ay)/L*9*px, qy = (it.bx-it.ax)/L*9*px;
+        [[it.ax,it.ay],[it.bx,it.by]].forEach(e=>{ out += `<line x1="${e[0]-qx}" y1="${e[1]-qy}" x2="${e[0]+qx}" y2="${e[1]+qy}" stroke="${sel?'#1565c0':'#d32f2f'}" stroke-width="2.5" vector-effect="non-scaling-stroke"/>`; });
+        if(sdTool==='select') [[it.ax,it.ay],[it.bx,it.by]].forEach(e=>{ out += `<rect x="${e[0]-4*px}" y="${e[1]-4*px}" width="${8*px}" height="${8*px}" fill="#fff" stroke="#1565c0" stroke-width="1.5" vector-effect="non-scaling-stroke" style="cursor:move"/>`; }); }
     });
     if(sdPending && sdPending.pts.length){
       const P = sdPending.pts.concat(sdPending.hover ? [sdPending.hover] : []);
@@ -11247,6 +11326,7 @@
       P.forEach(q=>{ out += `<circle cx="${q.x}" cy="${q.y}" r="${3*sdBoard.ptPerPx()}" fill="#1565c0"/>`; });
       if(P.length>=2){ const a = P[P.length-2], c = P[P.length-1], L = Math.hypot(c.x-a.x, c.y-a.y)/sdPtsPerFt, px = sdBoard.ptPerPx(); if(L > 0.5 && !(sdTool==='drift' && sdPending.pts.length>=2)) out += `<text x="${c.x+8*px}" y="${c.y-8*px}" font-size="${11*px}" fill="#1565c0" font-family="Arial" font-weight="bold">${fmtFtIn(L)}</text>`; }
     }
+    { const g = sdModel && sdModel.viewports.length > 1 ? sdModelGeo() : null; if(g && g.box) out += `<rect x="${g.box[0]}" y="${g.box[1]}" width="${g.box[2]-g.box[0]}" height="${g.box[3]-g.box[1]}" fill="none" stroke="#2e7d32" stroke-width="2" stroke-dasharray="8 4" vector-effect="non-scaling-stroke"/>`; }
     if(sdPreviewSide){
       const {a,c,s} = sdPreviewSide, px = sdBoard.ptPerPx(), m = {x:(a.x+c.x)/2, y:(a.y+c.y)/2}, dx = s.x-m.x, dy = s.y-m.y, L = Math.hypot(dx,dy)||1, e = {x:m.x+dx/L*40*px, y:m.y+dy/L*40*px};
       const ux = c.x-a.x, uy = c.y-a.y, UL = Math.hypot(ux,uy)||1;
