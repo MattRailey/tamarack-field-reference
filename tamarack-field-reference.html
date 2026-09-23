@@ -2820,7 +2820,7 @@
           <div id="sd-toolbar" class="sm-toolbar" style="margin-top:10px;"></div>
           <div class="row" style="margin-top:8px;gap:8px;align-items:center;flex-wrap:wrap;">
             <label style="display:flex;align-items:center;gap:6px;margin:0;font-weight:600;">Drawing
-              <select id="sd-pagesel" style="min-width:240px;font-weight:600;" onchange="sdGoToPage(this.value)"><option>No plan open</option></select></label>
+              <select id="sd-pagesel" style="width:280px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" onchange="sdGoToPage(this.value)"><option>No plan open</option></select></label>
             <button class="run secondary" onclick="sdBoard.go(-1)" title="Previous sheet">&larr;</button>
             <button class="run secondary" onclick="sdBoard.go(1)" title="Next sheet">&rarr;</button>
             <span id="sd-pageinfo" class="note" style="margin:0"></span>
@@ -2832,7 +2832,7 @@
             <label id="sd-wallwt-wrap" style="display:none;align-items:center;gap:6px;margin:0;font-weight:normal;" title="Lines at least this heavy count as walls">Line weight &ge; <input id="sd-wallwt" type="range" min="0" max="3" step="0.05" value="1" style="width:110px" oninput="sdDrawWalls()"></label>
             <label style="display:flex;align-items:center;gap:6px;margin:0;font-weight:normal;" title="Snap to line ends, corners and intersections (hold Alt to turn off). Lines are orthogonal unless you hold Shift."><input type="checkbox" id="sd-snap" checked style="width:18px;height:18px;margin:0;flex:none"> <span style="white-space:nowrap">Snap + ortho</span></label>
             <button class="run secondary" onclick="sdToggleSide()" id="sd-sidebtn">Hide list</button>
-            <span class="note" id="sd-status" style="margin:0;display:inline-block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:min(46vw,480px);vertical-align:bottom;"></span>
+            <span class="note" id="sd-status" style="margin:0;display:inline-block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;width:min(46vw,480px);vertical-align:bottom;"></span>
           </div>
         </div>
         <div class="sm-layout" id="sd-layout">
@@ -10646,10 +10646,20 @@
   let sdPtsPerFt = 9;     // 1/8" = 1'-0" on a 100% print
   let sdSelected = null;
   let sdActiveView = null;   // id of the key-plan view currently being worked in, when a sheet has more than one
-  // Some sheets have more than one separate key plan (e.g. two roof areas on one page).
-  // A "view" is a named rectangle on the page; drifts remember which view they were
-  // drawn in, so each key plan can be worked on, listed and cleared on its own.
-  function sdViewsFor(n){ return (sdBoard.pageSheet[n]||{}).views || []; }
+  // Some sheets carry more than one separate key plan (e.g. two roof areas on one page). When the
+  // loaded Revit export has more than one plan view, each view's own box (already exported - no
+  // manual boxing needed) becomes a "view" here, so each key plan can be worked on, listed and
+  // cleared on its own, in sync with the "Plan view to use" picker in the Revit model card.
+  function sdViewsFor(n){
+    const stored = (sdBoard.pageSheet[n]||{}).views; if(stored && stored.length) return stored;
+    if(!sdModel || n!==sdBoard.pageNum || !sdModelOnPage() || sdModel.viewports.length<=1) return [];
+    const mp = sdMP(); if(!mp) return [];
+    return sdModel.viewports.map((vp,vi)=>{
+      if(!vp.box) return null;
+      const x0 = mp.X(vp.box[0]), x1 = mp.X(vp.box[2]), y0 = mp.Y(vp.box[3]), y1 = mp.Y(vp.box[1]);
+      return {id:'mv'+vi, vi, name: vp.view, box:[Math.min(x0,x1), Math.min(y0,y1), Math.max(x0,x1), Math.max(y0,y1)]};
+    }).filter(Boolean);
+  }
   function sdViewsHere(){ return sdViewsFor(sdBoard.pageNum); }
   function sdViewFor(it, views){
     if(it.view) return it.view;
@@ -10684,7 +10694,9 @@
     if(sdScalePageSeen === sdBoard.name+'|'+sdBoard.pageNum) return; // already applied for this page - avoid re-firing on every zoom/pan render
     sdScalePageSeen = sdBoard.name+'|'+sdBoard.pageNum;
     // Landed on a (possibly new) page - resolve which key plan (if any) is active here.
-    if(sdPendingView!==undefined){ sdActiveView = sdPendingView; sdPendingView = undefined; }
+    if(sdPendingView && sdPendingView.slice(0,2)==='mv' && sdModel){ sdView[sdModel.exportedAt+'|'+sdModel.sheetNumber] = +sdPendingView.slice(2); sdActiveView = sdPendingView; sdPendingView = undefined; }
+    else if(sdPendingView!==undefined){ sdActiveView = sdPendingView; sdPendingView = undefined; }
+    else if(sdModel && sdModelOnPage() && sdModel.viewports.length>1){ sdActiveView = 'mv'+sdViewSel(sdModel); }
     else { const views = sdViewsHere(); sdActiveView = views.length ? views[0].id : null; }
     const ps = sdBoard.pageSheet[sdBoard.pageNum] || {}, sel = document.getElementById('sd-scale');
     if(!sel) return;
@@ -10848,8 +10860,9 @@
   function sdSetView(i){
     const m = sdModel; if(!m) return; const k = m.exportedAt+'|'+m.sheetNumber;
     sdView[k] = +i; try{ localStorage.setItem('sdView::'+k, String(i)); }catch(e){}
-    sdGeoCache = null; sdApplyModelScale(); sdIndexSnaps(); sdDrawWalls(); sdDraw(); sdRenderModelCard();
-    sdStatus(`Using Revit view: ${m.viewports[i].view}`);
+    sdActiveView = 'mv'+i; sdSelected = null;
+    sdGeoCache = null; sdApplyModelScale(); sdIndexSnaps(); sdDrawWalls(); sdDraw(); sdRenderModelCard(); sdRefreshPageSel();
+    sdStatus(`Working in "${m.viewports[i].view}".`);
   }
   function sdApplyModelScale(){
     const g = sdModelGeo(); if(!g) return;
@@ -10988,8 +11001,8 @@
     if(el) el.textContent = sdBoard.pageCount > 1 ? `${sdHereItems().length} drift(s) on this${sdActiveView?' view':' sheet'}` : (sdBoard.name ? `${sdItems.length} drift(s)` : '');
     sdRefreshPageSel();
   }
-  // Dropdown to jump straight to any drawing/sheet in the open PDF - more obvious than paging one at a time.
-  // Dropdown lists every sheet - and, on a sheet boxed into more than one key plan, each key plan as its own row.
+  // Dropdown lists every sheet in the open PDF, and - when a sheet has more than one Revit plan view
+  // exported to it (two key plans on one page) - each key plan gets its own row, so you jump straight to it.
   function sdRefreshPageSel(){
     const sel = document.getElementById('sd-pagesel'); if(!sel) return;
     if(!sdBoard.pageCount){ sel.innerHTML = '<option>No plan open</option>'; return; }
@@ -11016,6 +11029,7 @@
     if(!v || (!sdBoard.pdf && !sdBoard.img)) return;
     const parts = String(v).split(':'), n = +parts[0], viewId = parts[1] || null;
     if(n===sdBoard.pageNum){
+      if(viewId && viewId.slice(0,2)==='mv'){ sdSetView(+viewId.slice(2)); return; } // model-driven key plan - sdSetView keeps it in sync with the Revit model card's own picker
       sdActiveView = viewId; sdSelected = null; sdDraw(); sdRefreshPageSel();
       const v2 = viewId && sdViewsHere().find(x=>x.id===viewId);
       sdStatus(v2 ? `Working in "${v2.name}".` : 'Working on the whole sheet.');
@@ -11643,7 +11657,13 @@
       P.forEach(q=>{ out += `<circle cx="${q.x}" cy="${q.y}" r="${3*sdBoard.ptPerPx()}" fill="#1565c0"/>`; });
       if(P.length>=2){ const a = P[P.length-2], c = P[P.length-1], L = Math.hypot(c.x-a.x, c.y-a.y)/sdPtsPerFt, px = sdBoard.ptPerPx(); if(L > 0.5 && !(sdTool==='drift' && sdPending.pts.length>=2)) out += `<text x="${c.x+8*px}" y="${c.y-8*px}" font-size="${11*px}" fill="#1565c0" font-family="Arial" font-weight="bold">${fmtFtIn(L)}</text>`; }
     }
-    { const g = sdModel && sdModel.viewports.length > 1 ? sdModelGeo() : null; if(g && g.box) out += `<rect x="${g.box[0]}" y="${g.box[1]}" width="${g.box[2]-g.box[0]}" height="${g.box[3]-g.box[1]}" fill="none" stroke="#2e7d32" stroke-width="2" stroke-dasharray="8 4" vector-effect="non-scaling-stroke"/>`; }
+    // Key plans on this sheet (from the Revit export's own view boxes - no manual boxing needed): a
+    // solid highlight around whichever one is active, a faint outline for the other one(s).
+    sdViewsHere().forEach(v=>{
+      const on = v.id===sdActiveView, px = sdBoard.ptPerPx();
+      out += `<rect x="${v.box[0]}" y="${v.box[1]}" width="${v.box[2]-v.box[0]}" height="${v.box[3]-v.box[1]}" fill="none" stroke="${on?'#ff8f00':'#9aa3ad'}" stroke-width="${on?3:1}" stroke-dasharray="${on?'none':'6 4'}" vector-effect="non-scaling-stroke"/>`;
+      out += `<text x="${v.box[0]+6*px}" y="${v.box[1]+14*px}" font-size="${on?13:10}" font-family="Arial" font-weight="${on?'bold':'normal'}" fill="${on?'#ff8f00':'#9aa3ad'}">${smEsc(v.name)}</text>`;
+    });
     if(sdPreviewSide){
       const {a,c,s} = sdPreviewSide, px = sdBoard.ptPerPx(), m = {x:(a.x+c.x)/2, y:(a.y+c.y)/2}, dx = s.x-m.x, dy = s.y-m.y, L = Math.hypot(dx,dy)||1, e = {x:m.x+dx/L*40*px, y:m.y+dy/L*40*px};
       const ux = c.x-a.x, uy = c.y-a.y, UL = Math.hypot(ux,uy)||1;
