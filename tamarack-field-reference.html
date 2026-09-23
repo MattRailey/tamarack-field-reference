@@ -2844,7 +2844,9 @@
             <label id="sd-wallwt-wrap" style="display:none;align-items:center;gap:6px;margin:0;font-weight:normal;" title="Lines at least this heavy count as walls">Line weight &ge; <input id="sd-wallwt" type="range" min="0" max="3" step="0.05" value="1" style="width:110px" oninput="sdDrawWalls()"></label>
             <label style="display:flex;align-items:center;gap:6px;margin:0;font-weight:normal;" title="Snap to line ends, corners and intersections (hold Alt to turn off). Lines are orthogonal unless you hold Shift."><input type="checkbox" id="sd-snap" checked style="width:18px;height:18px;margin:0;flex:none"> <span style="white-space:nowrap">Snap + ortho</span></label>
             <button class="run secondary" onclick="sdToggleSide()" id="sd-sidebtn">Hide list</button>
-            <span class="note" id="sd-status" style="margin:0;display:inline-block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;width:min(46vw,480px);vertical-align:bottom;"></span>
+          </div>
+          <div style="height:18px;line-height:18px;margin-top:4px;overflow:hidden;">
+            <span class="note" id="sd-status" style="margin:0;display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;line-height:18px;"></span>
           </div>
         </div>
         <div class="sm-layout" id="sd-layout">
@@ -10721,9 +10723,14 @@
     const v = views.find(v=> mx>=v.box[0] && mx<=v.box[2] && my>=v.box[1] && my<=v.box[3]);
     return v ? v.id : null;
   }
-  // Drifts on the current sheet, narrowed to the active view (if one's picked).
+  // Every drift on the current sheet, regardless of which key-plan view it
+  // belongs to - what's actually drawn on screen, so clicking/selecting/
+  // deleting always matches what you can see.
+  function sdPageItems(){ return sdItems.filter(i=> i.page===sdBoard.pageNum); }
+  // Same, narrowed to the active view (if one's picked) - used for the
+  // sidebar list/count and "Clear sheet", which are meant to be per-view.
   function sdHereItems(){
-    let arr = sdItems.filter(i=> i.page===sdBoard.pageNum);
+    let arr = sdPageItems();
     if(sdActiveView){ const views = sdViewsHere(); arr = arr.filter(i=> sdViewFor(i, views)===sdActiveView); }
     return arr;
   }
@@ -11400,7 +11407,7 @@
   var sdHover = null;
   var sdPreviewSide = null, sdDragEnd = null;
   function sdHandleAt(p){
-    const tol = 9*sdBoard.ptPerPx(), here = sdHereItems();
+    const tol = 9*sdBoard.ptPerPx(), here = sdPageItems();
     let best = null;
     here.forEach(it=>['a','b'].forEach(end=>{ const x = it[end+'x'], y = it[end+'y'], d = Math.hypot(x-p.x, y-p.y); if(d <= tol && (!best || d < best.d)) best = {d, x, y}; }));
     if(!best) return null;
@@ -11425,7 +11432,7 @@
   }
   // Nearest point on any drift's line (this page) to p, for click-to-split.
   function sdNearestOnLine(p){
-    const here = sdHereItems();
+    const here = sdPageItems();
     let best = null;
     here.forEach(it=>{
       const dx = it.bx-it.ax, dy = it.by-it.ay, L2 = dx*dx+dy*dy || 1;
@@ -11670,7 +11677,7 @@
     return {band, tri, tagAnchor, tagPt, dimPt, nx, ny, tx, ty, wP};
   }
   function sdHit(p){
-    const here = sdHereItems();
+    const here = sdPageItems();
     for(let k=here.length-1;k>=0;k--){
       const g = sdGeom(here[k]);
       const xs = g.band.map(q=>q[0]), ys = g.band.map(q=>q[1]);
