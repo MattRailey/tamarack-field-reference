@@ -63,6 +63,9 @@
   h2{ font-family:var(--sans); font-size:1.15rem; font-weight:700; margin:0 0 4px; color:var(--ink); }
   .sub{ color:var(--steel); font-size:.85rem; margin:0 0 16px; max-width:70ch; }
   .card{ background:#fff; border:1px solid var(--line); border-radius:8px; padding:16px; margin-bottom:16px; box-shadow:0 1px 2px rgba(20,20,40,.04); }
+  .grp{ background:#f4f5f7; border:1px solid var(--line); border-radius:8px; padding:10px 12px; margin-top:10px; }
+  .grp:first-child{ margin-top:0; }
+  .grp-label{ font-size:.72rem; font-weight:700; text-transform:uppercase; letter-spacing:.04em; color:#7a8493; margin:0 0 6px; }
   .beam-diagram-wrap{ width:100%; background:#f4f2ec; border:1px solid var(--line); border-radius:8px; padding:4px 4px 0; overflow:hidden; }
   .beam-diagram-wrap svg{ width:100%; height:auto; display:block; touch-action:none; }
   .beam-support-grp{ cursor:grab; }
@@ -324,11 +327,13 @@
     font-family:var(--sans); font-size:.85rem; font-weight:600; cursor:pointer; box-shadow:0 2px 8px rgba(0,0,0,.25);
   }
 
-  .sm-toolbar{ display:flex; flex-wrap:wrap; gap:6px; align-items:center; }
-  .sm-tool{ padding:6px 10px; border:1px solid var(--line); background:#fff; color:#222; border-radius:6px; cursor:pointer; font-size:.85rem; font-family:var(--sans); width:auto; margin:0; }
+  .sm-toolbar{ display:flex; flex-wrap:wrap; gap:6px; align-items:stretch; background:#f4f5f7; border:1px solid var(--line); border-radius:8px; padding:8px; }
+  .sm-tool{ border:1px solid var(--line); background:#fff; color:#222; border-radius:6px; cursor:pointer; font-size:.72rem; font-family:var(--sans); width:auto; margin:0; padding:4px 8px; display:inline-flex; flex-direction:column; align-items:center; justify-content:center; gap:1px; min-width:56px; line-height:1.15; }
+  .sm-tool svg{ width:22px; height:22px; stroke:currentColor; fill:none; stroke-width:1.7; stroke-linecap:round; stroke-linejoin:round; }
+  .sm-tool:hover{ border-color:#1565c0; }
   .sm-tool.active{ background:#d32f2f; color:#fff; border-color:#d32f2f; }
   .sm-layout{ display:flex; gap:12px; align-items:flex-start; margin-top:12px; position:relative; }
-  .sm-viewer{ flex:1; min-width:0; height:calc(100vh - 120px); min-height:480px; overflow:auto; background:#8a8f99; border-radius:8px; padding:12px; }
+  .sm-viewer{ flex:1; min-width:0; height:calc(100vh - 120px); min-height:480px; overflow:auto; background:#8a8f99; border-radius:8px; padding:50vh 50vw; }
   .sm-page{ position:relative; margin:0 auto; background:#fff; box-shadow:0 2px 10px rgba(0,0,0,.3); }
   .sm-page canvas, .sm-page svg{ position:absolute; left:0; top:0; }
   .sm-viewer{ position:relative; }
@@ -1697,21 +1702,19 @@
     return new Promise(res=&gt;{
       const back = document.createElement(&#x27;div&#x27;); back.className=&#x27;modal-back&#x27;;
       back.innerHTML = `&lt;div class=&quot;modal&quot; role=&quot;dialog&quot; aria-label=&quot;${esc(title)}&quot;&gt;&lt;h3&gt;${esc(title)}&lt;/h3&gt;
-        ${opts.original!=null ? `&lt;div&gt;&lt;span class=&quot;label&quot;&gt;Current text&lt;/span&gt;&lt;div class=&quot;orig&quot;&gt;&lt;/div&gt;&lt;/div&gt;` : &#x27;&#x27;}
         ${opts.extra ? `&lt;div&gt;&lt;button class=&quot;btn&quot; data-a=&quot;extra&quot;&gt;${esc(opts.extra)}&lt;/button&gt;&lt;/div&gt;` : &#x27;&#x27;}
         ${opts.noText ? &#x27;&#x27; : `&lt;textarea rows=&quot;${opts.rows||4}&quot;&gt;&lt;/textarea&gt;`}
         ${opts.message ? `&lt;p class=&quot;status&quot; style=&quot;margin:0&quot;&gt;${esc(opts.message)}&lt;/p&gt;` : &#x27;&#x27;}
         &lt;div class=&quot;row&quot;&gt;&lt;button class=&quot;btn primary&quot; data-a=&quot;ok&quot;&gt;${esc(opts.ok||&#x27;OK&#x27;)}&lt;/button&gt;&lt;button class=&quot;btn&quot; data-a=&quot;cancel&quot;&gt;Cancel&lt;/button&gt;&lt;/div&gt;&lt;/div&gt;`;
       document.body.appendChild(back);
-      const ta = back.querySelector(&#x27;textarea&#x27;), orig = back.querySelector(&#x27;.orig&#x27;);
-      if(orig) orig.textContent = opts.original;
+      const ta = back.querySelector(&#x27;textarea&#x27;);
       if(ta){ ta.value = initial||&#x27;&#x27;; setTimeout(()=&gt;{ ta.focus(); ta.select(); }, 20); }
       const done = v=&gt;{ back.remove(); res(v); };
       back.addEventListener(&#x27;click&#x27;, e=&gt;{
         const a = e.target.dataset &amp;&amp; e.target.dataset.a;
         if(a===&#x27;ok&#x27;) done(ta ? ta.value : true);
         else if(a===&#x27;cancel&#x27; || e.target===back) done(null);
-        else if(a===&#x27;extra&#x27; &amp;&amp; opts.onExtra){ const r = opts.onExtra(); if(r){ if(orig) orig.textContent = r.original; ta.value = r.value; } }
+        else if(a===&#x27;extra&#x27; &amp;&amp; opts.onExtra){ const r = opts.onExtra(); if(r){ ta.value = r.value; } }
       });
       back.addEventListener(&#x27;keydown&#x27;, e=&gt;{ if(e.key===&#x27;Escape&#x27;) done(null); if(e.key===&#x27;Enter&#x27; &amp;&amp; (e.ctrlKey||e.metaKey)) done(ta ? ta.value : true); });
     });
@@ -2803,47 +2806,58 @@
         <h2>Snow Drift Key Plan</h2>
         <p class="sub">Open the roof plan sheet, set the snow criteria, and click along each roof step, parapet or rooftop unit to calculate its drift (ASCE 7-16 &sect;7.7&ndash;7.8). Drifts draw live as a hatched band with the drift triangle and PSF tag. Save the drift file; in Revit, <b>Import Snow Drifts</b> places the bands, triangles and tags into the plan view on that sheet.</p>
         <div class="card">
-          <div class="grid">
-            <div><label>Code</label><select id="sd-code" onchange="sdRecalcAll()"><option value="7-16">ASCE 7-16 (IBC 2018/2021)</option></select></div>
-            <div><label>Ground snow load p<sub>g</sub> (psf)</label><input id="sd-pg" type="number" inputmode="decimal" value="30" step="1" min="0" oninput="sdRecalcAll()"></div>
-            <div><label>Exposure factor C<sub>e</sub></label><input id="sd-ce" type="number" inputmode="decimal" value="1.0" step="0.1" oninput="sdRecalcAll()"></div>
-            <div><label>Thermal factor C<sub>t</sub></label><input id="sd-ct" type="number" inputmode="decimal" value="1.0" step="0.1" oninput="sdRecalcAll()"></div>
-            <div><label>Importance factor I<sub>s</sub></label><input id="sd-is" type="number" inputmode="decimal" value="1.0" step="0.1" oninput="sdRecalcAll()"></div>
-            <div><label>Tag shows</label><select id="sd-tagmode" onchange="sdRecalcAll()"><option value="pd">Max drift surcharge p<sub>d</sub></option><option value="total">Total at wall (p<sub>f</sub> + p<sub>d</sub>)</option></select></div>
+          <div class="grp">
+            <p class="grp-label">Snow criteria</p>
+            <div class="grid">
+              <div><label>Code</label><select id="sd-code" onchange="sdRecalcAll()"><option value="7-16">ASCE 7-16 (IBC 2018/2021)</option></select></div>
+              <div><label>Ground snow load p<sub>g</sub> (psf)</label><input id="sd-pg" type="number" inputmode="decimal" value="30" step="1" min="0" oninput="sdRecalcAll()"></div>
+              <div><label>Exposure factor C<sub>e</sub></label><input id="sd-ce" type="number" inputmode="decimal" value="1.0" step="0.1" oninput="sdRecalcAll()"></div>
+              <div><label>Thermal factor C<sub>t</sub></label><input id="sd-ct" type="number" inputmode="decimal" value="1.0" step="0.1" oninput="sdRecalcAll()"></div>
+              <div><label>Importance factor I<sub>s</sub></label><input id="sd-is" type="number" inputmode="decimal" value="1.0" step="0.1" oninput="sdRecalcAll()"></div>
+              <div><label>Tag shows</label><select id="sd-tagmode" onchange="sdRecalcAll()"><option value="pd">Max drift surcharge p<sub>d</sub></option><option value="total">Total at wall (p<sub>f</sub> + p<sub>d</sub>)</option></select></div>
+            </div>
+            <div id="sd-criteria" class="note" style="margin-top:8px;"></div>
           </div>
-          <div id="sd-criteria" class="note" style="margin-top:8px;"></div>
-          <div class="row" style="flex-wrap:wrap;gap:8px;align-items:center;margin-top:10px;">
-            <label style="display:flex;align-items:center;gap:6px;margin:0;font-weight:600;">Project
-              <select id="sd-proj" style="min-width:320px" onchange="sdOpenProject(this.value)"><option value="">Connect the SE Review folder to list projects</option></select></label>
-            <button class="run secondary" id="sd-folderbtn" onclick="sdConnectFolder(true)" title="The shared Dropbox SE Review folder - asked once, then remembered">Connect SE Review folder&hellip;</button>
-            <button class="run secondary" onclick="sdListProjects()" title="Re-read the folder">Refresh</button>
-            <span class="note" id="sd-projstatus" style="margin:0"></span>
+          <div class="grp">
+            <p class="grp-label">Project (shared SE Review folder)</p>
+            <div class="row" style="flex-wrap:wrap;gap:8px;align-items:center;">
+              <label style="display:flex;align-items:center;gap:6px;margin:0;font-weight:600;">Project
+                <select id="sd-proj" style="min-width:320px" onchange="sdOpenProject(this.value)"><option value="">Connect the SE Review folder to list projects</option></select></label>
+              <button class="run secondary" id="sd-folderbtn" onclick="sdConnectFolder(true)" title="The shared Dropbox SE Review folder - asked once, then remembered">Connect SE Review folder&hellip;</button>
+              <button class="run secondary" onclick="sdListProjects()" title="Re-read the folder">Refresh</button>
+              <button class="run secondary" style="color:#c62828;border-color:#c62828;" onclick="sdDeleteProject()" title="Move the selected project to _archive (nothing is permanently destroyed)">Delete project&hellip;</button>
+              <span class="note" id="sd-projstatus" style="margin:0"></span>
+            </div>
           </div>
-          <div class="row" style="flex-wrap:wrap;gap:8px;align-items:center;margin-top:10px;">
-            <button class="run" onclick="document.getElementById('fi78076').click()" title="Pick the PDF - and, from Export for Snow Drift, the snow model .json and iso .png files too (select them all together)">Open roof plan (PDF + Revit files)&hellip;</button><input id="fi78076" type="file" multiple accept="application/pdf,image/*,.json,application/json" style="display:none" onchange="sdOpenFiles(this.files); this.value='';">
-            <button class="run secondary" onclick="document.getElementById('fi16440').click()">Open drift file&hellip;</button><input id="fi16440" type="file" accept=".json,application/json" style="display:none" onchange="sdOpenDriftFile(this.files[0])">
-            <button class="run secondary" onclick="sdDownload()">Save drift file</button>
-            <button class="run secondary" onclick="sdExportCalcPdf()" title="Roof plan + a loading diagram and ASCE 7 calc for each drift on this sheet - for the truss manufacturer or plan reviewer">Export drift calc PDF</button>
-            <label style="display:flex;align-items:center;gap:6px;margin:0;font-weight:normal;">Drawing scale
-              <select id="sd-scale" onchange="sdOnScale()">
-                <option value="4.5">1/16" = 1'-0"</option><option value="6.75">3/32" = 1'-0"</option><option value="9" selected>1/8" = 1'-0"</option><option value="13.5">3/16" = 1'-0"</option><option value="18">1/4" = 1'-0"</option><option value="cal">Calibrated (2 clicks)</option><option value="revit" disabled>From Revit</option>
-              </select></label>
+          <div class="grp">
+            <p class="grp-label">Files &amp; drawing scale</p>
+            <div class="row" style="flex-wrap:wrap;gap:8px;align-items:center;">
+              <button class="run" onclick="document.getElementById('fi78076').click()" title="Pick the PDF - and, from Export for Snow Drift, the snow model .json and iso .png files too (select them all together)">Open roof plan (PDF + Revit files)&hellip;</button><input id="fi78076" type="file" multiple accept="application/pdf,image/*,.json,application/json" style="display:none" onchange="sdOpenFiles(this.files); this.value='';">
+              <button class="run secondary" onclick="document.getElementById('fi16440').click()">Open drift file&hellip;</button><input id="fi16440" type="file" accept=".json,application/json" style="display:none" onchange="sdOpenDriftFile(this.files[0])">
+              <button class="run secondary" onclick="sdDownload()">Save drift file</button>
+              <button class="run secondary" onclick="sdExportCalcPdf()" title="Roof plan + a loading diagram and ASCE 7 calc for each drift on this sheet - for the truss manufacturer or plan reviewer">Export drift calc PDF</button>
+              <label style="display:flex;align-items:center;gap:6px;margin:0;font-weight:normal;">Drawing scale
+                <select id="sd-scale" onchange="sdOnScale()">
+                  <option value="4.5">1/16" = 1'-0"</option><option value="6.75">3/32" = 1'-0"</option><option value="9" selected>1/8" = 1'-0"</option><option value="13.5">3/16" = 1'-0"</option><option value="18">1/4" = 1'-0"</option><option value="cal">Calibrated (2 clicks)</option><option value="revit" disabled>From Revit</option>
+                </select></label>
+            </div>
           </div>
           <div id="sd-toolbar" class="sm-toolbar" style="margin-top:10px;"></div>
-          <div class="row" style="margin-top:8px;gap:8px;align-items:center;flex-wrap:wrap;">
-            <label style="display:flex;align-items:center;gap:6px;margin:0;font-weight:600;">Drawing
-              <select id="sd-pagesel" style="width:280px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" onchange="sdGoToPage(this.value)"><option>No plan open</option></select></label>
-            <button class="run secondary" onclick="sdBoard.go(-1)" title="Previous sheet">&larr;</button>
-            <button class="run secondary" onclick="sdBoard.go(1)" title="Next sheet">&rarr;</button>
-            <span id="sd-pageinfo" class="note" style="margin:0"></span>
-            <label style="display:flex;align-items:center;gap:6px;margin:0;font-weight:normal;">Sheet # <input id="sd-sheetnum" type="text" style="width:90px;" onchange="sdSetSheetNumber(this.value)"></label>
-            <button class="run secondary" onclick="sdBoard.zoomBy(1/1.25)">&minus;</button>
-            <button class="run secondary" onclick="sdBoard.zoomBy(1.25)">+</button>
-            <button class="run secondary" onclick="sdBoard.fit()">Fit</button>
-            <button class="run secondary" id="sd-wallsbtn" onclick="sdToggleWalls()" title="Hide everything on the sheet except the walls (heavy lines, or the Revit walls when the snow model is loaded)">Walls only</button>
-            <label id="sd-wallwt-wrap" style="display:none;align-items:center;gap:6px;margin:0;font-weight:normal;" title="Lines at least this heavy count as walls">Line weight &ge; <input id="sd-wallwt" type="range" min="0" max="3" step="0.05" value="1" style="width:110px" oninput="sdDrawWalls()"></label>
-            <label style="display:flex;align-items:center;gap:6px;margin:0;font-weight:normal;" title="Snap to line ends, corners and intersections (hold Alt to turn off). Lines are orthogonal unless you hold Shift."><input type="checkbox" id="sd-snap" checked style="width:18px;height:18px;margin:0;flex:none"> <span style="white-space:nowrap">Snap + ortho</span></label>
-            <button class="run secondary" onclick="sdToggleSide()" id="sd-sidebtn">Hide list</button>
+          <div class="grp">
+            <p class="grp-label">Navigation &amp; view tools</p>
+            <div class="row" style="gap:8px;align-items:center;flex-wrap:wrap;">
+              <button class="run secondary" onclick="sdBoard.go(-1)" title="Previous sheet">&larr;</button>
+              <button class="run secondary" onclick="sdBoard.go(1)" title="Next sheet">&rarr;</button>
+              <span id="sd-pageinfo" class="note" style="margin:0"></span>
+              <label style="display:flex;align-items:center;gap:6px;margin:0;font-weight:normal;">Sheet # <input id="sd-sheetnum" type="text" style="width:90px;" onchange="sdSetSheetNumber(this.value)"></label>
+              <button class="run secondary" onclick="sdBoard.zoomBy(1/1.25)">&minus;</button>
+              <button class="run secondary" onclick="sdBoard.zoomBy(1.25)">+</button>
+              <button class="run secondary" onclick="sdBoard.fit()">Fit</button>
+              <button class="run secondary" id="sd-wallsbtn" onclick="sdToggleWalls()" title="Hide everything on the sheet except the walls (heavy lines, or the Revit walls when the snow model is loaded)">Walls only</button>
+              <label id="sd-wallwt-wrap" style="display:none;align-items:center;gap:6px;margin:0;font-weight:normal;" title="Lines at least this heavy count as walls">Line weight &ge; <input id="sd-wallwt" type="range" min="0" max="3" step="0.05" value="1" style="width:110px" oninput="sdDrawWalls()"></label>
+              <label style="display:flex;align-items:center;gap:6px;margin:0;font-weight:normal;" title="Snap to line ends, corners and intersections (hold Alt to turn off). Lines are orthogonal unless you hold Shift."><input type="checkbox" id="sd-snap" checked style="width:18px;height:18px;margin:0;flex:none"> <span style="white-space:nowrap">Snap + ortho</span></label>
+              <button class="run secondary" onclick="sdToggleSide()" id="sd-sidebtn">Hide list</button>
+            </div>
           </div>
           <div style="height:18px;line-height:18px;margin-top:4px;overflow:hidden;">
             <span class="note" id="sd-status" style="margin:0;display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;line-height:18px;"></span>
@@ -2852,7 +2866,10 @@
         <div class="sm-layout" id="sd-layout">
           <div class="sm-viewer" id="sd-viewer"><div class="sm-page" id="sd-page"><canvas id="sd-canvas"></canvas><svg id="sd-svg" xmlns="http://www.w3.org/2000/svg"></svg></div></div>
           <div class="card sm-side">
-            <strong id="sd-list-h">Drifts on this sheet</strong>
+            <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;">
+              <strong id="sd-list-h">Drifts on this sheet</strong>
+              <select id="sd-pagesel" style="max-width:100%;font-weight:600;font-size:.82rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" onchange="sdGoToPage(this.value)" title="Switch drawing / key plan view"><option>No plan open</option></select>
+            </div>
             <div id="sd-list" style="margin-top:6px;font-size:.85rem;"></div>
             <div id="sd-model-card" style="margin-top:10px;font-size:.85rem;"></div>
             <p class="note" style="margin-top:10px;"><b>Add drift</b>: click the two ends of the wall/parapet/step edge. The drift side is picked for you (the lower roof); use <b>Drift on the other side</b> in the dialog if it's wrong. <b>Measure</b>: click two points to read a length (it's pre-filled into the next drift). Values follow ASCE 7-16: h<sub>d</sub> = 0.43&#8731;l<sub>u</sub>&middot;&#8732;(p<sub>g</sub>+10) &minus; 1.5 (l<sub>u</sub> &ge; 20 ft), windward = 0.75h<sub>d</sub>, &gamma; = 0.13p<sub>g</sub>+14 &le; 30, w = 4h<sub>d</sub> (or 4h<sub>d</sub>&sup2;/h<sub>c</sub> &le; 8h<sub>c</sub> when h<sub>d</sub> &gt; h<sub>c</sub>), no drift when h<sub>c</sub>/h<sub>b</sub> &lt; 0.2. Confirm against the engineer's own calculation.</p>
@@ -4477,6 +4494,7 @@
         dcRender();
         dcRenderPullQueue();
         if(statusEl) statusEl.textContent = `Linked to "${handle.name}" — reads ${DC_LIBRARY_FILENAME} for the library, saves your own entries to ${DC_EXPORT_FILENAME}, and sends placement requests via ${DC_PULL_FILENAME}.`;
+        if(typeof dcLinkedOnce!=='undefined') dcLinkedOnce = true;
       } else if(statusEl){
         statusEl.textContent = `Previously linked to "${handle.name}", but permission needs to be re-confirmed — click "Link catalog folder" to re-grant it.`;
       }
@@ -4491,6 +4509,19 @@
     dcRenderPullQueue();
     dcCheckLinkedFolderOnLoad();
     renderHome();
+  });
+  // The shared folder link (see tfrSharedFolderHandle above) may only get
+  // connected later in the same session, from the Snow Drift or SE Markup
+  // tab - re-check here whenever Detail Catalog is opened and it isn't
+  // linked yet, instead of only once at page load.
+  var dcLinkedOnce = false;
+  document.addEventListener('click', e=>{
+    if(dcLinkedOnce) return;
+    if(e.target.closest && e.target.closest('[data-panel="detailcatalog"]')){
+      const statusEl = document.getElementById('dc-export-status');
+      if(statusEl && /not linked/i.test(statusEl.textContent||'')) dcCheckLinkedFolderOnLoad();
+      else dcLinkedOnce = true;
+    }
   });
   document.querySelectorAll('nav button[data-panel]').forEach(btn=>{
     btn.addEventListener('click', ()=> showPanel(btn.dataset.panel));
@@ -8753,8 +8784,29 @@
         <span><span class="swatch" style="background:#e61e64"></span>Flagged difference</span>`;
     } else {
       el.innerHTML = `<span><span class="swatch" style="background:#C0392B"></span>Old set (left)</span>
-        <span><span class="swatch" style="background:#2461B3"></span>New set (right)</span>`;
+        <span><span class="swatch" style="background:#2461B3"></span>New set (right)</span>
+        <span><span class="swatch" style="background:rgba(255,196,0,0.6)"></span>Amber highlight = differs from the other page</span>`;
     }
+  }
+  // Semi-transparent amber wash over every pixel that differs beyond the threshold,
+  // stamped onto a COPY of each page so side-by-side still shows the real sheet
+  // underneath (unlike Overlay/Diff, which replace the view with a composite).
+  function buildDiffMask(grayA, grayB, w, h, threshold){
+    const mask = document.createElement('canvas'); mask.width = w; mask.height = h;
+    const md = mask.getContext('2d').createImageData(w, h);
+    for(let p=0, i=0; p<w*h; p++, i+=4){
+      if(Math.abs(grayA[p]-grayB[p]) > threshold){ md.data[i]=255; md.data[i+1]=196; md.data[i+2]=0; md.data[i+3]=150; }
+    }
+    mask.getContext('2d').putImageData(md, 0, 0);
+    return mask;
+  }
+  function stampMask(canvas, mask){
+    const c = document.createElement('canvas'); c.width = canvas.width; c.height = canvas.height;
+    const cx = c.getContext('2d');
+    cx.drawImage(canvas, 0, 0);
+    cx.drawImage(mask, 0, 0, canvas.width, canvas.height);
+    c.dataset.dpi = canvas.dataset.dpi;
+    return c;
   }
 
   async function renderPair(){
@@ -8776,17 +8828,28 @@
     ]);
 
     if(mode === 'side'){
+      let {grayA, grayB, w, h} = alignGray(canvasA, canvasB);
+      if(document.getElementById('thinLines').checked){
+        grayA = erodeGray(grayA, w, h);
+        grayB = erodeGray(grayB, w, h);
+      }
+      const mask = buildDiffMask(grayA, grayB, w, h, threshold);
+      const pct = changedPctOnly(grayA, grayB, w, h, threshold);
       wrap.innerHTML = '';
       const sbs = document.createElement('div'); sbs.className='side-by-side';
       const colA = document.createElement('div'); colA.className='col';
       colA.innerHTML = '<h4>OLD — page '+pA+'</h4>';
-      colA.appendChild(canvasA);
+      colA.appendChild(stampMask(canvasA, mask));
       const colB = document.createElement('div'); colB.className='col';
       colB.innerHTML = '<h4>NEW — page '+pB+'</h4>';
-      colB.appendChild(canvasB);
+      colB.appendChild(stampMask(canvasB, mask));
       sbs.appendChild(colA); sbs.appendChild(colB);
       wrap.appendChild(sbs);
-      document.getElementById('pairMetric').style.display='none';
+      const metric = document.getElementById('pairMetric');
+      metric.style.display = 'block';
+      metric.classList.toggle('warn', pct > 2);
+      const dpiA = canvasA.dataset.dpi, dpiB = canvasB.dataset.dpi;
+      metric.innerHTML = `Old page ${pA} vs New page ${pB} — <strong>${pct.toFixed(2)}%</strong> of pixels differ at this sensitivity (highlighted amber on both sheets below). ${pct>2 ? 'Likely a real revision — review closely.' : 'Likely unchanged (rendering noise / anti-aliasing only).'}<br>Rendered at ~${dpiA} DPI (old) / ~${dpiB} DPI (new) — zoom in with the scroll wheel for a closer look at this resolution.`;
       lastCompositeCanvas = null;
       applyZoom();
       return;
@@ -10121,13 +10184,22 @@
       if(hooks.onLoad) hooks.onLoad();
       await b.fit();
     };
+    // The page sits in a large gray pan surface (like Bluebeam) so you can zoom/scroll
+    // out past its edges instead of being clipped at the sheet boundary. b.center()
+    // scrolls so the page's own top-left lines up with the viewport, same as the old
+    // flush "scrollLeft/Top = 0" did before that surface existed.
+    b.center = function(){
+      const v = el('viewer'), pe = el('page');
+      if(!v || !pe) return;
+      v.scrollLeft = pe.offsetLeft; v.scrollTop = pe.offsetTop;
+    };
     b.fit = async function(){
       if(!b.pdf && !b.img) return;
       const dims = await pageDims();
       const v = el('viewer');
       b.zoom = Math.max(0.1, Math.min((v.clientWidth - 24) / dims.w, (v.clientHeight - 24) / dims.h));
       await b.render();
-      v.scrollLeft = 0; v.scrollTop = 0;
+      b.center();
     };
     async function pageDims(){
       if(b.img) return {w: b.img.naturalWidth, h: b.img.naturalHeight};
@@ -10738,6 +10810,8 @@
   let sdLastMeasure = null;
   let sdPtsPerFt = 9;     // 1/8" = 1'-0" on a 100% print
   let sdSelected = null;
+  let sdMultiSel = new Set();  // multi-select (box-select) result, keyed by item id
+  let sdBoxSel = null;         // in-progress select-tool drag box: {x0,y0,x1,y1}
   let sdActiveView = null;   // id of the key-plan view currently being worked in, when a sheet has more than one
   // Some sheets carry more than one separate key plan (e.g. two roof areas on one page). When the
   // loaded Revit export has more than one plan view, each view's own box (already exported - no
@@ -10803,11 +10877,18 @@
     else sel.value = ps.scaleSel;
     sdStatus(`Scale for this sheet: ${sel.options[sel.selectedIndex] ? sel.options[sel.selectedIndex].text : sdPtsPerFt.toFixed(2)+' units/ft'}.`);
   }
+  const SD_ICON = {
+    drift: '<path d="M3 18h18M3 18V9l5-5v5h4V9l5-5v14"/>',
+    rect: '<rect x="4" y="4" width="16" height="16" rx="1"/>',
+    measure: '<path d="M4 17 17 4M4 17l3-3M7 14l2 2M10 11l2 2M13 8l2 2M16 5l2 2"/>',
+    select: '<path d="M5 3l6 15 2-6 6-2z"/>',
+    splitpt: '<path d="M4 12h6M14 12h6M10 12a2 2 0 1 0 4 0 2 2 0 1 0-4 0"/>'
+  };
   (function sdInitToolbar(){
     const tb = document.getElementById('sd-toolbar');
     if(!tb) return;
-    const tools = [{id:'drift',label:'Add drift'},{id:'rect',label:'RTU (rectangle)'},{id:'measure',label:'Measure'},{id:'select',label:'Select'},{id:'splitpt',label:'Split at click'}];
-    tb.innerHTML = tools.map(t=>`<button class="sm-tool" data-tool="${t.id}">${t.label}</button>`).join('') +
+    const tools = [{id:'drift',label:'Add drift'},{id:'rect',label:'RTU (rect)'},{id:'measure',label:'Measure'},{id:'select',label:'Select'},{id:'splitpt',label:'Split'}];
+    tb.innerHTML = tools.map(t=>`<button class="sm-tool" data-tool="${t.id}" title="${t.label}"><svg viewBox="0 0 24 24" aria-hidden="true">${SD_ICON[t.id]||''}</svg><span>${t.label}</span></button>`).join('') +
       `<span style="flex:1"></span><button class="run secondary" onclick="sdSplitSelected()" title="Cut the selected drift in two at its middle, then drag the joint to the right spot">Split middle</button><button class="run secondary" onclick="sdJoinSelected()" title="Merge the selected drift with the one in line with it">Join</button><button class="run secondary" onclick="sdFlipSelected()" title="Put the selected drift on the other side of its line (F)">Flip side</button><button class="run secondary" onclick="sdDeleteSelected()">Delete selected</button><button class="run secondary" onclick="sdClearSheet()" style="color:#c62828;border-color:#c62828;" title="Remove every drift on this sheet only">Clear sheet</button><button class="run secondary" onclick="sdClearAll()" style="color:#c62828;border-color:#c62828;" title="Remove every drift on every sheet of this file">Clear all</button>`;
     tb.addEventListener('click', e=>{ const t = e.target.closest('[data-tool]'); if(t) sdSetTool(t.dataset.tool); });
     sdSetTool('drift');
@@ -10890,6 +10971,28 @@
       st.textContent = drifts ? 'Drifts saved here earlier are loaded. Changes save to the folder automatically.' : 'Ready. Drifts you add save to the folder automatically.';
     }catch(e){ st.textContent = 'Could not open: ' + (e.message||e); }
   }
+  async function sdCopyDirInto(src, dst){
+    for await (const [n, h] of src.entries()){
+      if(h.kind==='file'){ const f = await h.getFile(); const w = await (await dst.getFileHandle(n, {create:true})).createWritable(); await w.write(f); await w.close(); }
+      else await sdCopyDirInto(h, await dst.getDirectoryHandle(n, {create:true}));
+    }
+  }
+  async function sdDeleteProject(){
+    const sel = document.getElementById('sd-proj'), n = sel.value;
+    if(!n || !sdRoot){ sdStatus('Pick a project first.'); return; }
+    if(!confirm(`Delete "${n}"? It moves to _archive in the SE Review folder and disappears from this list - nothing is permanently destroyed. Delete it from Dropbox's _archive folder yourself when you're sure.`)) return;
+    const st = document.getElementById('sd-projstatus'); st.textContent = 'Deleting…';
+    try{
+      const base = await sdRoot.getDirectoryHandle('_snow drift');
+      const arch = await base.getDirectoryHandle('_archive', {create:true});
+      let dn = n; if(await (async ()=>{ try{ await arch.getDirectoryHandle(dn); return true; }catch(e){ return false; } })()) dn = n + ' (' + new Date().toISOString().slice(0,16).replace(/[T:]/g,'-') + ')';
+      await sdCopyDirInto(await base.getDirectoryHandle(n), await arch.getDirectoryHandle(dn, {create:true}));
+      await base.removeEntry(n, {recursive:true});
+      if(sdProjDir && sdProjDir.name===n){ sdProjDir = null; }
+      st.textContent = `"${n}" moved to _archive.`;
+      await sdListProjects();
+    }catch(e){ st.textContent = 'Could not delete: ' + (e.message||e); }
+  }
   function sdScheduleFolderSave(){ if(!sdProjDir) return; clearTimeout(sdSaveTimer); sdSaveTimer = setTimeout(sdSaveToFolder, 800); }
   async function sdSaveToFolder(){
     if(!sdProjDir) return;
@@ -10963,7 +11066,7 @@
   function sdSetView(i){
     const m = sdModel; if(!m) return; const k = m.exportedAt+'|'+m.sheetNumber;
     sdView[k] = +i; try{ localStorage.setItem('sdView::'+k, String(i)); }catch(e){}
-    sdActiveView = 'mv'+i; sdSelected = null;
+    sdActiveView = 'mv'+i; sdSelected = null; sdMultiSel = new Set();
     sdGeoCache = null; sdApplyModelScale(); sdIndexSnaps(); sdDrawWalls(); sdDraw(); sdRenderModelCard(); sdRefreshPageSel();
     sdStatus(`Working in "${m.viewports[i].view}".`);
   }
@@ -11133,7 +11236,7 @@
     const parts = String(v).split(':'), n = +parts[0], viewId = parts[1] || null;
     if(n===sdBoard.pageNum){
       if(viewId && viewId.slice(0,2)==='mv'){ sdSetView(+viewId.slice(2)); return; } // model-driven key plan - sdSetView keeps it in sync with the Revit model card's own picker
-      sdActiveView = viewId; sdSelected = null; sdDraw(); sdRefreshPageSel();
+      sdActiveView = viewId; sdSelected = null; sdMultiSel = new Set(); sdDraw(); sdRefreshPageSel();
       const v2 = viewId && sdViewsHere().find(x=>x.id===viewId);
       sdStatus(v2 ? `Working in "${v2.name}".` : 'Working on the whole sheet.');
       return;
@@ -11148,7 +11251,7 @@
     try{ localStorage.setItem(sdKey(), JSON.stringify({items: sdItems, pageSheet: sdBoard.pageSheet, criteria: sdCriteriaInputs(), ptsPerFt: sdPtsPerFt, scaleSel: document.getElementById('sd-scale').value})); }catch(e){}
   }
   function sdLoadLocal(){
-    sdItems = []; sdSelected = null;
+    sdItems = []; sdSelected = null; sdMultiSel = new Set();
     try{
       const d = JSON.parse(localStorage.getItem(sdKey())||'null');
       if(d){
@@ -11505,8 +11608,8 @@
   document.addEventListener('keydown', e=>{
     const panel = document.getElementById('snowdrift');
     if(!panel || !panel.classList.contains('active') || document.querySelector('.dc-modal-backdrop.open') || ['INPUT','TEXTAREA','SELECT'].includes((document.activeElement||{}).tagName)) return;
-    if(e.key.toLowerCase()==='f' && sdSelected){ e.preventDefault(); sdFlipSelected(); }
-    if((e.key==='Delete'||e.key==='Backspace') && sdSelected){ e.preventDefault(); sdDeleteSelected(); }
+    if(e.key.toLowerCase()==='f' && (sdSelected || sdMultiSel.size)){ e.preventDefault(); sdFlipSelected(); }
+    if((e.key==='Delete'||e.key==='Backspace') && (sdSelected || sdMultiSel.size)){ e.preventDefault(); sdDeleteSelected(); }
   });
   async function sdPointer(type, p, ev){
     if(type==='dbl'){ const hit = sdHit(p); if(hit){ sdPending = null; sdSnapMark = null; sdDraw(); await sdEdit(hit); } return; }
@@ -11528,6 +11631,12 @@
       if(type==='down'){
         const h = sdHandleAt(p);
         if(h){ sdDragEnd = h; return; }
+        const hit = sdHit(p);
+        if(hit){ sdSelected = hit.id; sdMultiSel = new Set(); sdDraw(); return; }
+        sdBoxSel = {x0:p.x, y0:p.y, x1:p.x, y1:p.y};
+        sdSelected = null; sdMultiSel = new Set();
+        sdDraw();
+        return;
       }
       if(type==='move' && sdDragEnd){
         const h = sdDragEnd, it = h.list[0].it, other = h.list[0].end==='a' ? {x:it.bx,y:it.by} : {x:it.ax,y:it.ay};
@@ -11535,7 +11644,29 @@
         h.list.forEach(({it, end})=>{ if(end==='a'){ it.ax = q.x; it.ay = q.y; } else { it.bx = q.x; it.by = q.y; } });
         h.moved = true; sdDraw(); return;
       }
+      if(type==='move' && sdBoxSel){ sdBoxSel.x1 = p.x; sdBoxSel.y1 = p.y; sdDraw(); return; }
       if(type==='up' && sdDragEnd){ const h = sdDragEnd; sdDragEnd = null; sdSnapMark = null; if(h.moved) sdRecalcAll(); else sdDraw(); return; }
+      if(type==='up' && sdBoxSel){
+        const box = sdBoxSel; sdBoxSel = null;
+        const tol = 3*sdBoard.ptPerPx();
+        if(Math.abs(box.x1-box.x0) < tol && Math.abs(box.y1-box.y0) < tol){ sdDraw(); return; }
+        // Revit convention: drag right-to-left = crossing (touches the box), left-to-right = window (fully inside).
+        const crossing = box.x1 < box.x0;
+        const x0 = Math.min(box.x0,box.x1), x1 = Math.max(box.x0,box.x1), y0 = Math.min(box.y0,box.y1), y1 = Math.max(box.y0,box.y1);
+        const here = sdPageItems();
+        const picked = here.filter(it=>{
+          const xs = [it.ax,it.bx], ys = [it.ay,it.by];
+          const iMinX = Math.min(...xs), iMaxX = Math.max(...xs), iMinY = Math.min(...ys), iMaxY = Math.max(...ys);
+          return crossing ? (iMaxX>=x0 && iMinX<=x1 && iMaxY>=y0 && iMinY<=y1)
+                           : (iMinX>=x0 && iMaxX<=x1 && iMinY>=y0 && iMaxY<=y1);
+        });
+        sdMultiSel = new Set(picked.map(i=>i.id));
+        sdSelected = picked.length ? picked[0].id : null;
+        sdStatus(picked.length ? `${picked.length} drift${picked.length>1?'s':''} selected (${crossing?'crossing':'window'} select).` : 'Nothing in that box.');
+        sdDraw();
+        return;
+      }
+      if(type==='move'){ sdHoverInfo(p); return; }
     }
     const n0 = sdPending ? sdPending.pts.length : 0;
     const snapped = ()=> (sdTool==='drift' && n0>=2) ? p : sdSnap(p, ev, n0 ? sdPending.pts[n0-1] : null, sdTool==='rect');
@@ -11661,19 +11792,20 @@
     sdStatus('Added drift on all 4 sides of the rectangle. Select an edge to flip its side, adjust height, or delete just one side.');
   }
   function sdFlip(it){ if(!it) return; const mx = it.ax+it.bx, my = it.ay+it.by; it.sx = mx - it.sx; it.sy = my - it.sy; sdRecalcAll(); }
-  function sdFlipSelected(){ const it = sdItems.find(i=> i.id===sdSelected); if(!it){ sdStatus('Pick Select, click a drift, then Flip side.'); return; } sdFlip(it); }
-  function sdDeleteSelected(){ if(!sdSelected) return; sdItems = sdItems.filter(i=>i.id!==sdSelected); sdSelected = null; sdRecalcAll(); }
+  function sdSelIds(){ return sdMultiSel.size ? sdMultiSel : (sdSelected ? new Set([sdSelected]) : new Set()); }
+  function sdFlipSelected(){ const ids = sdSelIds(); if(!ids.size){ sdStatus('Pick Select, click (or box-select) a drift, then Flip side.'); return; } sdItems.forEach(it=>{ if(ids.has(it.id)) sdFlip(it); }); }
+  function sdDeleteSelected(){ const ids = sdSelIds(); if(!ids.size) return; sdItems = sdItems.filter(i=>!ids.has(i.id)); sdSelected = null; sdMultiSel = new Set(); sdRecalcAll(); }
   function sdClearSheet(){
     const doomed = sdHereItems(), ids = new Set(doomed.map(i=>i.id));
     if(!ids.size){ sdStatus(`No drifts on this ${sdActiveView?'view':'sheet'}.`); return; }
     if(!confirm(`Clear all ${ids.size} drift(s) on this ${sdActiveView?'view':'sheet'}? Save drift file first if you want a backup - this can't be undone here.`)) return;
-    sdItems = sdItems.filter(i=> !ids.has(i.id)); sdSelected = null; sdRecalcAll();
+    sdItems = sdItems.filter(i=> !ids.has(i.id)); sdSelected = null; sdMultiSel = new Set(); sdRecalcAll();
     sdStatus(`Drifts on this ${sdActiveView?'view':'sheet'} cleared.`);
   }
   function sdClearAll(){
     if(!sdItems.length){ sdStatus('No drifts to clear.'); return; }
     if(!confirm(`Clear ALL ${sdItems.length} drift(s) on every sheet of "${sdBoard.name}"? Save drift file first if you want a backup - this can't be undone here.`)) return;
-    sdItems = []; sdSelected = null; sdRecalcAll();
+    sdItems = []; sdSelected = null; sdMultiSel = new Set(); sdRecalcAll();
     sdStatus('All drifts cleared.');
   }
   function sdGeom(it){
@@ -11727,7 +11859,7 @@
     if(merged) out += `<path d="${merged.map(poly=> poly.map(ring=> 'M ' + ring.map(v=>v.join(' ')).join(' L ') + ' Z').join(' ')).join(' ')}" fill="url(#sd-hatch)" fill-rule="evenodd" stroke="#333" stroke-width="0.75" vector-effect="non-scaling-stroke"/>`;
     sdItems.filter(i=>i.page===sdBoard.pageNum).forEach(it=>{
       const r = it.result||{}, g = sdGeom(it);
-      const sel = it.id===sdSelected;
+      const sel = it.id===sdSelected || sdMultiSel.has(it.id);
       out += `<line x1="${it.ax}" y1="${it.ay}" x2="${it.bx}" y2="${it.by}" stroke="${sel?'#1565c0':'#d32f2f'}" stroke-width="2" vector-effect="non-scaling-stroke"/>`;
       if(r.none){
         out += `<text x="${g.tagPt[0]}" y="${g.tagPt[1]}" font-size="7" fill="#d32f2f" font-family="Arial">NO DRIFT</text>`;
@@ -11744,6 +11876,11 @@
         [[it.ax,it.ay],[it.bx,it.by]].forEach(e=>{ out += `<line x1="${e[0]-qx}" y1="${e[1]-qy}" x2="${e[0]+qx}" y2="${e[1]+qy}" stroke="${sel?'#1565c0':'#d32f2f'}" stroke-width="2.5" vector-effect="non-scaling-stroke"/>`; });
         if(sdTool==='select') [[it.ax,it.ay],[it.bx,it.by]].forEach(e=>{ out += `<rect x="${e[0]-4*px}" y="${e[1]-4*px}" width="${8*px}" height="${8*px}" fill="#fff" stroke="#1565c0" stroke-width="1.5" vector-effect="non-scaling-stroke" style="cursor:move"/>`; }); }
     });
+    if(sdBoxSel){
+      const b = sdBoxSel, x0 = Math.min(b.x0,b.x1), y0 = Math.min(b.y0,b.y1), w = Math.abs(b.x1-b.x0), h = Math.abs(b.y1-b.y0);
+      const crossing = b.x1 < b.x0;
+      out += `<rect x="${x0}" y="${y0}" width="${w}" height="${h}" fill="${crossing?'rgba(46,204,113,0.12)':'rgba(21,101,192,0.12)'}" stroke="${crossing?'#2e9e4f':'#1565c0'}" stroke-width="1.25" stroke-dasharray="${crossing?'2 2':'none'}" vector-effect="non-scaling-stroke"/>`;
+    }
     if(sdTool==='rect' && sdPending && sdPending.pts.length){
       const a = sdPending.pts[0], c = sdPending.hover || sdPending.pts[0];
       const x0 = Math.min(a.x,c.x), x1 = Math.max(a.x,c.x), y0 = Math.min(a.y,c.y), y1 = Math.max(a.y,c.y);
@@ -11787,7 +11924,7 @@
     if(!here.length){ el.innerHTML = '<span class="note">None yet.</span>'; return; }
     el.innerHTML = here.map((it,n)=>{
       const r = it.result||{};
-      return `<div class="sm-listitem${it.id===sdSelected?' sel':''}" onclick="sdSelected='${it.id}';sdDraw();" ondblclick="sdEdit(sdItems.find(x=>x.id==='${it.id}'))"><b>${n+1}. ${SD_TYPE_LABEL[it.type]}${it.label?' — '+smEsc(it.label):''}</b><br>` +
+      return `<div class="sm-listitem${(it.id===sdSelected||sdMultiSel.has(it.id))?' sel':''}" onclick="sdSelected='${it.id}';sdMultiSel=new Set();sdDraw();" ondblclick="sdEdit(sdItems.find(x=>x.id==='${it.id}'))"><b>${n+1}. ${SD_TYPE_LABEL[it.type]}${it.label?' — '+smEsc(it.label):''}</b><br>` +
         (r.none ? `No drift (${smEsc(r.notes.join('; '))})` : `h ${fmtFtIn(it.h||0)} · h<sub>d</sub> ${r.hd.toFixed(2)}' · w ${fmtFtIn(r.wDrawn)} · p<sub>d</sub> ${r.pd.toFixed(0)} psf · tag <b>${r.tag} PSF</b>`) + ` <a href="#" onclick="event.stopPropagation();sdFlip(sdItems.find(x=>x.id==='${it.id}'));return false;">flip side</a></div>`;
     }).join('');
   }
@@ -11986,6 +12123,14 @@
   let dcRequests = [];
   let dcRl = {id:null, items:[], tool:'pen', drag:null, W:0, H:0};
   const DC_RL_TOOLS = [['pen','Pen'],['text','Text'],['cloud','Cloud'],['arrow','Arrow'],['x','X'],['line','Line']];
+  const DC_RL_ICON = {
+    pen: '<path d="M4 20l1-4L15 6l3 3L8 19l-4 1z"/>',
+    text: '<path d="M5 6h14M12 6v12"/>',
+    cloud: '<path d="M7 18a4 4 0 0 1-1-7.9A5 5 0 0 1 15.5 8 4.5 4.5 0 0 1 16 17H7z"/>',
+    arrow: '<path d="M4 20 20 4M20 4h-7M20 4v7"/>',
+    x: '<path d="M5 5l14 14M19 5 5 19"/>',
+    line: '<path d="M4 20 20 4"/>'
+  };
 
   async function dcLoadRequests(handle){
     try{
@@ -12076,7 +12221,7 @@
     };
     img.src = d.thumb;
     const tb = document.getElementById('dc-rl-tools');
-    tb.innerHTML = DC_RL_TOOLS.map(([k,l])=>`<button class="sm-tool" data-t="${k}">${l}</button>`).join('') + `<span style="flex:1"></span><button class="run secondary" onclick="dcRl.items.pop();dcRlDraw();">Undo</button><button class="run secondary" onclick="dcRl.items=[];dcRlDraw();">Clear</button>`;
+    tb.innerHTML = DC_RL_TOOLS.map(([k,l])=>`<button class="sm-tool" data-t="${k}" title="${l}"><svg viewBox="0 0 24 24" aria-hidden="true">${DC_RL_ICON[k]||''}</svg><span>${l}</span></button>`).join('') + `<span style="flex:1"></span><button class="run secondary" onclick="dcRl.items.pop();dcRlDraw();">Undo</button><button class="run secondary" onclick="dcRl.items=[];dcRlDraw();">Clear</button>`;
     tb.onclick = e=>{ const b = e.target.closest('[data-t]'); if(b){ dcRl.tool = b.dataset.t; dcRlTools(); } };
     dcRlTools();
     dcCloseModal();
