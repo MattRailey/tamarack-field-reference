@@ -418,6 +418,12 @@
   .pv-open{ display:flex; align-items:center; gap:8px; flex:1; min-width:180px; font-size:.78rem; }
   .pv-open .note{ margin:0; font-size:.76rem; }
   .pv-bar.dragover{ outline:2px dashed var(--blueprint); outline-offset:-2px; }
+  /* Compare mode's Open Old/New Set controls reuse .dropzone (for its loaded/dragover
+     states and its "input{display:none}" rule) but sit inline in a .pv-bar row like
+     every other PDF Viewer control, not as a big standalone drop target. */
+  .pv-open.dropzone{ border:none; background:none; padding:0; margin:0; text-align:left; cursor:default; }
+  .pv-open.dropzone.dragover{ outline:2px dashed var(--blueprint); outline-offset:2px; background:#eaf1f8; border-radius:6px; }
+  .pv-open.dropzone.loaded .note{ color:var(--ok); }
   /* Tab strip along the top of PDF Viewer - one PDF per tab, so several sheet
      sets can stay open (and keep their own redlines/scale/page) at once. */
   .pv-tabs{ display:flex; align-items:flex-end; gap:2px; overflow-x:auto; overflow-y:hidden; margin-bottom:6px; padding:0 0 0 2px; scrollbar-width:thin; }
@@ -1150,30 +1156,8 @@
           </div>
         </div>
 
-        <!-- ===================== TWO-SET COMPARE (unchanged) ===================== -->
+        <!-- ===================== TWO-SET COMPARE ===================== -->
         <div id="pcCompareMode">
-        <div class="card">
-          <h2 style="font-size:1.05rem;">1. Load two sets</h2>
-          <div class="grid2">
-            <div class="dropzone" id="dzA">
-              <strong>Old / Existing Set</strong>
-              <div class="note">Drag &amp; drop a PDF here, or click to browse</div>
-              <input type="file" id="fileA" accept="application/pdf">
-              <div class="note" id="infoA">No file loaded.</div>
-            </div>
-            <div class="dropzone" id="dzB">
-              <strong>New / Revised Set</strong>
-              <div class="note">Drag &amp; drop a PDF here, or click to browse</div>
-              <input type="file" id="fileB" accept="application/pdf">
-              <div class="note" id="infoB">No file loaded.</div>
-            </div>
-          </div>
-          <div class="row" id="pcRestoreNote" style="display:none;margin-top:8px;gap:8px;align-items:center;">
-            <span class="note" style="margin:0;">Reopened with the last two sets you compared, so you don't have to drag them back in.</span>
-            <a href="#" onclick="pcForgetAndClear();return false;" style="font-size:.8rem;">Forget these &amp; start over</a>
-          </div>
-        </div>
-
         <div class="pdfcompare-layout" id="compareCard">
           <div class="thumb-rail card" id="thumbRail">
             <h2 style="font-size:.95rem;">Sheets</h2>
@@ -1185,86 +1169,74 @@
           </div>
 
           <div class="pdfcompare-main">
-        <div class="card">
-          <h2 style="font-size:1.05rem;">2. Compare a page pair</h2>
-          <div class="row">
-            <div class="pager">
-              <label style="margin:0">Old set page</label>
-              <button class="secondary" onclick="stepPage('A',-1)">&#8592;</button>
-              <input type="number" id="pageA" value="1" min="1" style="width:64px" onchange="renderPair()">
-              <button class="secondary" onclick="stepPage('A',1)">&#8594;</button>
-              <span id="maxA" class="note"></span>
+            <div class="pv-bar" id="pc-openbar">
+              <div class="pv-open dropzone" id="dzA">
+                <button class="pv-btn" title="Open the OLD / EXISTING set, or drag &amp; drop a PDF anywhere on this bar">Open Old Set</button>
+                <input type="file" id="fileA" accept="application/pdf">
+                <span class="note" id="infoA">No file loaded.</span>
+              </div>
+              <div class="sep"></div>
+              <div class="pv-open dropzone" id="dzB">
+                <button class="pv-btn" title="Open the NEW / REVISED set, or drag &amp; drop a PDF anywhere on this bar">Open New Set</button>
+                <input type="file" id="fileB" accept="application/pdf">
+                <span class="note" id="infoB">No file loaded.</span>
+              </div>
+              <div class="sep"></div>
+              <a href="#" id="pcRestoreNote" style="display:none;font-size:.76rem;" onclick="pcForgetAndClear();return false;" title="Reopened with the last two sets you compared, redlines and all">↺ last two sets remembered — forget them</a>
             </div>
-            <div class="pager">
-              <label style="margin:0">New set page</label>
-              <button class="secondary" onclick="stepPage('B',-1)">&#8592;</button>
-              <input type="number" id="pageB" value="1" min="1" style="width:64px" onchange="renderPair()">
-              <button class="secondary" onclick="stepPage('B',1)">&#8594;</button>
-              <span id="maxB" class="note"></span>
-            </div>
-            <div class="pager">
-              <label style="margin:0">Advance both together</label>
-              <button onclick="stepBoth(-1)">&#8592; Prev sheet</button>
-              <button onclick="stepBoth(1)">Next sheet &#8594;</button>
-            </div>
-          </div>
-          <div class="row">
-            <div>
-              <label>View mode</label>
-              <select id="viewMode" onchange="renderPair()">
-                <option value="overlay">Red/Blue overlay (recommended)</option>
-                <option value="diff">Diff highlight</option>
-                <option value="side">Side by side</option>
-              </select>
-            </div>
-            <div style="min-width:160px">
-              <label>Diff sensitivity</label>
-              <input type="range" id="threshold" min="10" max="120" value="40" oninput="renderPair()">
-            </div>
-            <div>
-              <label>&nbsp;</label>
-              <label class="check"><input type="checkbox" id="thinLines" onchange="renderPair()"> Thin lines (erode before comparing)</label>
-            </div>
-            <div style="min-width:200px">
-              <label>Render detail</label>
-              <select id="renderQuality" onchange="renderPair()">
-                <option value="1600">Standard (fast)</option>
-                <option value="2600">High</option>
-                <option value="4000" selected>Maximum (sharpest, slower to render)</option>
-              </select>
-            </div>
-          </div>
-          <div class="legend" id="legend"></div>
-          <div class="zoom-bar">
-            <span>Scroll wheel to zoom to cursor · click and drag to pan</span>
-            <button class="secondary" onclick="setZoom(zoomLevel*0.9091)">&minus;</button>
-            <span id="zoomPct">100%</span>
-            <button class="secondary" onclick="setZoom(zoomLevel*1.1)">+</button>
-            <button class="secondary" onclick="resetZoom()">Reset</button>
-            <button class="secondary" onclick="toggleFullscreen()" id="fsBtn">&#x26F6; Full screen</button>
-          </div>
-          <div class="viewer-wrap" id="viewerWrap">
-            <div class="note" style="color:#ddd;padding:40px;">Load both PDFs above, then this area will show the comparison.</div>
-          </div>
-          <div class="metric" id="pairMetric" style="display:none;"></div>
-          <div class="row" style="margin-top:10px;">
-            <button class="secondary" onclick="downloadCurrentPNG()">Download this view as PNG</button>
-          </div>
-          <p class="flag-link">&#9432; <a href="#" onclick="goToNote('pdfcompare');return false;">See Notes &rarr; PDF Compare</a> for page-alignment and resolution caveats.</p>
-        </div>
 
-        <div class="card">
-          <h2 style="font-size:1.05rem;">3. Scan the whole set for changed sheets</h2>
-          <div class="row">
-            <button id="scanBtn" onclick="scanAll()" disabled>Scan all pages</button>
-            <span class="note">Compares min(pages A, pages B) page pairs at reduced resolution — fast, meant to flag which sheets to look at closely, not a final reading.</span>
-          </div>
-          <progress id="scanProgress" value="0" max="100" style="display:none;"></progress>
-          <div id="scanResults"></div>
-          <div class="row" id="csvRow" style="display:none;">
-            <button class="secondary" onclick="downloadCSV()">Download summary as CSV</button>
-          </div>
-        </div>
+            <div class="pv-bar" id="pc-pagebar">
+              <div class="pv-field">Old page <button class="pv-btn" onclick="stepPage('A',-1)" title="Previous old-set page">&larr;</button><input type="number" id="pageA" value="1" min="1" style="width:56px" onchange="renderPair()"><button class="pv-btn" onclick="stepPage('A',1)" title="Next old-set page">&rarr;</button><span id="maxA" class="note" style="margin:0;"></span></div>
+              <div class="pv-field">New page <button class="pv-btn" onclick="stepPage('B',-1)" title="Previous new-set page">&larr;</button><input type="number" id="pageB" value="1" min="1" style="width:56px" onchange="renderPair()"><button class="pv-btn" onclick="stepPage('B',1)" title="Next new-set page">&rarr;</button><span id="maxB" class="note" style="margin:0;"></span></div>
+              <div class="sep"></div>
+              <button class="pv-btn" onclick="stepBoth(-1)" title="Step both sets back one sheet">&larr; Prev sheet</button>
+              <button class="pv-btn" onclick="stepBoth(1)" title="Step both sets forward one sheet">Next sheet &rarr;</button>
+            </div>
+
+            <div class="pv-bar" id="pc-viewbar">
+              <div class="pv-field">View
+                <select id="viewMode" onchange="renderPair()">
+                  <option value="overlay">Red/Blue overlay (recommended)</option>
+                  <option value="diff">Diff highlight</option>
+                  <option value="side">Side by side</option>
+                </select>
+              </div>
+              <div class="pv-field">Sensitivity <input type="range" id="threshold" min="10" max="120" value="40" oninput="renderPair()" style="width:100px"></div>
+              <label class="pv-field" style="cursor:pointer;" title="Erode thin lines before comparing, to cut down on noise from anti-aliasing"><input type="checkbox" id="thinLines" onchange="renderPair()" style="width:16px;height:16px;min-height:0;margin:0;flex:none"> Thin lines</label>
+              <div class="pv-field">Detail
+                <select id="renderQuality" onchange="renderPair()">
+                  <option value="1600">Standard (fast)</option>
+                  <option value="2600">High</option>
+                  <option value="4000" selected>Maximum (sharpest, slower)</option>
+                </select>
+              </div>
+              <div class="sep"></div>
+              <button class="pv-btn" onclick="setZoom(zoomLevel*0.9091)" title="Zoom out">&minus;</button>
+              <span class="note" id="zoomPct" style="margin:0;">100%</span>
+              <button class="pv-btn" onclick="setZoom(zoomLevel*1.1)" title="Zoom in">+</button>
+              <button class="pv-btn" onclick="resetZoom()" title="Reset zoom and pan">Reset</button>
+              <button class="pv-btn" onclick="toggleFullscreen()" id="fsBtn" title="Full screen">&#x26F6; Full screen</button>
+              <div class="sep"></div>
+              <button class="pv-btn" onclick="downloadCurrentPNG()" title="Download the current comparison view as a PNG">Download PNG</button>
+              <span class="note" style="margin:0;">Scroll wheel to zoom to cursor &middot; click and drag to pan</span>
+            </div>
+
+            <div class="legend" id="legend"></div>
+            <div class="viewer-wrap" id="viewerWrap">
+              <div class="note" style="color:#ddd;padding:40px;">Load both PDFs above, then this area will show the comparison.</div>
+            </div>
+            <div class="metric" id="pairMetric" style="display:none;"></div>
+            <p class="flag-link">&#9432; <a href="#" onclick="goToNote('pdfcompare');return false;">See Notes &rarr; PDF Compare</a> for page-alignment and resolution caveats. Per-sheet % different is in the Sheets list at left — click "Refresh" there to (re)scan.</p>
+
+            <!-- Kept for scanAll()/renderThumbnails(), which the Sheets rail's "Refresh" button
+                 drives - this used to also render as a redundant table here; that table is gone,
+                 since the same per-sheet % different now only ever shows in the Sheets rail. -->
+            <div style="display:none;">
+              <button id="scanBtn" disabled>Scan all pages</button>
+              <progress id="scanProgress" value="0" max="100"></progress>
+              <div id="scanResults"></div>
+              <div id="csvRow"><button onclick="downloadCSV()">Download summary as CSV</button></div>
+            </div>
           </div>
         </div>
         </div>
@@ -9063,16 +9035,69 @@
         <span><span class="swatch" style="background:rgba(255,196,0,0.6)"></span>Amber highlight = differs from the other page</span>`;
     }
   }
-  // Semi-transparent amber wash over every pixel that differs beyond the threshold,
-  // stamped onto a COPY of each page so side-by-side still shows the real sheet
-  // underneath (unlike Overlay/Diff, which replace the view with a composite).
+  // Solid amber block over each CLUSTER of changed pixels, stamped onto a COPY
+  // of each page so side-by-side still shows the real sheet underneath
+  // (unlike Overlay/Diff, which replace the view with a composite). Rather
+  // than a pixel-accurate wash that traces the exact shape of whatever
+  // changed (letterforms, linework), the diff pixels are grouped into a grid,
+  // connected cells are merged into bounding boxes, and a near-opaque
+  // rectangle is drawn over each box - so side-by-side just shows a handful
+  // of highlight blocks marking WHERE something changed, not what it was.
   function buildDiffMask(grayA, grayB, w, h, threshold){
-    const mask = document.createElement('canvas'); mask.width = w; mask.height = h;
-    const md = mask.getContext('2d').createImageData(w, h);
-    for(let p=0, i=0; p<w*h; p++, i+=4){
-      if(Math.abs(grayA[p]-grayB[p]) > threshold){ md.data[i]=255; md.data[i+1]=196; md.data[i+2]=0; md.data[i+3]=150; }
+    const cell = Math.max(6, Math.round(Math.min(w, h) / 140));
+    const cols = Math.ceil(w / cell), rows = Math.ceil(h / cell);
+    const hot = new Uint8Array(cols * rows);
+    for(let gy = 0; gy < rows; gy++){
+      const y0 = gy * cell, y1 = Math.min(h, y0 + cell);
+      for(let gx = 0; gx < cols; gx++){
+        const x0 = gx * cell, x1 = Math.min(w, x0 + cell);
+        let found = false;
+        for(let y = y0; y < y1 && !found; y++){
+          const rowOff = y * w;
+          for(let x = x0; x < x1; x++){
+            if(Math.abs(grayA[rowOff + x] - grayB[rowOff + x]) > threshold){ found = true; break; }
+          }
+        }
+        if(found) hot[gy * cols + gx] = 1;
+      }
     }
-    mask.getContext('2d').putImageData(md, 0, 0);
+    // Union-find to merge touching hot cells (8-connectivity) into clusters.
+    const parent = new Int32Array(cols * rows);
+    for(let i = 0; i < parent.length; i++) parent[i] = i;
+    function find(a){ while(parent[a] !== a){ parent[a] = parent[parent[a]]; a = parent[a]; } return a; }
+    function union(a, b){ a = find(a); b = find(b); if(a !== b) parent[a] = b; }
+    for(let gy = 0; gy < rows; gy++){
+      for(let gx = 0; gx < cols; gx++){
+        const idx = gy * cols + gx;
+        if(!hot[idx]) continue;
+        for(const [dx, dy] of [[1,0],[0,1],[1,1],[-1,1]]){
+          const nx = gx + dx, ny = gy + dy;
+          if(nx < 0 || nx >= cols || ny < 0 || ny >= rows) continue;
+          const nIdx = ny * cols + nx;
+          if(hot[nIdx]) union(idx, nIdx);
+        }
+      }
+    }
+    const boxes = new Map();
+    for(let gy = 0; gy < rows; gy++){
+      for(let gx = 0; gx < cols; gx++){
+        const idx = gy * cols + gx;
+        if(!hot[idx]) continue;
+        const root = find(idx);
+        let b = boxes.get(root);
+        if(!b){ boxes.set(root, {minX:gx, minY:gy, maxX:gx, maxY:gy}); }
+        else{ if(gx<b.minX)b.minX=gx; if(gx>b.maxX)b.maxX=gx; if(gy<b.minY)b.minY=gy; if(gy>b.maxY)b.maxY=gy; }
+      }
+    }
+    const mask = document.createElement('canvas'); mask.width = w; mask.height = h;
+    const mctx = mask.getContext('2d');
+    mctx.fillStyle = 'rgba(255,196,0,0.88)';
+    const pad = cell;
+    boxes.forEach(b=>{
+      const x0 = Math.max(0, b.minX*cell - pad), y0 = Math.max(0, b.minY*cell - pad);
+      const x1 = Math.min(w, (b.maxX+1)*cell + pad), y1 = Math.min(h, (b.maxY+1)*cell + pad);
+      mctx.fillRect(x0, y0, x1-x0, y1-y0);
+    });
     return mask;
   }
   function stampMask(canvas, mask){
@@ -9379,6 +9404,12 @@
     document.getElementById('pcCompareMode').style.display = mode==='compare' ? '' : 'none';
     document.getElementById('pcModeSingleBtn').className = 'run' + (mode==='single' ? '' : ' secondary');
     document.getElementById('pcModeCompareBtn').className = 'run' + (mode==='compare' ? '' : ' secondary');
+    // The nav-docked thumbnail rail is shared: show the single-PDF viewer's
+    // sheet list in Viewer mode, and the two-set compare list (with each
+    // sheet's % different) in Compare mode - never both at once.
+    const pvThumbs = document.getElementById('pv-thumbs'), thumbRail = document.getElementById('thumbRail');
+    if(pvThumbs) pvThumbs.style.display = mode==='single' ? '' : 'none';
+    if(thumbRail) thumbRail.style.display = mode==='compare' ? '' : 'none';
   }
   pcSetMode('single');
 
@@ -13325,6 +13356,7 @@
     function dock(hostId, elId){ const h = document.getElementById(hostId), e = document.getElementById(elId); if(h && e) h.appendChild(e); }
     dock('nav-sd-dock', 'sd-side-panel');
     dock('nav-pv-dock', 'pv-thumbs');
+    dock('nav-pv-dock', 'thumbRail');
   })();
 
   // Drag handle to resize the nav/tab column. The chosen width is saved to
