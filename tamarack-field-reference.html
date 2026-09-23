@@ -2795,7 +2795,7 @@
             <strong>Drifts on this sheet</strong>
             <div id="sd-list" style="margin-top:6px;font-size:.85rem;"></div>
             <div id="sd-model-card" style="margin-top:10px;font-size:.85rem;"></div>
-            <p class="note" style="margin-top:10px;"><b>Add drift</b>: click the two ends of the wall/parapet/step edge, then click on the side the snow drifts onto. <b>Measure</b>: click two points to read a length (it's pre-filled into the next drift). Values follow ASCE 7-16: h<sub>d</sub> = 0.43&#8731;l<sub>u</sub>&middot;&#8732;(p<sub>g</sub>+10) &minus; 1.5 (l<sub>u</sub> &ge; 20 ft), windward = 0.75h<sub>d</sub>, &gamma; = 0.13p<sub>g</sub>+14 &le; 30, w = 4h<sub>d</sub> (or 4h<sub>d</sub>&sup2;/h<sub>c</sub> &le; 8h<sub>c</sub> when h<sub>d</sub> &gt; h<sub>c</sub>), no drift when h<sub>c</sub>/h<sub>b</sub> &lt; 0.2. Confirm against the engineer's own calculation.</p>
+            <p class="note" style="margin-top:10px;"><b>Add drift</b>: click the two ends of the wall/parapet/step edge. The drift side is picked for you (the lower roof); use <b>Drift on the other side</b> in the dialog if it's wrong. <b>Measure</b>: click two points to read a length (it's pre-filled into the next drift). Values follow ASCE 7-16: h<sub>d</sub> = 0.43&#8731;l<sub>u</sub>&middot;&#8732;(p<sub>g</sub>+10) &minus; 1.5 (l<sub>u</sub> &ge; 20 ft), windward = 0.75h<sub>d</sub>, &gamma; = 0.13p<sub>g</sub>+14 &le; 30, w = 4h<sub>d</sub> (or 4h<sub>d</sub>&sup2;/h<sub>c</sub> &le; 8h<sub>c</sub> when h<sub>d</sub> &gt; h<sub>c</sub>), no drift when h<sub>c</sub>/h<sub>b</sub> &lt; 0.2. Confirm against the engineer's own calculation.</p>
           </div>
         </div>
       </section>
@@ -10489,7 +10489,7 @@
     sdTool = id; sdPending = null; sdSnapMark = null;
     const mini = document.getElementById('sd-mini'); if(mini) mini.hidden = true;
     document.querySelectorAll('#sd-toolbar .sm-tool').forEach(b=> b.classList.toggle('active', b.dataset.tool===id));
-    sdStatus(id==='drift' ? 'Click the first end of the wall / parapet / step edge.' : id==='measure' ? 'Click the first point.' : 'Click a drift to select it; double-click to edit.');
+    sdStatus(id==='drift' ? 'Click the two ends of the wall / parapet / step edge.' : id==='measure' ? 'Click the first point.' : 'Click a drift to select it; double-click to edit.');
     sdDraw();
   }
   function sdStatus(t){ const el = document.getElementById('sd-status'); if(el) el.textContent = t||''; }
@@ -10599,7 +10599,7 @@
   function sdModelGeo(){
     const m = sdModelOnPage(), mp = sdMP(); if(!m || !mp) return null;
     const key = sdBoard.pageW+'|'+sdBoard.pageH+'|'+m.exportedAt;
-    if(sdGeoCache && sdGeoCache.key===key) return sdGeoCache;
+    if(sdGeoCache && sdGeoCache.key===key) return sdGeoCache.bad ? null : sdGeoCache;
     const g = {key, walls:[], tris:[], boxes:[]};
     m.viewports.forEach(vp=>{
       const k = mp.ftPerPt*vp.scale;   // real ft per page point
@@ -10608,6 +10608,11 @@
       vp.boxes.forEach(bx=> g.boxes.push({name:bx.name, pts:bx.corners.map(q=>[mp.X(q[0]), mp.Y(q[1])]), base:bx.base, top:bx.top, k}));
     });
     g.k = g.walls.length ? g.walls[0].k : (g.tris.length ? g.tris[0].k : mp.ftPerPt*48);
+    // Exports from the first version of the Revit button put walls in model
+    // coordinates, not on the sheet - ignore data that doesn't land on the page.
+    const W = sdBoard.pageW, H = sdBoard.pageH, pts = g.walls.flatMap(w=>w.pts);
+    const on = pts.filter(q=> q[0]>=-W*0.05 && q[0]<=W*1.05 && q[1]>=-H*0.05 && q[1]<=H*1.05).length;
+    if(pts.length && on < pts.length*0.5){ sdGeoCache = {key, bad:true}; return null; }
     sdGeoCache = g; return g;
   }
   function sdApplyModelScale(){
@@ -10621,6 +10626,8 @@
     const m = sdModel;
     if(!m){ el.innerHTML = `<span class="note">For wall heights, snapping to Revit walls and the section pop-up, run <b>Export for Snow Drift</b> in Revit and open its files here together with the PDF.</span>`; return; }
     const on = !!sdModelOnPage();
+    sdModelGeo();
+    if(on && sdGeoCache && sdGeoCache.bad){ el.innerHTML = `<strong>Revit model</strong><br><span style="color:#c8281e">This export doesn't line up with the sheet (made with the first version of the Revit button). Run <b>Export for Snow Drift</b> again, then pick the project again.</span>`; return; }
     el.innerHTML = `<strong>Revit model</strong> <span class="note">${smEsc(m.project||'')} &middot; ${smEsc(m.sheetNumber)}${on?'':' &mdash; <b>not this sheet</b>'}</span><br>` +
       m.viewports.map(v=>`${smEsc(v.view)} (1:${v.scale}): ${v.walls.length} walls, ${v.surfaces.length} roof/floor, ${v.boxes.length} units`).join('<br>') +
       (sdIsos.length ? `<div class="sd-iso">${sdIsos.map((u,i)=>`<figure style="margin:0"><img src="${u.url}" alt="Isometric ${smEsc(u.name)}" onclick="sdShowIso(${i})"><figcaption class="note" style="margin:0;text-align:center">${smEsc(u.name)}</figcaption></figure>`).join('')}</div>` : '');
@@ -10930,7 +10937,7 @@
     sdStatus(`Wall ${w.type}: ${sdFtIn(w.top - w.base)} tall` + (roofs.length ? ` · top is ${roofs.map(z=> sdFtIn(w.top - z)).join(' / ')} above the roof beside it` : '') + ` (top El. ${sdFtIn(w.top)})`);
   }
 
-  async function sdDriftDialog(init, sec){
+  async function sdDriftDialog(init, sec, canFlip){
     const mini = document.getElementById('sd-mini'); if(mini) mini.hidden = true;
     return new Promise(resolve=>{
       const back = document.createElement('div');
@@ -10947,7 +10954,7 @@
           <div><label>Label (optional)</label><input data-f="label" type="text"></div>
         </div>
         <div class="note" data-out style="margin-top:8px;"></div>
-        <div class="row" style="margin-top:10px;gap:8px;"><button class="run" data-act="ok">Save drift</button><button class="run secondary" data-act="cancel">Cancel</button></div>
+        <div class="row" style="margin-top:10px;gap:8px;"><button class="run" data-act="ok">Save drift</button>${canFlip?'<button class="run secondary" data-act="flip" title="The drift is drawn on the wrong side of the line">Drift on the other side</button>':''}<button class="run secondary" data-act="cancel">Cancel</button></div>
       </div>`;
       document.body.appendChild(back);
       const f = k=> back.querySelector(`[data-f="${k}"]`);
@@ -10986,11 +10993,28 @@
       back.addEventListener('click', e=>{
         const act = e.target.dataset && e.target.dataset.act;
         if(act==='ok'){ const d = read(); back.remove(); resolve(d); }
+        else if(act==='flip'){ back.remove(); resolve({flip:true}); }
         else if(act==='cancel' || e.target===back){ back.remove(); resolve(null); }
       });
     });
   }
   var sdHover = null;
+  var sdPreviewSide = null;
+  // Which side of an edge the snow drifts onto: the lower roof (step), or the
+  // roof side of a parapet. Without the Revit model: the side toward the
+  // middle of the sheet (flip it in the dialog if that's wrong).
+  function sdAutoSide(a, c){
+    const ux = c.x-a.x, uy = c.y-a.y, L = Math.hypot(ux,uy) || 1, nx = -uy/L, ny = ux/L, m = {x:(a.x+c.x)/2, y:(a.y+c.y)/2};
+    const g = sdModelGeo();
+    if(g){
+      const off = 4/g.k, z1 = sdZAt(m.x+nx*off, m.y+ny*off), z2 = sdZAt(m.x-nx*off, m.y-ny*off);
+      if(z1!=null && (z2==null || z1 < z2 - 0.5)) return {x:m.x+nx*off, y:m.y+ny*off};
+      if(z2!=null && (z1==null || z2 < z1 - 0.5)) return {x:m.x-nx*off, y:m.y-ny*off};
+      if(z1!=null && z2==null) return {x:m.x+nx*off, y:m.y+ny*off};
+    }
+    const cx = sdBoard.pageW/2, cy = sdBoard.pageH/2, t = ((cx-m.x)*nx + (cy-m.y)*ny) >= 0 ? 1 : -1;
+    return {x:m.x+nx*t*20, y:m.y+ny*t*20};
+  }
   document.addEventListener('keydown', e=>{
     const panel = document.getElementById('snowdrift');
     if(!panel || !panel.classList.contains('active') || e.key!=='Escape' || document.querySelector('.dc-modal-backdrop.open')) return;
@@ -11006,7 +11030,7 @@
       const q = snapped();
       if(sdPending){ sdPending.hover = q; }
       sdHover = q; sdDraw();
-      if(sdTool==='drift' && sdPending){ const P = sdPending.pts; if(P.length===1) sdUpdateMini(P[0], q, null); else if(P.length===2) sdUpdateMini(P[0], P[1], p); }
+      if(sdTool==='drift' && sdPending){ const P = sdPending.pts; if(P.length===1) sdUpdateMini(P[0], q, sdAutoSide(P[0], q)); }
       else { const mini = document.getElementById('sd-mini'); if(mini) mini.hidden = true; if(!sdPending) sdHoverInfo(p); }
       return;
     }
@@ -11032,13 +11056,19 @@
     }
     if(sdTool==='drift'){
       if(n===1){ sdStatus('Click the other end of the edge (lines stay square; hold Shift for any angle, Alt to stop snapping).'); sdDraw(); return; }
-      if(n===2){ sdStatus('Click on the side the snow drifts onto (the lower roof / roof side).'); sdDraw(); return; }
-      const [a,c,s] = sdPending.pts; sdPending = null;
-      const sec = sdSection(a, c, s), auto = sdAuto(sec);
-      const init = {type:'step', h: 4, luUp: sdLastMeasure ? +sdLastMeasure.toFixed(1) : 50, luLow: 50};
-      if(auto && auto.type){ Object.assign(init, {type: auto.type, h: auto.h}); if(auto.luUp) init.luUp = auto.luUp; if(auto.luLow) init.luLow = auto.luLow; init.autoNote = 'Filled in from the Revit model - check them against the section.' + (auto.note ? ' ' + auto.note : ''); }
-      const d = await sdDriftDialog(init, sec);
-      delete init.autoNote;
+      const [a,c] = sdPending.pts; sdPending = null; sdDraw();
+      let s = sdAutoSide(a, c), d = null;
+      for(;;){
+        const sec = sdSection(a, c, s), auto = sdAuto(sec);
+        const init = {type:'step', h: 4, luUp: sdLastMeasure ? +sdLastMeasure.toFixed(1) : 50, luLow: 50};
+        if(auto && auto.type){ Object.assign(init, {type: auto.type, h: auto.h}); if(auto.luUp) init.luUp = auto.luUp; if(auto.luLow) init.luLow = auto.luLow; init.autoNote = 'Filled in from the Revit model - check them against the section.' + (auto.note ? ' ' + auto.note : ''); }
+        sdPreviewSide = {a, c, s}; sdDraw();
+        d = await sdDriftDialog(init, sec, true);
+        sdPreviewSide = null;
+        if(d && d.flip){ s = {x: 2*(a.x+c.x)/2 - s.x, y: 2*(a.y+c.y)/2 - s.y}; continue; }
+        break;
+      }
+      sdDraw();
       sdStatus('Click the first end of the next edge.');
       if(!d){ sdDraw(); return; }
       const it = Object.assign(d, {id: 'd'+Date.now().toString(36), page: sdBoard.pageNum, sheetNumber: sdBoard.sheetNumber(), ax:a.x, ay:a.y, bx:c.x, by:c.y, sx:s.x, sy:s.y});
@@ -11105,6 +11135,10 @@
       out += `<polyline points="${P.map(q=>q.x+','+q.y).join(' ')}" fill="none" stroke="#1565c0" stroke-width="1.5" stroke-dasharray="4 3" vector-effect="non-scaling-stroke"/>`;
       P.forEach(q=>{ out += `<circle cx="${q.x}" cy="${q.y}" r="${3*sdBoard.ptPerPx()}" fill="#1565c0"/>`; });
       if(P.length>=2){ const a = P[P.length-2], c = P[P.length-1], L = Math.hypot(c.x-a.x, c.y-a.y)/sdPtsPerFt, px = sdBoard.ptPerPx(); if(L > 0.5 && !(sdTool==='drift' && sdPending.pts.length>=2)) out += `<text x="${c.x+8*px}" y="${c.y-8*px}" font-size="${11*px}" fill="#1565c0" font-family="Arial" font-weight="bold">${fmtFtIn(L)}</text>`; }
+    }
+    if(sdPreviewSide){
+      const {a,c,s} = sdPreviewSide, px = sdBoard.ptPerPx(), m = {x:(a.x+c.x)/2, y:(a.y+c.y)/2}, dx = s.x-m.x, dy = s.y-m.y, L = Math.hypot(dx,dy)||1, e = {x:m.x+dx/L*40*px, y:m.y+dy/L*40*px};
+      out += `<line x1="${a.x}" y1="${a.y}" x2="${c.x}" y2="${c.y}" stroke="#1565c0" stroke-width="3" vector-effect="non-scaling-stroke"/><line x1="${m.x}" y1="${m.y}" x2="${e.x}" y2="${e.y}" stroke="#d32f2f" stroke-width="3" vector-effect="non-scaling-stroke"/><circle cx="${e.x}" cy="${e.y}" r="${5*px}" fill="#d32f2f"/>`;
     }
     if(sdSnapMark && sdTool!=='select'){
       const px = sdBoard.ptPerPx(), m = sdSnapMark, r = 6*px;
