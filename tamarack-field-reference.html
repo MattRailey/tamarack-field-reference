@@ -83,6 +83,11 @@
   body.tfr-fullbleed #snowdrift.panel.active > p.sub{ display:none; }
   body.tfr-fullbleed #pdfcompare.panel.active > .row{ margin:0 0 6px; }
   body.tfr-fullbleed .pv-bar{ padding:4px 8px; margin-bottom:4px; }
+  /* smaller, denser control chrome for Snow Drift's own toolbar card, so the
+     working sheet/list area gets as much of the screen as possible */
+  body.tfr-fullbleed #snowdrift .card{ padding:8px 10px; margin-bottom:0; box-shadow:none; }
+  body.tfr-fullbleed #snowdrift .grp{ padding:5px 8px; margin-top:5px; }
+  body.tfr-fullbleed #snowdrift .grp-label{ margin:0 0 4px; }
   body.tfr-fullbleed #snowdrift.panel.active > #sd-layout{ flex:1; min-height:0; min-width:0; margin-top:6px; }
   body.tfr-fullbleed #pdfcompare.panel.active > #pcSingleMode{ flex:1; min-height:0; min-width:0; width:100%; box-sizing:border-box; display:flex; flex-direction:column; overflow:hidden; }
   body.tfr-fullbleed #pdfcompare.panel.active > #pcSingleMode > *{ flex:none; }
@@ -369,11 +374,16 @@
     font-family:var(--sans); font-size:.85rem; font-weight:600; cursor:pointer; box-shadow:0 2px 8px rgba(0,0,0,.25);
   }
 
-  .sm-toolbar{ display:flex; flex-wrap:wrap; gap:6px; align-items:stretch; background:#f4f5f7; border:1px solid var(--line); border-radius:8px; padding:8px; }
-  .sm-tool{ border:1px solid var(--line); background:#fff; color:#222; border-radius:6px; cursor:pointer; font-size:.72rem; font-family:var(--sans); width:auto; margin:0; padding:4px 8px; display:inline-flex; flex-direction:column; align-items:center; justify-content:center; gap:1px; min-width:56px; line-height:1.15; }
-  .sm-tool svg{ width:22px; height:22px; stroke:currentColor; fill:none; stroke-width:1.7; stroke-linecap:round; stroke-linejoin:round; }
+  .sm-toolbar{ display:flex; flex-wrap:wrap; gap:4px; align-items:stretch; background:#f4f5f7; border:1px solid var(--line); border-radius:6px; padding:5px; }
+  .sm-tool{ border:1px solid var(--line); background:#fff; color:#222; border-radius:5px; cursor:pointer; font-size:.66rem; font-family:var(--sans); width:auto; margin:0; padding:3px 5px; display:inline-flex; flex-direction:column; align-items:center; justify-content:center; gap:1px; min-width:44px; line-height:1.1; }
+  .sm-tool svg{ width:18px; height:18px; stroke:currentColor; fill:none; stroke-width:1.7; stroke-linecap:round; stroke-linejoin:round; }
   .sm-tool:hover{ border-color:#1565c0; }
   .sm-tool.active{ background:#d32f2f; color:#fff; border-color:#d32f2f; }
+  /* PDF Viewer's own redline tool strip, styled to match SE Markup's compact .tool buttons */
+  .pv-tool{ border:1px solid var(--line); background:#fff; color:#222; border-radius:5px; cursor:pointer; font-size:.66rem; font-family:var(--sans); width:auto; margin:0; padding:3px 5px; display:inline-flex; flex-direction:column; align-items:center; justify-content:center; gap:1px; min-width:44px; line-height:1.1; }
+  .pv-tool svg{ width:18px; height:18px; stroke:currentColor; fill:none; stroke-width:1.7; stroke-linecap:round; stroke-linejoin:round; }
+  .pv-tool:hover{ border-color:#1565c0; }
+  .pv-tool.active{ background:#d32f2f; color:#fff; border-color:#d32f2f; }
   .sm-layout{ display:flex; gap:12px; align-items:flex-start; margin-top:12px; position:relative; }
   .sm-viewer{ flex:1; min-width:0; height:calc(100vh - 120px); min-height:480px; overflow:auto; background:#8a8f99; border-radius:8px; padding:min(15vh,150px) min(15vw,250px); overscroll-behavior:contain; border:3px solid var(--paper); box-sizing:border-box; }
   /* Compact Bluebeam-style toolbar for the single-PDF viewer - small icon buttons in
@@ -396,9 +406,14 @@
   .sm-page svg{ touch-action:none; }
   .sm-textbox{ fill:rgba(21,101,192,0.06); stroke:rgba(21,101,192,0.35); stroke-width:0.4; }
   .sm-textbox:hover{ fill:rgba(21,101,192,0.22); }
-  .sm-side{ width:300px; flex:none; max-height:calc(100vh - 120px); overflow:auto; }
+  .sm-side{ width:260px; flex:none; max-height:calc(100vh - 120px); overflow:auto; }
   .sm-layout.noside .sm-side{ display:none; }
   #sd-layout{ position:relative; }
+  /* right-hand column of Snow Drift / PDF Viewer - toolbars stacked above the
+     sheet, so the list/thumbnails column at left can run full height, flush
+     against the left-hand tab menu instead of floating below a tall header. */
+  .sd-viewercol{ display:flex; flex-direction:column; flex:1; min-width:0; gap:6px; min-height:0; }
+  .sd-viewercol > .card{ flex:none; }
   .sd-sec svg{ display:block; width:100%; height:auto; background:#fbfcfe; border:1px solid var(--line); border-radius:6px; }
   .sd-iso{ display:grid; grid-template-columns:1fr 1fr; gap:6px; margin-top:6px; }
   .sd-iso img{ width:100%; border:1px solid var(--line); border-radius:4px; cursor:zoom-in; background:#fff; }
@@ -1029,59 +1044,64 @@
 
         <!-- ===================== SINGLE-PDF VIEWER / REDLINE / PRINT ===================== -->
         <div id="pcSingleMode" style="display:none;">
-          <div class="pv-bar" id="pv-openbar">
-            <div class="pv-open">
-              <button class="pv-btn" onclick="document.getElementById('fileP').click()" title="Open a PDF"><svg viewBox="0 0 24 24"><path d="M12 4v12M7 11l5 5 5-5M5 20h14"/></svg>Open</button>
-              <input type="file" id="fileP" accept="application/pdf" style="display:none">
-              <span class="note" id="infoP">No file loaded — click Open or drop a PDF anywhere on this bar.</span>
-            </div>
-            <div class="sep"></div>
-            <a href="#" id="pvRestoreNote" style="display:none;font-size:.76rem;" onclick="pvForgetAndClear();return false;" title="Reopened with the last sheet you had open, redlines included">↺ last sheet remembered — forget it</a>
-          </div>
-          <div class="pv-bar" id="pv-rl-tools"></div>
-          <div class="pv-bar">
-            <button class="pv-btn" onclick="pvBoard.go(-1)" title="Previous sheet (&larr; or Page Up)">&larr;</button>
-            <div class="pv-field">Sheet <input id="pv-pagenum" type="number" min="1" value="1" onchange="pvGoToPage(this.value)"> <span id="pv-pageinfo"></span></div>
-            <button class="pv-btn" onclick="pvBoard.go(1)" title="Next sheet (&rarr; or Page Down)">&rarr;</button>
-            <div class="sep"></div>
-            <button class="pv-btn" onclick="pvBoard.zoomBy(1/1.25)" title="Zoom out">&minus;</button>
-            <button class="pv-btn" onclick="pvBoard.zoomBy(1.25)" title="Zoom in">+</button>
-            <button class="pv-btn" onclick="pvBoard.fit()" title="Fit to window">Fit</button>
-            <button class="pv-btn" onclick="document.getElementById('pv-thumbs').classList.toggle('hide')" title="Show/hide the sheet thumbnails">Sheets</button>
-            <div class="sep"></div>
-            <div class="pv-field">Scale
-              <select id="pv-scale" onchange="pvOnScale()" title="Drawing scale used by the measure tools below - pick the printed scale, or Calibrate against a known dimension on the sheet">
-                <option value="4.5">1/16" = 1'-0"</option><option value="6.75">3/32" = 1'-0"</option><option value="9" selected>1/8" = 1'-0"</option><option value="13.5">3/16" = 1'-0"</option><option value="18">1/4" = 1'-0"</option><option value="cal">Calibrated (2 clicks)</option>
-              </select>
-            </div>
-            <span class="note" id="pv-measstatus" style="margin:0;"></span>
-            <div class="sep"></div>
-            <div class="pv-field">
-              <select id="pv-papersize" onchange="pvUpdatePreview()" title="Paper size">
-                <option value="auto" selected>Sheet's own size</option>
-                <option value="letter">Letter</option>
-                <option value="legal">Legal</option>
-                <option value="tabloid">Tabloid / ANSI B (11&times;17)</option>
-                <option value="ansiC">ANSI C (17&times;22)</option>
-                <option value="ansiD">ANSI D (22&times;34)</option>
-                <option value="archD">ARCH D (24&times;36)</option>
-                <option value="a4">A4</option>
-                <option value="a3">A3</option>
-              </select>
-              <select id="pv-orient" onchange="pvUpdatePreview()" title="Orientation"><option value="auto" selected>Auto</option><option value="portrait">Portrait</option><option value="landscape">Landscape</option></select>
-            </div>
-            <label class="pv-field" style="cursor:pointer;" title="Print/save every sheet, not just this one"><input type="checkbox" id="pv-allpages" style="width:auto;min-height:0;">All sheets</label>
-            <button class="pv-btn" onclick="pvOpenPrintPreview()" title="Preview and print">Print&hellip;</button>
-            <button class="pv-btn" onclick="pvSaveToFolder()" title="Save a redlined PDF into a Dropbox-linked folder">Save&hellip;</button>
-            <button class="pv-btn" onclick="pvDownload()" title="Download a redlined PDF">Download</button>
-            <button class="pv-btn" onclick="pvCopyScreenshot()" title="Copy exactly what's on screen right now (the visible, zoomed-in part of the sheet, redlines included) to the clipboard as an image">&#128247; Copy view</button>
-            <span class="note" id="pv-savestatus" style="margin:0;"></span>
-          </div>
-          <div class="sm-layout" style="margin-top:0;">
-            <div class="sm-viewer" id="pv-viewer" style="height:calc(100vh - 240px);"><div class="sm-page" id="pv-page"><canvas id="pv-canvas"></canvas><svg id="pv-svg" xmlns="http://www.w3.org/2000/svg"></svg></div></div>
-            <div class="card sm-side thumb-rail" id="pv-thumbs" style="width:190px;height:calc(100vh - 240px);">
+          <div class="sm-layout" id="pv-layout" style="margin-top:0;">
+            <div class="card sm-side thumb-rail" id="pv-thumbs" style="width:190px;">
               <strong>Sheets</strong>
               <div id="pv-thumbgrid" class="thumb-grid" style="margin-top:8px;"></div>
+            </div>
+            <div class="sd-viewercol">
+              <div class="card" style="padding:0;background:none;border:none;box-shadow:none;">
+                <div class="pv-bar" id="pv-openbar">
+                  <div class="pv-open">
+                    <button class="pv-btn" onclick="document.getElementById('fileP').click()" title="Open a PDF"><svg viewBox="0 0 24 24"><path d="M12 4v12M7 11l5 5 5-5M5 20h14"/></svg>Open</button>
+                    <input type="file" id="fileP" accept="application/pdf" style="display:none">
+                    <span class="note" id="infoP">No file loaded — click Open or drop a PDF anywhere on this bar.</span>
+                  </div>
+                  <div class="sep"></div>
+                  <a href="#" id="pvRestoreNote" style="display:none;font-size:.76rem;" onclick="pvForgetAndClear();return false;" title="Reopened with the last sheet you had open, redlines included">↺ last sheet remembered — forget it</a>
+                </div>
+                <div class="pv-bar" id="pv-rl-tools"></div>
+                <div class="pv-bar">
+                  <button class="pv-btn" onclick="pvBoard.go(-1)" title="Previous sheet (&larr; or Page Up)">&larr;</button>
+                  <div class="pv-field">Sheet <input id="pv-pagenum" type="number" min="1" value="1" onchange="pvGoToPage(this.value)"> <span id="pv-pageinfo"></span></div>
+                  <button class="pv-btn" onclick="pvBoard.go(1)" title="Next sheet (&rarr; or Page Down)">&rarr;</button>
+                  <div class="sep"></div>
+                  <button class="pv-btn" onclick="pvBoard.zoomBy(1/1.25)" title="Zoom out">&minus;</button>
+                  <button class="pv-btn" onclick="pvBoard.zoomBy(1.25)" title="Zoom in">+</button>
+                  <button class="pv-btn" onclick="pvBoard.fit()" title="Fit to window">Fit</button>
+                  <button class="pv-btn" onclick="document.getElementById('pv-thumbs').classList.toggle('hide')" title="Show/hide the sheet thumbnails">Sheets</button>
+                  <div class="sep"></div>
+                  <div class="pv-field">Scale
+                    <select id="pv-scale" onchange="pvOnScale()" title="Drawing scale used by the measure tools below - pick the printed scale, or Calibrate against a known dimension on the sheet">
+                      <option value="4.5">1/16" = 1'-0"</option><option value="6.75">3/32" = 1'-0"</option><option value="9" selected>1/8" = 1'-0"</option><option value="13.5">3/16" = 1'-0"</option><option value="18">1/4" = 1'-0"</option><option value="27">3/8" = 1'-0"</option><option value="36">1/2" = 1'-0"</option><option value="cal">Calibrated (2 clicks)</option>
+                    </select>
+                  </div>
+                  <label class="pv-field" style="cursor:pointer;" title="Snap the calibrate/measure clicks to line ends, corners and intersections drawn on the sheet (hold Alt to turn off)"><input type="checkbox" id="pv-snap" checked style="width:16px;height:16px;min-height:0;margin:0;flex:none"> Snap</label>
+                  <span class="note" id="pv-measstatus" style="margin:0;"></span>
+                  <div class="sep"></div>
+                  <div class="pv-field">
+                    <select id="pv-papersize" onchange="pvUpdatePreview()" title="Paper size">
+                      <option value="auto" selected>Sheet's own size</option>
+                      <option value="letter">Letter</option>
+                      <option value="legal">Legal</option>
+                      <option value="tabloid">Tabloid / ANSI B (11&times;17)</option>
+                      <option value="ansiC">ANSI C (17&times;22)</option>
+                      <option value="ansiD">ANSI D (22&times;34)</option>
+                      <option value="archD">ARCH D (24&times;36)</option>
+                      <option value="a4">A4</option>
+                      <option value="a3">A3</option>
+                    </select>
+                    <select id="pv-orient" onchange="pvUpdatePreview()" title="Orientation"><option value="auto" selected>Auto</option><option value="portrait">Portrait</option><option value="landscape">Landscape</option></select>
+                  </div>
+                  <label class="pv-field" style="cursor:pointer;" title="Print/save every sheet, not just this one"><input type="checkbox" id="pv-allpages" style="width:auto;min-height:0;">All sheets</label>
+                  <button class="pv-btn" onclick="pvOpenPrintPreview()" title="Preview and print">Print&hellip;</button>
+                  <button class="pv-btn" onclick="pvSaveToFolder()" title="Save a redlined PDF into a Dropbox-linked folder">Save&hellip;</button>
+                  <button class="pv-btn" onclick="pvDownload()" title="Download a redlined PDF">Download</button>
+                  <button class="pv-btn" onclick="pvCopyScreenshot()" title="Copy exactly what's on screen right now (the visible, zoomed-in part of the sheet, redlines included) to the clipboard as an image">&#128247; Copy view</button>
+                  <span class="note" id="pv-savestatus" style="margin:0;"></span>
+                </div>
+              </div>
+              <div class="sm-viewer" id="pv-viewer"><div class="sm-page" id="pv-page"><canvas id="pv-canvas"></canvas><svg id="pv-svg" xmlns="http://www.w3.org/2000/svg"></svg></div></div>
             </div>
           </div>
         </div>
@@ -2950,61 +2970,6 @@
       <section class="panel" id="snowdrift">
         <h2>Snow Drift Key Plan</h2>
         <p class="sub">Open the roof plan sheet, set the snow criteria, and click along each roof step, parapet or rooftop unit to calculate its drift (ASCE 7-16 &sect;7.7&ndash;7.8). Drifts draw live as a hatched band with the drift triangle and PSF tag. Save the drift file; in Revit, <b>Import Snow Drifts</b> places the bands, triangles and tags into the plan view on that sheet.</p>
-        <div class="card">
-          <div class="grp">
-            <p class="grp-label">Snow criteria</p>
-            <div class="grid">
-              <div><label>Code</label><select id="sd-code" onchange="sdRecalcAll()"><option value="7-16">ASCE 7-16 (IBC 2018/2021)</option></select></div>
-              <div><label>Ground snow load p<sub>g</sub> (psf)</label><input id="sd-pg" type="number" inputmode="decimal" value="30" step="1" min="0" oninput="sdRecalcAll()"></div>
-              <div><label>Exposure factor C<sub>e</sub></label><input id="sd-ce" type="number" inputmode="decimal" value="1.0" step="0.1" oninput="sdRecalcAll()"></div>
-              <div><label>Thermal factor C<sub>t</sub></label><input id="sd-ct" type="number" inputmode="decimal" value="1.0" step="0.1" oninput="sdRecalcAll()"></div>
-              <div><label>Importance factor I<sub>s</sub></label><input id="sd-is" type="number" inputmode="decimal" value="1.0" step="0.1" oninput="sdRecalcAll()"></div>
-              <div><label>Tag shows</label><select id="sd-tagmode" onchange="sdRecalcAll()"><option value="pd">Max drift surcharge p<sub>d</sub></option><option value="total">Total at wall (p<sub>f</sub> + p<sub>d</sub>)</option></select></div>
-            </div>
-            <div id="sd-criteria" class="note" style="margin-top:8px;"></div>
-          </div>
-          <div class="grp">
-            <p class="grp-label">Project &amp; files (shared SE Review folder)</p>
-            <div class="row" style="flex-wrap:wrap;gap:6px;align-items:center;">
-              <label style="display:flex;align-items:center;gap:6px;margin:0;font-weight:600;">Project
-                <select id="sd-proj" style="min-width:260px" onchange="sdOpenProject(this.value)"><option value="">Connect the SE Review folder to list projects</option></select></label>
-              <button class="pv-btn" id="sd-folderbtn" onclick="sdConnectFolder(true)" title="The shared Dropbox SE Review folder - asked once, then remembered">Connect folder&hellip;</button>
-              <button class="pv-btn" onclick="sdListProjects()" title="Re-read the folder">Refresh</button>
-              <button class="pv-btn" style="color:#c62828;border-color:#c62828;" onclick="sdDeleteProject()" title="Move the selected project to _archive (nothing is permanently destroyed)">Delete project&hellip;</button>
-              <div class="sep"></div>
-              <button class="pv-btn" onclick="document.getElementById('fi78076').click()" title="Pick the PDF - and, from Export for Snow Drift, the snow model .json and iso .png files too (select them all together)">Open roof plan&hellip;</button><input id="fi78076" type="file" multiple accept="application/pdf,image/*,.json,application/json" style="display:none" onchange="sdOpenFiles(this.files); this.value='';">
-              <button class="pv-btn" onclick="document.getElementById('fi16440').click()">Open drift file&hellip;</button><input id="fi16440" type="file" accept=".json,application/json" style="display:none" onchange="sdOpenDriftFile(this.files[0])">
-              <button class="pv-btn" onclick="sdDownload()">Save drift file</button>
-              <button class="pv-btn" onclick="sdExportCalcPdf()" title="Roof plan + a loading diagram and ASCE 7 calc for each drift on this sheet - for the truss manufacturer or plan reviewer">Export calc PDF</button>
-              <div class="pv-field">Scale
-                <select id="sd-scale" onchange="sdOnScale()">
-                  <option value="4.5">1/16" = 1'-0"</option><option value="6.75">3/32" = 1'-0"</option><option value="9" selected>1/8" = 1'-0"</option><option value="13.5">3/16" = 1'-0"</option><option value="18">1/4" = 1'-0"</option><option value="cal">Calibrated (2 clicks)</option><option value="revit" disabled>From Revit</option>
-                </select></div>
-              <span class="note" id="sd-projstatus" style="margin:0"></span>
-            </div>
-          </div>
-          <div id="sd-toolbar" class="sm-toolbar" style="margin-top:6px;"></div>
-          <div class="grp">
-            <p class="grp-label">Navigation &amp; view tools</p>
-            <div class="row" style="gap:6px;align-items:center;flex-wrap:wrap;">
-              <button class="pv-btn" onclick="sdBoard.go(-1)" title="Previous sheet">&larr;</button>
-              <button class="pv-btn" onclick="sdBoard.go(1)" title="Next sheet">&rarr;</button>
-              <span id="sd-pageinfo" class="note" style="margin:0"></span>
-              <div class="pv-field">Sheet # <input id="sd-sheetnum" type="text" style="width:80px;" onchange="sdSetSheetNumber(this.value)"></div>
-              <div class="sep"></div>
-              <button class="pv-btn" onclick="sdBoard.zoomBy(1/1.25)">&minus;</button>
-              <button class="pv-btn" onclick="sdBoard.zoomBy(1.25)">+</button>
-              <button class="pv-btn" onclick="sdBoard.fit()">Fit</button>
-              <button class="pv-btn" id="sd-wallsbtn" onclick="sdToggleWalls()" title="Hide everything on the sheet except the walls (heavy lines, or the Revit walls when the snow model is loaded)">Walls only</button>
-              <label id="sd-wallwt-wrap" class="pv-field" style="display:none;cursor:pointer;" title="Lines at least this heavy count as walls">Wt &ge; <input id="sd-wallwt" type="range" min="0" max="3" step="0.05" value="1" style="width:90px;min-height:0;" oninput="sdDrawWalls()"></label>
-              <label class="pv-field" style="cursor:pointer;" title="Snap to line ends, corners and intersections (hold Alt to turn off). Lines are orthogonal unless you hold Shift."><input type="checkbox" id="sd-snap" checked style="width:16px;height:16px;min-height:0;margin:0;flex:none"> Snap + ortho</label>
-              <button class="pv-btn" onclick="sdToggleSide()" id="sd-sidebtn">Hide list</button>
-            </div>
-          </div>
-          <div style="height:18px;line-height:18px;margin-top:4px;overflow:hidden;">
-            <span class="note" id="sd-status" style="margin:0;display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;line-height:18px;"></span>
-          </div>
-        </div>
         <div class="sm-layout" id="sd-layout">
           <div class="card sm-side">
             <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;">
@@ -3015,7 +2980,64 @@
             <div id="sd-model-card" style="margin-top:10px;font-size:.85rem;"></div>
             <p class="note" style="margin-top:10px;"><b>Add drift</b>: click the two ends of the wall/parapet/step edge. The drift side is picked for you (the lower roof); use <b>Drift on the other side</b> in the dialog if it's wrong. <b>Measure</b>: click two points to read a length (it's pre-filled into the next drift). Values follow ASCE 7-16: h<sub>d</sub> = 0.43&#8731;l<sub>u</sub>&middot;&#8732;(p<sub>g</sub>+10) &minus; 1.5 (l<sub>u</sub> &ge; 20 ft), windward = 0.75h<sub>d</sub>, &gamma; = 0.13p<sub>g</sub>+14 &le; 30, w = 4h<sub>d</sub> (or 4h<sub>d</sub>&sup2;/h<sub>c</sub> &le; 8h<sub>c</sub> when h<sub>d</sub> &gt; h<sub>c</sub>), no drift when h<sub>c</sub>/h<sub>b</sub> &lt; 0.2. Confirm against the engineer's own calculation.</p>
           </div>
-          <div class="sm-viewer" id="sd-viewer"><div class="sm-page" id="sd-page"><canvas id="sd-canvas"></canvas><svg id="sd-svg" xmlns="http://www.w3.org/2000/svg"></svg></div></div>
+          <div class="sd-viewercol">
+            <div class="card">
+              <div class="grp">
+                <p class="grp-label">Snow criteria</p>
+                <div class="sd-crit">
+                  <div class="sd-crit-row"><label>Code</label><select id="sd-code" onchange="sdRecalcAll()"><option value="7-16">ASCE 7-16</option></select></div>
+                  <div class="sd-crit-row"><label>Ground snow load p<sub>g</sub> (psf)</label><input id="sd-pg" type="number" inputmode="decimal" value="30" step="1" min="0" oninput="sdRecalcAll()"></div>
+                  <div class="sd-crit-row"><label>Exposure factor C<sub>e</sub></label><input id="sd-ce" type="number" inputmode="decimal" value="1.0" step="0.1" oninput="sdRecalcAll()"></div>
+                  <div class="sd-crit-row"><label>Thermal factor C<sub>t</sub></label><input id="sd-ct" type="number" inputmode="decimal" value="1.0" step="0.1" oninput="sdRecalcAll()"></div>
+                  <div class="sd-crit-row"><label>Importance factor I<sub>s</sub></label><input id="sd-is" type="number" inputmode="decimal" value="1.0" step="0.1" oninput="sdRecalcAll()"></div>
+                  <div class="sd-crit-row"><label>Tag shows</label><select id="sd-tagmode" onchange="sdRecalcAll()"><option value="pd">Max drift surcharge p<sub>d</sub></option><option value="total">Total at wall (p<sub>f</sub> + p<sub>d</sub>)</option></select></div>
+                </div>
+                <div id="sd-criteria" class="note" style="margin-top:6px;"></div>
+              </div>
+              <div class="grp">
+                <p class="grp-label">Project &amp; files (shared SE Review folder)</p>
+                <div class="row" style="flex-wrap:wrap;gap:5px;align-items:center;">
+                  <label style="display:flex;align-items:center;gap:6px;margin:0;font-weight:600;">Project
+                    <select id="sd-proj" style="min-width:200px" onchange="sdOpenProject(this.value)"><option value="">Connect the SE Review folder to list projects</option></select></label>
+                  <button class="pv-btn" id="sd-folderbtn" onclick="sdConnectFolder(true)" title="The shared Dropbox SE Review folder - asked once, then remembered">Connect folder&hellip;</button>
+                  <button class="pv-btn" onclick="sdListProjects()" title="Re-read the folder">Refresh</button>
+                  <button class="pv-btn" style="color:#c62828;border-color:#c62828;" onclick="sdDeleteProject()" title="Move the selected project to _archive (nothing is permanently destroyed)">Delete project&hellip;</button>
+                  <div class="sep"></div>
+                  <button class="pv-btn" onclick="document.getElementById('fi78076').click()" title="Pick the PDF - and, from Export for Snow Drift, the snow model .json and iso .png files too (select them all together)">Open roof plan&hellip;</button><input id="fi78076" type="file" multiple accept="application/pdf,image/*,.json,application/json" style="display:none" onchange="sdOpenFiles(this.files); this.value='';">
+                  <button class="pv-btn" onclick="document.getElementById('fi16440').click()">Open drift file&hellip;</button><input id="fi16440" type="file" accept=".json,application/json" style="display:none" onchange="sdOpenDriftFile(this.files[0])">
+                  <button class="pv-btn" onclick="sdDownload()">Save drift file</button>
+                  <button class="pv-btn" onclick="sdExportCalcPdf()" title="Roof plan + a loading diagram and ASCE 7 calc for each drift on this sheet - for the truss manufacturer or plan reviewer">Export calc PDF</button>
+                  <div class="pv-field">Scale
+                    <select id="sd-scale" onchange="sdOnScale()">
+                      <option value="4.5">1/16" = 1'-0"</option><option value="6.75">3/32" = 1'-0"</option><option value="9" selected>1/8" = 1'-0"</option><option value="13.5">3/16" = 1'-0"</option><option value="18">1/4" = 1'-0"</option><option value="cal">Calibrated (2 clicks)</option><option value="revit" disabled>From Revit</option>
+                    </select></div>
+                  <span class="note" id="sd-projstatus" style="margin:0"></span>
+                </div>
+              </div>
+              <div id="sd-toolbar" class="sm-toolbar" style="margin-top:5px;"></div>
+              <div class="grp">
+                <p class="grp-label">Navigation &amp; view tools</p>
+                <div class="row" style="gap:5px;align-items:center;flex-wrap:wrap;">
+                  <button class="pv-btn" onclick="sdBoard.go(-1)" title="Previous sheet">&larr;</button>
+                  <button class="pv-btn" onclick="sdBoard.go(1)" title="Next sheet">&rarr;</button>
+                  <span id="sd-pageinfo" class="note" style="margin:0"></span>
+                  <div class="pv-field">Sheet # <input id="sd-sheetnum" type="text" style="width:80px;" onchange="sdSetSheetNumber(this.value)"></div>
+                  <div class="sep"></div>
+                  <button class="pv-btn" onclick="sdBoard.zoomBy(1/1.25)">&minus;</button>
+                  <button class="pv-btn" onclick="sdBoard.zoomBy(1.25)">+</button>
+                  <button class="pv-btn" onclick="sdBoard.fit()">Fit</button>
+                  <button class="pv-btn" id="sd-wallsbtn" onclick="sdToggleWalls()" title="Hide everything on the sheet except the walls (heavy lines, or the Revit walls when the snow model is loaded)">Walls only</button>
+                  <label id="sd-wallwt-wrap" class="pv-field" style="display:none;cursor:pointer;" title="Lines at least this heavy count as walls">Wt &ge; <input id="sd-wallwt" type="range" min="0" max="3" step="0.05" value="1" style="width:90px;min-height:0;" oninput="sdDrawWalls()"></label>
+                  <label class="pv-field" style="cursor:pointer;" title="Snap to line ends, corners and intersections (hold Alt to turn off). Lines are orthogonal unless you hold Shift."><input type="checkbox" id="sd-snap" checked style="width:16px;height:16px;min-height:0;margin:0;flex:none"> Snap + ortho</label>
+                  <button class="pv-btn" onclick="sdToggleSide()" id="sd-sidebtn">Hide list</button>
+                </div>
+              </div>
+              <div style="height:16px;line-height:16px;margin-top:2px;overflow:hidden;">
+                <span class="note" id="sd-status" style="margin:0;display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;line-height:16px;"></span>
+              </div>
+            </div>
+            <div class="sm-viewer" id="sd-viewer"><div class="sm-page" id="sd-page"><canvas id="sd-canvas"></canvas><svg id="sd-svg" xmlns="http://www.w3.org/2000/svg"></svg></div></div>
+          </div>
         </div>
       </section>
 
@@ -9368,20 +9390,63 @@
 
   const pvBoard = PdfBoard('pv', {
     onLoad(){ pvMarks = {}; document.getElementById('pv-pagenum').value = 1; pvRenderThumbs(); pvPoly = null; document.getElementById('pv-scale').value = '9'; pvPtsPerFt = 9; pvMeasStatus(''); },
-    onRender(){ pvUpdatePageInfo(); pvDraw(); pvSaveState(); },
+    onRender(){ pvUpdatePageInfo(); pvIndexSnaps(); pvDraw(); pvSaveState(); },
     onPointer: pvPointer,
     dblFromDown: false,
+    wantSegs: true,
   });
+
+  // ---- snap-to-line for the measure/calibrate tools, reusing the same vector
+  // segment extraction (PdfBoard's wantSegs) that Snow Drift snaps walls to -
+  // so a calibration/measurement click can land exactly on a drawn line. ----
+  var pvSnapGrid = null, pvSnapMark = null;
+  const PV_CELL = 24;
+  function pvIndexSnaps(){
+    const segs = (pvBoard.segs||[]).filter(q=>!q.fill);
+    const grid = new Map();
+    const add = (k, v)=>{ let a = grid.get(k); if(!a) grid.set(k, a = []); a.push(v); };
+    segs.forEach((q,idx)=>{
+      const x0 = Math.floor(Math.min(q.x1,q.x2)/PV_CELL), x1 = Math.floor(Math.max(q.x1,q.x2)/PV_CELL), y0 = Math.floor(Math.min(q.y1,q.y2)/PV_CELL), y1 = Math.floor(Math.max(q.y1,q.y2)/PV_CELL);
+      if((x1-x0+1)*(y1-y0+1) > 400) return;
+      for(let i=x0;i<=x1;i++) for(let j=y0;j<=y1;j++) add(i+','+j, idx);
+    });
+    pvSnapGrid = {segs, grid};
+  }
+  function pvSnap(p, ev){
+    pvSnapMark = null;
+    const cb = document.getElementById('pv-snap');
+    const on = cb ? (cb.checked && !(ev && ev.altKey)) : false;
+    if(!on || !pvSnapGrid || !pvSnapGrid.segs.length) return {x:p.x, y:p.y};
+    const tol = 9*pvBoard.ptPerPx();
+    const cx = Math.floor(p.x/PV_CELL), cy = Math.floor(p.y/PV_CELL), seen = new Set(), near = [];
+    for(let i=cx-1;i<=cx+1;i++) for(let j=cy-1;j<=cy+1;j++) (pvSnapGrid.grid.get(i+','+j)||[]).forEach(k=>{ if(!seen.has(k)){ seen.add(k); near.push(pvSnapGrid.segs[k]); } });
+    let best = null;
+    const consider = (x, y, kind)=>{ const d = Math.hypot(x-p.x, y-p.y); if(d <= tol && (!best || d < best.d - (kind==='int'?0.5*tol:0))) best = {x, y, d, kind}; };
+    near.forEach(s=>{ consider(s.x1, s.y1, 'end'); consider(s.x2, s.y2, 'end'); });
+    const cand = near.slice(0, 80);
+    for(let i=0;i<cand.length;i++) for(let j=i+1;j<cand.length;j++){
+      const a = cand[i], b = cand[j];
+      const d = (a.x2-a.x1)*(b.y2-b.y1) - (a.y2-a.y1)*(b.x2-b.x1); if(Math.abs(d) < 1e-9) continue;
+      const t = ((b.x1-a.x1)*(b.y2-b.y1) - (b.y1-a.y1)*(b.x2-b.x1))/d, u = ((b.x1-a.x1)*(a.y2-a.y1) - (b.y1-a.y1)*(a.x2-a.x1))/d;
+      if(t>=-0.02 && t<=1.02 && u>=-0.02 && u<=1.02) consider(a.x1+t*(a.x2-a.x1), a.y1+t*(a.y2-a.y1), 'int');
+    }
+    if(!best){
+      near.forEach(s=>{ const L2 = (s.x2-s.x1)**2+(s.y2-s.y1)**2; if(!L2) return; let t = ((p.x-s.x1)*(s.x2-s.x1)+(p.y-s.y1)*(s.y2-s.y1))/L2; t = Math.max(0,Math.min(1,t)); const x = s.x1+t*(s.x2-s.x1), y = s.y1+t*(s.y2-s.y1), d = Math.hypot(x-p.x,y-p.y); if(d <= tol*0.6 && (!best || d<best.d)) best = {x,y,d,kind:'on'}; });
+    }
+    if(!best) return {x:p.x, y:p.y};
+    pvSnapMark = {x:best.x, y:best.y, kind:best.kind};
+    return {x:best.x, y:best.y};
+  }
 
   (function pvInitToolbar(){
     const tb = document.getElementById('pv-rl-tools');
     if(!tb) return;
-    tb.innerHTML = PV_TOOLS.map(([k,l,tt])=>`<button class="pv-btn" data-t="${k}" title="${(tt||l).replace(/"/g,'&quot;')}"><svg viewBox="0 0 24 24" aria-hidden="true">${PV_ICON[k]||''}</svg>${l}</button>`).join('') +
-      `<div class="sep"></div><button class="pv-btn" onclick="pvUndo()" title="Undo the last stroke">Undo</button><button class="pv-btn" onclick="pvClearSheet()" title="Clear every redline on this sheet">Clear</button>`;
-    tb.onclick = e=>{ const b = e.target.closest('[data-t]'); if(b){ pvTool = b.dataset.t; pvTextLeader = null; pvTextLeaderPreview = null; pvPoly = null; pvMeasStatus(pvTool==='length' ? 'Click two points to measure.' : pvTool==='polylength' ? 'Click each point along the run, double-click (or Enter) to finish.' : pvTool==='area' ? 'Click each corner, double-click (or Enter) to finish.' : ''); pvDraw(); pvToolsUI(); } };
+    tb.innerHTML = PV_TOOLS.map(([k,l,tt])=>`<button class="pv-tool" data-t="${k}" title="${(tt||l).replace(/"/g,'&quot;')}"><svg viewBox="0 0 24 24" aria-hidden="true">${PV_ICON[k]||''}</svg>${l}</button>`).join('') +
+      `<div class="sep"></div><button class="pv-tool" onclick="pvUndo()" title="Undo the last stroke">Undo</button><button class="pv-tool" onclick="pvClearSheet()" title="Clear every redline on this sheet">Clear</button>`;
+    tb.onclick = e=>{ const b = e.target.closest('[data-t]'); if(b){ pvTool = b.dataset.t; pvTextLeader = null; pvTextLeaderPreview = null; pvPoly = null; pvSnapMark = null; pvMeasStatus(pvTool==='length' ? 'Click two points to measure.' : pvTool==='polylength' ? 'Click each point along the run, double-click (or Enter) to finish.' : pvTool==='area' ? 'Click each corner, double-click (or Enter) to finish.' : ''); pvDraw(); pvToolsUI(); } };
     pvToolsUI();
   })();
-  function pvToolsUI(){ document.querySelectorAll('#pv-rl-tools .pv-btn[data-t]').forEach(b=> b.classList.toggle('active', b.dataset.t===pvTool)); }
+  function pvToolsUI(){ document.querySelectorAll('#pv-rl-tools .pv-tool[data-t]').forEach(b=> b.classList.toggle('active', b.dataset.t===pvTool)); }
   function pvUndo(){ const arr = pvMarks[pvBoard.pageNum]; if(arr && arr.length) arr.pop(); pvDraw(); pvSaveState(); }
   function pvClearSheet(){ if(!confirm('Clear every redline on this sheet? (Undo only goes back one stroke at a time — this clears all of them.)')) return; pvMarks[pvBoard.pageNum] = []; pvDraw(); pvSaveState(); }
   function pvMeasStatus(t){ const el = document.getElementById('pv-measstatus'); if(el) el.textContent = t||''; }
@@ -9475,8 +9540,9 @@
 
     if(pvTool==='calibrate'){
       if(type==='down'){
-        if(!pvPoly){ pvPoly = {kind:'calibrate', pts:[[p.x,p.y]]}; pvDraw(); return; }
-        pvPoly.pts.push([p.x,p.y]); const pts = pvPoly.pts; pvPoly = null; pvDraw();
+        const q = pvSnap(p, ev);
+        if(!pvPoly){ pvPoly = {kind:'calibrate', pts:[[q.x,q.y]]}; pvDraw(); return; }
+        pvPoly.pts.push([q.x,q.y]); const pts = pvPoly.pts; pvPoly = null; pvSnapMark = null; pvDraw();
         const dist = Math.hypot(pts[1][0]-pts[0][0], pts[1][1]-pts[0][1]);
         smEditDialog('Known distance (ft)', '', {okLabel:'Set scale'}).then(v=>{
           const ft = parseFloat(v);
@@ -9485,24 +9551,26 @@
         });
         return;
       }
-      if(type==='move' && pvPoly){ pvPoly.live = [p.x,p.y]; pvDraw(); }
+      if(type==='move'){ const q = pvSnap(p, ev); if(pvPoly) pvPoly.live = [q.x,q.y]; pvDraw(); }
       return;
     }
     if(pvTool==='polylength' || pvTool==='area'){
-      if(type==='down'){ if(!pvPoly) pvPoly = {kind:pvTool, pts:[]}; pvPoly.pts.push([p.x,p.y]); pvDraw(); return; }
-      if(type==='move' && pvPoly){ pvPoly.live = [p.x,p.y]; pvDraw(); return; }
-      if(type==='dbl'){ pvFinishPoly(); return; }
+      if(type==='down'){ const q = pvSnap(p, ev); if(!pvPoly) pvPoly = {kind:pvTool, pts:[]}; pvPoly.pts.push([q.x,q.y]); pvDraw(); return; }
+      if(type==='move'){ const q = pvSnap(p, ev); if(pvPoly) pvPoly.live = [q.x,q.y]; pvDraw(); return; }
+      if(type==='dbl'){ pvSnapMark = null; pvFinishPoly(); return; }
       return;
     }
     if(pvTool==='length'){
       if(type==='down'){
-        if(!pvPoly){ pvPoly = {kind:'length', pts:[[p.x,p.y]]}; pvDraw(); return; }
-        pvPoly.pts.push([p.x,p.y]); pvFinishPoly();
+        const q = pvSnap(p, ev);
+        if(!pvPoly){ pvPoly = {kind:'length', pts:[[q.x,q.y]]}; pvDraw(); return; }
+        pvPoly.pts.push([q.x,q.y]); pvSnapMark = null; pvFinishPoly();
         return;
       }
-      if(type==='move' && pvPoly){ pvPoly.live = [p.x,p.y]; pvDraw(); }
+      if(type==='move'){ const q = pvSnap(p, ev); if(pvPoly) pvPoly.live = [q.x,q.y]; pvDraw(); }
       return;
     }
+    if(pvSnapMark){ pvSnapMark = null; }
 
     if(type==='down'){
       if(pvTool==='text'){
@@ -9532,7 +9600,7 @@
     const svg = document.getElementById('pv-svg');
     if(!svg || !pvBoard.pageW) return;
     const n = pvBoard.pageNum, items = (pvMarks[n]||[]).concat(pvDrag ? [pvDrag] : []).concat(pvTextLeader && pvTextLeaderPreview ? [{k:'line', x0:pvTextLeader.x, y0:pvTextLeader.y, x1:pvTextLeaderPreview.x, y1:pvTextLeaderPreview.y}] : []);
-    const sw = Math.max(1.2, pvBoard.pageW/500);
+    const sw = Math.max(1.2, pvBoard.pageW/500), px = pvBoard.ptPerPx();
     svg.setAttribute('viewBox', `0 0 ${pvBoard.pageW} ${pvBoard.pageH}`);
     svg.innerHTML = rlMarkupSvg(items, sw);
     // live preview for calibrate / poly-length / area / in-progress length
@@ -9544,6 +9612,12 @@
         const label = livePts.length>1 ? pvMeasureLabel(pvPoly.kind, livePts) : '';
         svg.innerHTML += rlMarkupSvg([{k: pvPoly.kind, pts: livePts, label}], sw);
       }
+    }
+    if(pvSnapMark){
+      const r = 6*px, m = pvSnapMark;
+      svg.innerHTML += m.kind==='int' ? `<path d="M ${m.x-r} ${m.y-r} L ${m.x+r} ${m.y+r} M ${m.x+r} ${m.y-r} L ${m.x-r} ${m.y+r}" stroke="#00a3d9" stroke-width="2" vector-effect="non-scaling-stroke"/>`
+        : m.kind==='on' ? `<circle cx="${m.x}" cy="${m.y}" r="${r*0.8}" fill="none" stroke="#00a3d9" stroke-width="2" vector-effect="non-scaling-stroke"/>`
+        : `<rect x="${m.x-r}" y="${m.y-r}" width="${2*r}" height="${2*r}" fill="none" stroke="#00a3d9" stroke-width="2" vector-effect="non-scaling-stroke"/>`;
     }
   }
   function pvUpdatePageInfo(){
