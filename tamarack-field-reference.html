@@ -64,20 +64,24 @@
      Markup, PDF Viewer) - while one of these is open the outer page never
      scrolls; only the tool's own sheet/thumbnail panes do, so mouse-wheel
      zoom on the sheet can never turn into a page scroll instead. ---- */
-  body.tfr-fullbleed{ height:100vh; overflow:hidden; }
-  body.tfr-fullbleed .layout{ height:100vh; }
-  body.tfr-fullbleed nav{ height:100vh; overflow-y:auto; box-sizing:border-box; }
-  body.tfr-fullbleed main{ height:100vh; overflow:hidden; display:flex; flex-direction:column; box-sizing:border-box; padding-bottom:16px; }
-  body.tfr-fullbleed .panel.active{ display:flex; flex-direction:column; min-height:0; flex:1; }
+  /* header + .layout both live inside <div class="sheet"> (not directly in
+     body) - the flex column that pins them to the viewport has to go there. */
+  body.tfr-fullbleed{ height:100vh; overflow:hidden; box-sizing:border-box; }
+  body.tfr-fullbleed .sheet{ height:100vh; overflow:hidden; display:flex; flex-direction:column; box-sizing:border-box; min-height:0; }
+  body.tfr-fullbleed header{ flex:none; }
+  body.tfr-fullbleed .layout{ flex:1; min-height:0; min-width:0; height:auto; margin:0; width:auto; }
+  body.tfr-fullbleed nav{ height:auto; overflow-y:auto; box-sizing:border-box; }
+  body.tfr-fullbleed main{ height:auto; flex:1; min-height:0; min-width:0; overflow:hidden; display:flex; flex-direction:column; box-sizing:border-box; padding-bottom:16px; }
+  body.tfr-fullbleed .panel.active{ display:flex; flex-direction:column; min-height:0; min-width:0; flex:1; width:100%; box-sizing:border-box; overflow:hidden; }
   body.tfr-fullbleed .panel.active > *{ flex:none; }
-  body.tfr-fullbleed #snowdrift.panel.active > #sd-layout{ flex:1; min-height:0; margin-top:6px; }
-  body.tfr-fullbleed #pdfcompare.panel.active > #pcSingleMode{ flex:1; min-height:0; display:flex; flex-direction:column; }
+  body.tfr-fullbleed #snowdrift.panel.active > #sd-layout{ flex:1; min-height:0; min-width:0; margin-top:6px; }
+  body.tfr-fullbleed #pdfcompare.panel.active > #pcSingleMode{ flex:1; min-height:0; min-width:0; width:100%; box-sizing:border-box; display:flex; flex-direction:column; overflow:hidden; }
   body.tfr-fullbleed #pdfcompare.panel.active > #pcSingleMode > *{ flex:none; }
-  body.tfr-fullbleed #pdfcompare.panel.active > #pcSingleMode > .sm-layout{ flex:1; min-height:0; margin-top:6px; }
+  body.tfr-fullbleed #pdfcompare.panel.active > #pcSingleMode > .sm-layout{ flex:1; min-height:0; min-width:0; margin-top:6px; }
   body.tfr-fullbleed #semarkup.panel.active{ display:block; }
   body.tfr-fullbleed #semarkup.panel.active iframe{ height:100% !important; }
-  body.tfr-fullbleed .sm-layout{ align-items:stretch; }
-  body.tfr-fullbleed .sm-viewer{ height:auto !important; flex:1; min-height:0; }
+  body.tfr-fullbleed .sm-layout{ align-items:stretch; min-width:0; }
+  body.tfr-fullbleed .sm-viewer{ height:auto !important; flex:1; min-height:0; min-width:0; }
   body.tfr-fullbleed .sm-side, body.tfr-fullbleed .thumb-rail{ height:auto !important; max-height:none !important; overflow:auto; }
   h2{ font-family:var(--sans); font-size:1.15rem; font-weight:700; margin:0 0 4px; color:var(--ink); }
   .sub{ color:var(--steel); font-size:.85rem; margin:0 0 16px; max-width:70ch; }
@@ -352,7 +356,7 @@
   .sm-tool:hover{ border-color:#1565c0; }
   .sm-tool.active{ background:#d32f2f; color:#fff; border-color:#d32f2f; }
   .sm-layout{ display:flex; gap:12px; align-items:flex-start; margin-top:12px; position:relative; }
-  .sm-viewer{ flex:1; min-width:0; height:calc(100vh - 120px); min-height:480px; overflow:auto; background:#8a8f99; border-radius:8px; padding:80vh 80vw; overscroll-behavior:contain; border:3px solid #1565c0; box-sizing:border-box; }
+  .sm-viewer{ flex:1; min-width:0; height:calc(100vh - 120px); min-height:480px; overflow:auto; background:#8a8f99; border-radius:8px; padding:min(15vh,150px) min(15vw,250px); overscroll-behavior:contain; border:3px solid var(--paper); box-sizing:border-box; }
   /* Compact Bluebeam-style toolbar for the single-PDF viewer - small icon buttons in
      slim rows instead of big labeled panels, so the viewer itself gets most of the screen. */
   .pv-bar{ display:flex; flex-wrap:wrap; align-items:center; gap:6px; background:#f4f5f7; border:1px solid var(--line); border-radius:8px; padding:6px 8px; margin-bottom:6px; }
@@ -1667,7 +1671,7 @@
   .tool.active kbd{ color:#fde; }
   .spacer{ flex:1; }
   .main{ display:flex; gap:12px; flex:1; min-height:0; }
-  .viewer{ flex:1; min-width:0; height:calc(100vh - 190px); min-height:420px; overflow:auto; overscroll-behavior:contain; background:var(--sheet); border-radius:8px; padding:80vh 80vw; position:relative; border:3px solid var(--blue); box-sizing:border-box; }
+  .viewer{ flex:1; min-width:0; height:calc(100vh - 190px); min-height:420px; overflow:auto; overscroll-behavior:contain; background:var(--sheet); border-radius:8px; padding:min(15vh,150px) min(15vw,250px); position:relative; border:3px solid var(--ground); box-sizing:border-box; }
   .page{ position:relative; margin:0 auto; background:#fff; box-shadow:0 2px 12px rgba(0,0,0,.35); }
   .page canvas, .page svg{ position:absolute; left:0; top:0; }
   #hires{ pointer-events:none; }
