@@ -333,7 +333,21 @@
   .sm-tool:hover{ border-color:#1565c0; }
   .sm-tool.active{ background:#d32f2f; color:#fff; border-color:#d32f2f; }
   .sm-layout{ display:flex; gap:12px; align-items:flex-start; margin-top:12px; position:relative; }
-  .sm-viewer{ flex:1; min-width:0; height:calc(100vh - 120px); min-height:480px; overflow:auto; background:#8a8f99; border-radius:8px; padding:50vh 50vw; }
+  .sm-viewer{ flex:1; min-width:0; height:calc(100vh - 120px); min-height:480px; overflow:auto; background:#8a8f99; border-radius:8px; padding:50vh 50vw; overscroll-behavior:contain; }
+  /* Compact Bluebeam-style toolbar for the single-PDF viewer - small icon buttons in
+     slim rows instead of big labeled panels, so the viewer itself gets most of the screen. */
+  .pv-bar{ display:flex; flex-wrap:wrap; align-items:center; gap:6px; background:#f4f5f7; border:1px solid var(--line); border-radius:8px; padding:6px 8px; margin-bottom:6px; }
+  .pv-bar .sep{ width:1px; align-self:stretch; background:var(--line); margin:0 2px; }
+  .pv-btn{ display:inline-flex; align-items:center; gap:4px; padding:5px 8px; font-size:.76rem; font-family:var(--sans); font-weight:600; border-radius:5px; border:1px solid var(--line); background:#fff; color:var(--blueprint); cursor:pointer; white-space:nowrap; line-height:1.1; }
+  .pv-btn:hover{ border-color:var(--blueprint); }
+  .pv-btn.active{ background:#d32f2f; color:#fff; border-color:#d32f2f; }
+  .pv-btn svg{ width:16px; height:16px; stroke:currentColor; fill:none; stroke-width:1.8; stroke-linecap:round; stroke-linejoin:round; flex:none; }
+  .pv-field{ display:flex; align-items:center; gap:4px; font-size:.76rem; color:var(--ink); white-space:nowrap; }
+  .pv-field select, .pv-field input[type=number]{ padding:3px 6px; font-size:.76rem; min-height:0; width:auto; border-radius:5px; }
+  .pv-field input[type=number]{ width:48px; }
+  .pv-open{ display:flex; align-items:center; gap:8px; flex:1; min-width:180px; font-size:.78rem; }
+  .pv-open .note{ margin:0; font-size:.76rem; }
+  .pv-bar.dragover{ outline:2px dashed var(--blueprint); outline-offset:-2px; }
   .sm-page{ position:relative; margin:0 auto; background:#fff; box-shadow:0 2px 10px rgba(0,0,0,.3); }
   .sm-page canvas, .sm-page svg{ position:absolute; left:0; top:0; }
   .sm-viewer{ position:relative; }
@@ -962,64 +976,49 @@
 
         <!-- ===================== SINGLE-PDF VIEWER / REDLINE / PRINT ===================== -->
         <div id="pcSingleMode" style="display:none;">
-          <div class="card">
-            <div class="grp">
-              <p class="grp-label">Open a sheet</p>
-              <div class="dropzone" id="dzP">
-                <strong>PDF to view / redline / print</strong>
-                <div class="note">Drag &amp; drop a PDF here, or click to browse</div>
-                <input type="file" id="fileP" accept="application/pdf">
-                <div class="note" id="infoP">No file loaded.</div>
-              </div>
-              <div class="row" id="pvRestoreNote" style="display:none;margin-top:8px;gap:8px;align-items:center;">
-                <span class="note" style="margin:0;">Reopened with the last sheet you had open, redlines included.</span>
-                <a href="#" onclick="pvForgetAndClear();return false;" style="font-size:.8rem;">Forget it &amp; start over</a>
-              </div>
+          <div class="pv-bar" id="pv-openbar">
+            <div class="pv-open">
+              <button class="pv-btn" onclick="document.getElementById('fileP').click()" title="Open a PDF"><svg viewBox="0 0 24 24"><path d="M12 4v12M7 11l5 5 5-5M5 20h14"/></svg>Open</button>
+              <input type="file" id="fileP" accept="application/pdf" style="display:none">
+              <span class="note" id="infoP">No file loaded — click Open or drop a PDF anywhere on this bar.</span>
             </div>
-            <div class="grp">
-              <p class="grp-label">Redline</p>
-              <div class="sm-toolbar" id="pv-rl-tools"></div>
-            </div>
-            <div class="grp">
-              <p class="grp-label">Navigate (like Bluebeam: arrow keys or Page Up/Down flip sheets)</p>
-              <div class="row" style="gap:8px;align-items:center;flex-wrap:wrap;">
-                <button class="run secondary" onclick="pvBoard.go(-1)" title="Previous sheet (&larr; or Page Up)">&larr; Prev</button>
-                <label style="display:flex;align-items:center;gap:6px;margin:0;font-weight:normal;">Sheet <input id="pv-pagenum" type="number" min="1" value="1" style="width:64px" onchange="pvGoToPage(this.value)"> <span id="pv-pageinfo" class="note" style="margin:0"></span></label>
-                <button class="run secondary" onclick="pvBoard.go(1)" title="Next sheet (&rarr; or Page Down)">Next &rarr;</button>
-                <button class="run secondary" onclick="pvBoard.zoomBy(1/1.25)">&minus;</button>
-                <button class="run secondary" onclick="pvBoard.zoomBy(1.25)">+</button>
-                <button class="run secondary" onclick="pvBoard.fit()">Fit</button>
-                <button class="run secondary" onclick="document.getElementById('pv-thumbs').classList.toggle('hide')">Show/hide thumbnails</button>
-              </div>
-            </div>
-            <div class="grp">
-              <p class="grp-label">Print &amp; save</p>
-              <div class="row" style="gap:8px;align-items:center;flex-wrap:wrap;">
-                <label style="display:flex;align-items:center;gap:6px;margin:0;font-weight:normal;">Paper size
-                  <select id="pv-papersize" onchange="pvUpdatePreview()">
-                    <option value="letter">Letter (8.5 &times; 11 in)</option>
-                    <option value="legal">Legal (8.5 &times; 14 in)</option>
-                    <option value="tabloid">Tabloid / ANSI B (11 &times; 17 in)</option>
-                    <option value="ansiC">ANSI C (17 &times; 22 in)</option>
-                    <option value="ansiD">ANSI D (22 &times; 34 in)</option>
-                    <option value="archD">ARCH D (24 &times; 36 in)</option>
-                    <option value="a4">A4 (210 &times; 297 mm)</option>
-                    <option value="a3">A3 (297 &times; 420 mm)</option>
-                    <option value="auto" selected>Match the sheet's own size</option>
-                  </select></label>
-                <label style="display:flex;align-items:center;gap:6px;margin:0;font-weight:normal;">Orientation
-                  <select id="pv-orient" onchange="pvUpdatePreview()"><option value="auto" selected>Auto</option><option value="portrait">Portrait</option><option value="landscape">Landscape</option></select></label>
-                <label class="check" style="margin:0;"><input type="checkbox" id="pv-allpages"> Print / save every sheet, not just this one</label>
-                <button class="run secondary" onclick="pvOpenPrintPreview()">Preview &amp; print&hellip;</button>
-                <button class="run secondary" onclick="pvSaveToFolder()">Save to folder&hellip; (Dropbox)</button>
-                <button class="run secondary" onclick="pvDownload()">Download</button>
-              </div>
-              <span class="note" id="pv-savestatus"></span>
-            </div>
+            <div class="sep"></div>
+            <a href="#" id="pvRestoreNote" style="display:none;font-size:.76rem;" onclick="pvForgetAndClear();return false;" title="Reopened with the last sheet you had open, redlines included">↺ last sheet remembered — forget it</a>
           </div>
-          <div class="sm-layout">
-            <div class="sm-viewer" id="pv-viewer"><div class="sm-page" id="pv-page"><canvas id="pv-canvas"></canvas><svg id="pv-svg" xmlns="http://www.w3.org/2000/svg"></svg></div></div>
-            <div class="card sm-side thumb-rail" id="pv-thumbs" style="width:190px;">
+          <div class="pv-bar" id="pv-rl-tools"></div>
+          <div class="pv-bar">
+            <button class="pv-btn" onclick="pvBoard.go(-1)" title="Previous sheet (&larr; or Page Up)">&larr;</button>
+            <div class="pv-field">Sheet <input id="pv-pagenum" type="number" min="1" value="1" onchange="pvGoToPage(this.value)"> <span id="pv-pageinfo"></span></div>
+            <button class="pv-btn" onclick="pvBoard.go(1)" title="Next sheet (&rarr; or Page Down)">&rarr;</button>
+            <div class="sep"></div>
+            <button class="pv-btn" onclick="pvBoard.zoomBy(1/1.25)" title="Zoom out">&minus;</button>
+            <button class="pv-btn" onclick="pvBoard.zoomBy(1.25)" title="Zoom in">+</button>
+            <button class="pv-btn" onclick="pvBoard.fit()" title="Fit to window">Fit</button>
+            <button class="pv-btn" onclick="document.getElementById('pv-thumbs').classList.toggle('hide')" title="Show/hide the sheet thumbnails">Sheets</button>
+            <div class="sep"></div>
+            <div class="pv-field">
+              <select id="pv-papersize" onchange="pvUpdatePreview()" title="Paper size">
+                <option value="auto" selected>Sheet's own size</option>
+                <option value="letter">Letter</option>
+                <option value="legal">Legal</option>
+                <option value="tabloid">Tabloid / ANSI B (11&times;17)</option>
+                <option value="ansiC">ANSI C (17&times;22)</option>
+                <option value="ansiD">ANSI D (22&times;34)</option>
+                <option value="archD">ARCH D (24&times;36)</option>
+                <option value="a4">A4</option>
+                <option value="a3">A3</option>
+              </select>
+              <select id="pv-orient" onchange="pvUpdatePreview()" title="Orientation"><option value="auto" selected>Auto</option><option value="portrait">Portrait</option><option value="landscape">Landscape</option></select>
+            </div>
+            <label class="pv-field" style="cursor:pointer;" title="Print/save every sheet, not just this one"><input type="checkbox" id="pv-allpages" style="width:auto;min-height:0;">All sheets</label>
+            <button class="pv-btn" onclick="pvOpenPrintPreview()" title="Preview and print">Print&hellip;</button>
+            <button class="pv-btn" onclick="pvSaveToFolder()" title="Save a redlined PDF into a Dropbox-linked folder">Save&hellip;</button>
+            <button class="pv-btn" onclick="pvDownload()" title="Download a redlined PDF">Download</button>
+            <span class="note" id="pv-savestatus" style="margin:0;"></span>
+          </div>
+          <div class="sm-layout" style="margin-top:0;">
+            <div class="sm-viewer" id="pv-viewer" style="height:calc(100vh - 240px);"><div class="sm-page" id="pv-page"><canvas id="pv-canvas"></canvas><svg id="pv-svg" xmlns="http://www.w3.org/2000/svg"></svg></div></div>
+            <div class="card sm-side thumb-rail" id="pv-thumbs" style="width:190px;height:calc(100vh - 240px);">
               <strong>Sheets</strong>
               <div id="pv-thumbgrid" class="thumb-grid" style="margin-top:8px;"></div>
             </div>
@@ -9289,12 +9288,12 @@
   (function pvInitToolbar(){
     const tb = document.getElementById('pv-rl-tools');
     if(!tb) return;
-    tb.innerHTML = PV_TOOLS.map(([k,l])=>`<button class="sm-tool" data-t="${k}" title="${l}"><svg viewBox="0 0 24 24" aria-hidden="true">${PV_ICON[k]||''}</svg><span>${l}</span></button>`).join('') +
-      `<span style="flex:1"></span><button class="run secondary" onclick="pvUndo()">Undo</button><button class="run secondary" onclick="pvClearSheet()">Clear this sheet</button>`;
+    tb.innerHTML = PV_TOOLS.map(([k,l])=>`<button class="pv-btn" data-t="${k}" title="${l}"><svg viewBox="0 0 24 24" aria-hidden="true">${PV_ICON[k]||''}</svg>${l}</button>`).join('') +
+      `<div class="sep"></div><button class="pv-btn" onclick="pvUndo()" title="Undo the last stroke">Undo</button><button class="pv-btn" onclick="pvClearSheet()" title="Clear every redline on this sheet">Clear</button>`;
     tb.onclick = e=>{ const b = e.target.closest('[data-t]'); if(b){ pvTool = b.dataset.t; pvToolsUI(); } };
     pvToolsUI();
   })();
-  function pvToolsUI(){ document.querySelectorAll('#pv-rl-tools .sm-tool').forEach(b=> b.classList.toggle('active', b.dataset.t===pvTool)); }
+  function pvToolsUI(){ document.querySelectorAll('#pv-rl-tools .pv-btn[data-t]').forEach(b=> b.classList.toggle('active', b.dataset.t===pvTool)); }
   function pvUndo(){ const arr = pvMarks[pvBoard.pageNum]; if(arr && arr.length) arr.pop(); pvDraw(); pvSaveState(); }
   function pvClearSheet(){ if(!confirm('Clear every redline on this sheet? (Undo only goes back one stroke at a time — this clears all of them.)')) return; pvMarks[pvBoard.pageNum] = []; pvDraw(); pvSaveState(); }
 
@@ -9408,14 +9407,13 @@
     document.getElementById('pvRestoreNote').style.display = 'none';
   }
   async function pvOpen(buf, name, marks, page){
-    const info = document.getElementById('infoP'), dz = document.getElementById('dzP');
+    const info = document.getElementById('infoP');
     pvFile = {name, buf};
     pvMarks = marks || {};
     const pdf = await pdfjsLib.getDocument({data: buf.slice(0)}).promise;
     pvBoard.pdf = pdf; pvBoard.img = null; pvBoard.name = name; pvBoard.pageCount = pdf.numPages;
     pvBoard.pageNum = Math.max(1, Math.min(pdf.numPages, page||1));
     info.textContent = name + ' — ' + pdf.numPages + ' sheet(s)';
-    dz.classList.add('loaded');
     await pvBoard.fit();
     await pvRenderThumbs();
   }
@@ -9432,10 +9430,9 @@
     }catch(err){ info.textContent = 'Failed to load: ' + (err.message||err); }
   }
   (function pvSetupDropzone(){
-    const dz = document.getElementById('dzP'), input = document.getElementById('fileP');
+    const dz = document.getElementById('pv-openbar'), input = document.getElementById('fileP');
     if(!dz || !input) return;
     input.addEventListener('change', e=>{ if(e.target.files[0]) pvLoadFile(e.target.files[0]); });
-    dz.addEventListener('click', ()=> input.click());
     ['dragenter','dragover'].forEach(evt=> dz.addEventListener(evt, e=>{ e.preventDefault(); e.stopPropagation(); dz.classList.add('dragover'); }));
     ['dragleave','drop'].forEach(evt=> dz.addEventListener(evt, e=>{ e.preventDefault(); e.stopPropagation(); dz.classList.remove('dragover'); }));
     dz.addEventListener('drop', e=>{
@@ -9451,7 +9448,7 @@
       const rec = await pvIdb('readonly', store=> new Promise((res,rej)=>{ const r = store.get('last'); r.onsuccess=()=>res(r.result||null); r.onerror=()=>rej(r.error); }));
       if(!rec || !rec.buf) return;
       await pvOpen(rec.buf, rec.name, rec.marks||{}, rec.page||1);
-      document.getElementById('pvRestoreNote').style.display = 'flex';
+      document.getElementById('pvRestoreNote').style.display = 'inline';
     }catch(e){}
   })();
   // The viewer may load/restore a PDF while this tab isn't the active one (0-width
