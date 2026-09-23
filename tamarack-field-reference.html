@@ -352,7 +352,7 @@
   .sm-tool:hover{ border-color:#1565c0; }
   .sm-tool.active{ background:#d32f2f; color:#fff; border-color:#d32f2f; }
   .sm-layout{ display:flex; gap:12px; align-items:flex-start; margin-top:12px; position:relative; }
-  .sm-viewer{ flex:1; min-width:0; height:calc(100vh - 120px); min-height:480px; overflow:auto; background:#8a8f99; border-radius:8px; padding:50vh 50vw; overscroll-behavior:contain; }
+  .sm-viewer{ flex:1; min-width:0; height:calc(100vh - 120px); min-height:480px; overflow:auto; background:#8a8f99; border-radius:8px; padding:200vh 200vw; overscroll-behavior:contain; }
   /* Compact Bluebeam-style toolbar for the single-PDF viewer - small icon buttons in
      slim rows instead of big labeled panels, so the viewer itself gets most of the screen. */
   .pv-bar{ display:flex; flex-wrap:wrap; align-items:center; gap:6px; background:#f4f5f7; border:1px solid var(--line); border-radius:8px; padding:6px 8px; margin-bottom:6px; }
@@ -1667,7 +1667,7 @@
   .tool.active kbd{ color:#fde; }
   .spacer{ flex:1; }
   .main{ display:flex; gap:12px; flex:1; min-height:0; }
-  .viewer{ flex:1; min-width:0; height:calc(100vh - 190px); min-height:420px; overflow:auto; overscroll-behavior:contain; background:var(--sheet); border-radius:8px; padding:12px; position:relative; }
+  .viewer{ flex:1; min-width:0; height:calc(100vh - 190px); min-height:420px; overflow:auto; overscroll-behavior:contain; background:var(--sheet); border-radius:8px; padding:200vh 200vw; position:relative; }
   .page{ position:relative; margin:0 auto; background:#fff; box-shadow:0 2px 12px rgba(0,0,0,.35); }
   .page canvas, .page svg{ position:absolute; left:0; top:0; }
   #hires{ pointer-events:none; }
@@ -2125,7 +2125,7 @@
 
   // ---------- render ----------
   async function dims(){ const pg = pages[pageNum-1]; const page = await docs[pg.part].getPage(pg.n); const v = page.getViewport({scale:1}); return {w:v.width, h:v.height}; }
-  async function fit(){ if(!pages.length) return; const d = await dims(); const v = $(&#x27;viewer&#x27;); zoom = Math.max(0.1, Math.min((v.clientWidth-24)/d.w, (v.clientHeight-24)/d.h)); await render(); v.scrollLeft = 0; v.scrollTop = 0; }
+  async function fit(){ if(!pages.length) return; const d = await dims(); const v = $(&#x27;viewer&#x27;); zoom = Math.max(0.1, Math.min((v.clientWidth-24)/d.w, (v.clientHeight-24)/d.h)); await render(); const pe = $(&#x27;page&#x27;); v.scrollLeft = pe ? pe.offsetLeft : 0; v.scrollTop = pe ? pe.offsetTop : 0; }
   // The base canvas is the whole sheet, capped so huge zooms don&#x27;t blow up
   // memory; past that cap a second canvas re-renders just the visible part
   // at full sharpness (same idea as the PDF Compare tab).
