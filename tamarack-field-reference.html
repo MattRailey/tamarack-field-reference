@@ -346,6 +346,31 @@
   .dc-req{ border:1px solid var(--line); border-radius:8px; padding:8px; background:#fff; display:flex; flex-direction:column; gap:6px; }
   .dc-req img{ width:100%; height:150px; object-fit:contain; background:#f6f6f6; border-radius:4px; cursor:zoom-in; }
   .dc-req.done{ opacity:.55; }
+
+  /* ---- HOME ---- */
+  .home-hero{ border-bottom:1px solid var(--line); padding-bottom:14px; margin-bottom:4px; }
+  .home-grid{ display:grid; grid-template-columns:repeat(auto-fill,minmax(230px,1fr)); gap:12px; margin-top:10px; }
+  .home-grid-small{ grid-template-columns:repeat(auto-fill,minmax(190px,1fr)); }
+  .home-card{
+    text-align:left; cursor:pointer; border:1px solid var(--line); border-radius:10px; background:#fff;
+    padding:14px 14px 12px; display:flex; flex-direction:column; gap:6px; font-family:var(--sans);
+    transition:box-shadow .15s, border-color .15s; box-shadow:0 1px 2px rgba(20,30,50,.04);
+  }
+  .home-card:hover{ border-color:var(--blueprint); box-shadow:0 3px 12px rgba(21,101,192,.14); }
+  .home-card .hc-top{ display:flex; align-items:center; gap:10px; }
+  .home-card svg{ width:22px; height:22px; flex:none; stroke:var(--blueprint); fill:none; stroke-width:1.7; }
+  .home-card .hc-title{ font-weight:700; font-size:.94rem; color:var(--ink); }
+  .home-card .hc-desc{ font-size:.78rem; color:#5a6272; line-height:1.35; }
+  .home-card .hc-status{ font-size:.74rem; color:#2b6cb0; font-weight:600; margin-top:auto; padding-top:4px; }
+  .home-card.hc-small{ padding:10px 12px; }
+  .home-card.hc-small .hc-title{ font-size:.84rem; }
+  .home-card.hc-small svg{ width:18px; height:18px; }
+  .home-links{ display:flex; flex-direction:column; gap:8px; margin-top:8px; }
+  .home-link-row{
+    display:flex; align-items:flex-start; gap:10px; border:1px solid var(--line); border-radius:8px;
+    padding:9px 12px; background:#fbfcfe; font-size:.82rem; line-height:1.4;
+  }
+  .home-link-row b{ color:var(--blueprint-light); white-space:nowrap; }
 </style>
 </head>
 <body>
@@ -357,44 +382,46 @@
 
   <div class="layout">
     <nav>
-      <button class="active" data-panel="glulam"><span class="idx">01</span>Beam Sizing</button>
-      <button data-panel="spancalc"><span class="idx">02</span>LVL/I-Joist Calc</button>
-      <button data-panel="joist"><span class="idx">03</span>Joist Spans</button>
-      <button data-panel="footing"><span class="idx">04</span>Footing / Bearing</button>
-      <button data-panel="spans"><span class="idx">05</span>Section Properties</button>
-      <button data-panel="site"><span class="idx">06</span>Site Data (ZIP)</button>
-      <button data-panel="loadpath"><span class="idx">07</span>Load Path</button>
-      <button data-panel="code"><span class="idx">08</span>Code Reference</button>
-      <button data-panel="pdfcompare"><span class="idx">09</span>PDF Compare</button>
-      <button data-panel="sheetindex"><span class="idx">10</span>Sheet Index</button>
-      <button data-panel="rebar"><span class="idx">11</span>Rebar Shapes</button>
-      <button data-panel="detailcatalog"><span class="idx">12</span>Detail Catalog</button>
-      <button data-panel="semarkup"><span class="idx">13</span>SE Markup</button>
-      <button data-panel="snowdrift"><span class="idx">14</span>Snow Drift</button>
+      <button class="active" data-panel="home"><span class="idx">&#8226;</span>Home</button>
+      <button data-panel="detailcatalog"><span class="idx">01</span>Detail Catalog</button>
+      <button data-panel="snowdrift"><span class="idx">02</span>Snow Drift</button>
+      <button data-panel="semarkup"><span class="idx">03</span>SE Markup</button>
+      <button data-panel="pdfcompare"><span class="idx">04</span>PDF Viewer / Compare</button>
+      <button data-panel="glulam"><span class="idx">05</span>Beam Sizing</button>
+      <button data-panel="spancalc"><span class="idx">06</span>LVL/I-Joist Calc</button>
+      <button data-panel="joist"><span class="idx">07</span>Joist Spans</button>
+      <button data-panel="footing"><span class="idx">08</span>Footing / Bearing</button>
+      <button data-panel="spans"><span class="idx">09</span>Section Properties</button>
+      <button data-panel="site"><span class="idx">10</span>Site Data (ZIP)</button>
+      <button data-panel="loadpath"><span class="idx">11</span>Load Path</button>
+      <button data-panel="code"><span class="idx">12</span>Code Reference</button>
+      <button data-panel="sheetindex"><span class="idx">13</span>Sheet Index</button>
+      <button data-panel="rebar"><span class="idx">14</span>Rebar Shapes</button>
       <button data-panel="tutorial"><span class="idx">15</span>Tutorial</button>
       <button data-panel="notes"><span class="idx">16</span>Notes</button>
     </nav>
 
     <nav class="mobile-topbar" id="mobileTopbar">
-      <button class="primary active" data-panel="glulam"><svg viewBox="0 0 24 24"><rect x="3" y="10" width="18" height="4"/><line x1="7" y1="14" x2="7" y2="19"/><line x1="17" y1="14" x2="17" y2="19"/></svg><span>Beam</span></button>
-      <button class="primary" data-panel="spancalc"><svg viewBox="0 0 24 24"><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="7" x2="4" y2="17"/><line x1="20" y1="7" x2="20" y2="17"/></svg><span>LVL/I-Joist</span></button>
-      <button class="primary" data-panel="joist"><svg viewBox="0 0 24 24"><line x1="4" y1="6" x2="4" y2="18"/><line x1="9" y1="6" x2="9" y2="18"/><line x1="14" y1="6" x2="14" y2="18"/><line x1="19" y1="6" x2="19" y2="18"/></svg><span>Joist</span></button>
-      <button class="primary" data-panel="footing"><svg viewBox="0 0 24 24"><path d="M4 20h16"/><rect x="6" y="14" width="12" height="6"/><rect x="9" y="4" width="6" height="10"/></svg><span>Footing</span></button>
-      <button class="primary" data-panel="code"><svg viewBox="0 0 24 24"><path d="M4 4h16v16H4z"/><line x1="8" y1="9" x2="16" y2="9"/><line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="12" y2="17"/></svg><span>Code</span></button>
+      <button class="primary active" data-panel="home"><svg viewBox="0 0 24 24"><path d="M3 11l9-7 9 7"/><path d="M5 10v9a1 1 0 0 0 1 1h4v-6h4v6h4a1 1 0 0 0 1-1v-9"/></svg><span>Home</span></button>
+      <button class="primary" data-panel="detailcatalog"><svg viewBox="0 0 24 24"><rect x="4" y="4" width="7" height="7"/><rect x="13" y="4" width="7" height="7"/><rect x="4" y="13" width="7" height="7"/><rect x="13" y="13" width="7" height="7"/></svg><span>Details</span></button>
+      <button class="primary" data-panel="snowdrift"><svg viewBox="0 0 24 24"><path d="M3 18h18M5 18l7-8 7 8"/></svg><span>Snow Drift</span></button>
+      <button class="primary" data-panel="semarkup"><svg viewBox="0 0 24 24"><path d="M4 20l4-1 11-11-3-3L5 16z"/></svg><span>SE Markup</span></button>
+      <button class="primary" data-panel="pdfcompare"><svg viewBox="0 0 24 24"><rect x="4" y="3" width="16" height="18" rx="1"/><line x1="8" y1="8" x2="16" y2="8"/><line x1="8" y1="12" x2="16" y2="12"/><line x1="8" y1="16" x2="12" y2="16"/></svg><span>PDF</span></button>
       <button class="more-btn" id="mobileMoreBtn" aria-haspopup="true" aria-expanded="false"><svg viewBox="0 0 24 24"><circle cx="5" cy="12" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="19" cy="12" r="1.5"/></svg><span>More</span></button>
     </nav>
     <div class="mobile-more-sheet" id="mobileMoreSheet">
       <div class="mobile-more-backdrop" id="mobileMoreBackdrop"></div>
       <div class="mobile-more-panel">
+        <button data-panel="glulam"><svg viewBox="0 0 24 24"><rect x="3" y="10" width="18" height="4"/><line x1="7" y1="14" x2="7" y2="19"/><line x1="17" y1="14" x2="17" y2="19"/></svg>Beam Sizing</button>
+        <button data-panel="spancalc"><svg viewBox="0 0 24 24"><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="7" x2="4" y2="17"/><line x1="20" y1="7" x2="20" y2="17"/></svg>LVL/I-Joist Calc</button>
+        <button data-panel="joist"><svg viewBox="0 0 24 24"><line x1="4" y1="6" x2="4" y2="18"/><line x1="9" y1="6" x2="9" y2="18"/><line x1="14" y1="6" x2="14" y2="18"/><line x1="19" y1="6" x2="19" y2="18"/></svg>Joist Spans</button>
+        <button data-panel="footing"><svg viewBox="0 0 24 24"><path d="M4 20h16"/><rect x="6" y="14" width="12" height="6"/><rect x="9" y="4" width="6" height="10"/></svg>Footing / Bearing</button>
         <button data-panel="spans"><svg viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="1"/><line x1="4" y1="10" x2="20" y2="10"/><line x1="10" y1="10" x2="10" y2="20"/></svg>Section Properties</button>
         <button data-panel="site"><svg viewBox="0 0 24 24"><path d="M12 2c-4 4-7 8-7 12a7 7 0 0 0 14 0c0-4-3-8-7-12z"/></svg>Site Data (ZIP)</button>
         <button data-panel="loadpath"><svg viewBox="0 0 24 24"><path d="M6 3v18M18 3v18M6 8h12M6 16h12"/></svg>Load Path</button>
-        <button data-panel="pdfcompare"><svg viewBox="0 0 24 24"><rect x="4" y="3" width="16" height="18" rx="1"/><line x1="8" y1="8" x2="16" y2="8"/><line x1="8" y1="12" x2="16" y2="12"/><line x1="8" y1="16" x2="12" y2="16"/></svg>PDF Compare</button>
+        <button data-panel="code"><svg viewBox="0 0 24 24"><path d="M4 4h16v16H4z"/><line x1="8" y1="9" x2="16" y2="9"/><line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="12" y2="17"/></svg>Code Reference</button>
         <button data-panel="sheetindex"><svg viewBox="0 0 24 24"><path d="M4 4h16v16H4z"/><line x1="4" y1="9" x2="20" y2="9"/></svg>Sheet Index</button>
         <button data-panel="rebar"><svg viewBox="0 0 24 24"><path d="M5 5v10a4 4 0 0 0 4 4h10"/></svg>Rebar Shapes</button>
-        <button data-panel="detailcatalog"><svg viewBox="0 0 24 24"><rect x="4" y="4" width="7" height="7"/><rect x="13" y="4" width="7" height="7"/><rect x="4" y="13" width="7" height="7"/><rect x="13" y="13" width="7" height="7"/></svg>Detail Catalog</button>
-        <button data-panel="semarkup"><svg viewBox="0 0 24 24"><path d="M4 20l4-1 11-11-3-3L5 16z"/></svg>SE Markup</button>
-        <button data-panel="snowdrift"><svg viewBox="0 0 24 24"><path d="M3 18h18M5 18l7-8 7 8"/></svg>Snow Drift</button>
         <button data-panel="tutorial"><svg viewBox="0 0 24 24"><path d="M4 19V5a2 2 0 0 1 2-2h11l3 3v13a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2z"/><line x1="8" y1="8" x2="14" y2="8"/><line x1="8" y1="12" x2="14" y2="12"/></svg>Tutorial</button>
         <button data-panel="notes"><svg viewBox="0 0 24 24"><path d="M4 4h16v16H4z"/><line x1="8" y1="9" x2="16" y2="9"/><line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="12" y2="17"/></svg>Notes</button>
       </div>
@@ -402,8 +429,25 @@
 
     <main>
 
+      <!-- HOME -->
+      <section class="panel active" id="home">
+        <div class="home-hero">
+          <p class="sub" style="margin-top:0;">Wood framing calculators, code reference, and the Cox Engineering review/coordination tools — one offline file, shared over Dropbox. If you're reviewing a set, start with Detail Catalog, Snow Drift, SE Markup, or the PDF Viewer below; if you're checking a member, jump to a calculator further down.</p>
+          <div class="sub" id="home-updated" style="font-size:.72rem;color:#7a8290;"></div>
+        </div>
+
+        <h3 style="margin-top:18px;">Quick access</h3>
+        <div class="home-grid" id="home-quick"></div>
+
+        <h3 style="margin-top:26px;">How the tabs talk to each other</h3>
+        <div class="home-links" id="home-links"></div>
+
+        <h3 style="margin-top:26px;">Everything else</h3>
+        <div class="home-grid home-grid-small" id="home-rest"></div>
+      </section>
+
       <!-- GLULAM -->
-      <section class="panel active" id="glulam">
+      <section class="panel" id="glulam">
         <h2>Beam sizing</h2>
         <p class="sub">Preliminary uniform-load beam check. Gives a starting section — not a substitute for a stamped calculation. "Member type" below covers Glulam and bundled sawn-lumber headers/beams (e.g. (3) 2x8) using the full diagram, overhangs, point loads, and reactions above — the LVL/I-Joist Calc tab is still there for a quick single-span LVL or I-joist check.</p>
 
@@ -2895,11 +2939,101 @@
     document.querySelectorAll('.panel').forEach(p=>p.classList.toggle('active', p.id===name));
     const moreBtn = document.getElementById('mobileMoreBtn');
     if(moreBtn){
-      const inMoreSheet = ['spans','site','loadpath','pdfcompare','sheetindex','rebar','detailcatalog','semarkup','snowdrift','tutorial','notes'].includes(name);
+      const inMoreSheet = ['glulam','spancalc','joist','footing','spans','site','loadpath','code','sheetindex','rebar','tutorial','notes'].includes(name);
       moreBtn.classList.toggle('active', inMoreSheet);
     }
     closeMobileMoreSheet();
     window.scrollTo(0,0);
+    if(name==='home') renderHome();
+  }
+
+  // ---- HOME ----
+  const HOME_ICONS = {
+    detailcatalog: '<rect x="4" y="4" width="7" height="7"/><rect x="13" y="4" width="7" height="7"/><rect x="4" y="13" width="7" height="7"/><rect x="13" y="13" width="7" height="7"/>',
+    snowdrift: '<path d="M3 18h18M5 18l7-8 7 8"/>',
+    notes: '<path d="M4 4h16v16H4z"/><line x1="8" y1="9" x2="16" y2="9"/><line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="12" y2="17"/>',
+    pdfcompare: '<rect x="4" y="3" width="16" height="18" rx="1"/><line x1="8" y1="8" x2="16" y2="8"/><line x1="8" y1="12" x2="16" y2="12"/><line x1="8" y1="16" x2="12" y2="16"/>',
+    glulam: '<rect x="3" y="10" width="18" height="4"/><line x1="7" y1="14" x2="7" y2="19"/><line x1="17" y1="14" x2="17" y2="19"/>',
+    spancalc: '<line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="7" x2="4" y2="17"/><line x1="20" y1="7" x2="20" y2="17"/>',
+    joist: '<line x1="4" y1="6" x2="4" y2="18"/><line x1="9" y1="6" x2="9" y2="18"/><line x1="14" y1="6" x2="14" y2="18"/><line x1="19" y1="6" x2="19" y2="18"/>',
+    footing: '<path d="M4 20h16"/><rect x="6" y="14" width="12" height="6"/><rect x="9" y="4" width="6" height="10"/>',
+    spans: '<rect x="4" y="4" width="16" height="16" rx="1"/><line x1="4" y1="10" x2="20" y2="10"/><line x1="10" y1="10" x2="10" y2="20"/>',
+    site: '<path d="M12 2c-4 4-7 8-7 12a7 7 0 0 0 14 0c0-4-3-8-7-12z"/>',
+    loadpath: '<path d="M6 3v18M18 3v18M6 8h12M6 16h12"/>',
+    code: '<path d="M4 4h16v16H4z"/><line x1="8" y1="9" x2="16" y2="9"/><line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="12" y2="17"/>',
+    sheetindex: '<path d="M4 4h16v16H4z"/><line x1="4" y1="9" x2="20" y2="9"/>',
+    rebar: '<path d="M5 5v10a4 4 0 0 0 4 4h10"/>',
+    semarkup: '<path d="M4 20l4-1 11-11-3-3L5 16z"/>',
+    tutorial: '<path d="M4 19V5a2 2 0 0 1 2-2h11l3 3v13a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2z"/><line x1="8" y1="8" x2="14" y2="8"/><line x1="8" y1="12" x2="14" y2="12"/>'
+  };
+  function homeStatus(panel){
+    try{
+      if(panel==='detailcatalog'){
+        const total = (typeof dcUserEntries!=='undefined'?dcUserEntries.length:0) + (typeof dcLibraryEntries!=='undefined'?dcLibraryEntries.length:0);
+        const q = (typeof dcQueue!=='undefined')?dcQueue.length:0;
+        return total ? `${total} detail${total===1?'':'s'} in the catalog${q?`, ${q} queued to place`:''}` : 'No details synced yet — Link catalog folder or Add detail.';
+      }
+      if(panel==='snowdrift'){
+        return (typeof sdRoot!=='undefined' && sdRoot) ? `Connected to folder "${sdRoot.name}"` : 'Not connected to a project folder yet.';
+      }
+      if(panel==='semarkup'){
+        return 'Redline/markup workspace on exported sheets.';
+      }
+      if(panel==='notes'){
+        const n = document.querySelectorAll('#notes .note-block').length;
+        return `${n} note section${n===1?'':'s'} — one per calculator/tool`;
+      }
+      if(panel==='pdfcompare'){
+        const a = (typeof pdfA!=='undefined' && pdfA), b = (typeof pdfB!=='undefined' && pdfB);
+        if(a||b) return `${a?'Sheet A loaded':'A empty'} · ${b?'Sheet B loaded':'B empty'}`;
+        return 'Load one or two sheets to view or compare.';
+      }
+    }catch(e){}
+    return '';
+  }
+  const HOME_QUICK = [
+    {panel:'detailcatalog', title:'Detail Catalog', desc:'Synced detail library from Revit exports, plus your own added details — drag onto a sheet or queue for import.'},
+    {panel:'snowdrift', title:'Snow Drift', desc:'Draw drift lines on a sheet, auto-fill from the exported Revit model, and push filled regions back into the project.'},
+    {panel:'semarkup', title:'SE Markup', desc:"Cody's redline/markup workspace on your exported sheets — shares the same Dropbox folder pattern as Snow Drift."},
+    {panel:'pdfcompare', title:'PDF Viewer / Compare', desc:'Open one or two sheet PDFs side by side, zoom, scan for changes, and export a summary.'}
+  ];
+  const HOME_REST = [
+    {panel:'glulam', title:'Beam Sizing', desc:'Glulam / sawn-lumber beam check with diagram, overhangs, point loads.'},
+    {panel:'spancalc', title:'LVL/I-Joist Calc', desc:'Quick single-span LVL or I-joist check.'},
+    {panel:'joist', title:'Joist Spans', desc:'Sawn-lumber joist span tables and bearing reactions.'},
+    {panel:'footing', title:'Footing / Bearing', desc:'Size or check isolated and continuous footings.'},
+    {panel:'spans', title:'Section Properties', desc:'Sx/I/A lookup for standard sections.'},
+    {panel:'site', title:'Site Data (ZIP)', desc:'Ground snow load, seismic, and wind values by ZIP code (rough placeholders).'},
+    {panel:'loadpath', title:'Load Path', desc:'Traces tributary loads down through levels to footings.'},
+    {panel:'code', title:'Code Reference', desc:'IBC/IRC/NDS lookup tables and clauses.'},
+    {panel:'sheetindex', title:'Sheet Index', desc:'Tracks sheet numbers/titles and flags changes between syncs.'},
+    {panel:'rebar', title:'Rebar Shapes', desc:'Standard rebar bend shapes, exportable to Revit.'},
+    {panel:'tutorial', title:'Tutorial', desc:'How to use this file, tab by tab.'},
+    {panel:'notes', title:'Notes', desc:'Every caveat and assumption from every calculator, collected in one place.'}
+  ];
+  const HOME_RELATIONS = [
+    ['SE Markup &harr; Snow Drift &harr; Detail Catalog', 'Share the same Dropbox project folder exported from Revit — pick a project in one, it\'s there in the others.'],
+    ['Beam / Joist / Site Data &rarr; Footing', 'Reactions and looked-up bearing values can be sent straight into Footing — no retyping.'],
+    ['Detail Catalog &rarr; Revit', 'Queued/cart details export as placement requests a pyRevit button reads back on the model side.']
+  ];
+  function homeCard(item, small){
+    const status = small ? '' : homeStatus(item.panel);
+    const icon = HOME_ICONS[item.panel] || '';
+    return `<button class="home-card${small?' hc-small':''}" onclick="showPanel('${item.panel}')">
+      <div class="hc-top"><svg viewBox="0 0 24 24">${icon}</svg><span class="hc-title">${item.title}</span></div>
+      <div class="hc-desc">${item.desc}</div>
+      ${status?`<div class="hc-status">${status}</div>`:''}
+    </button>`;
+  }
+  function renderHome(){
+    const upd = document.getElementById('home-updated');
+    if(upd) upd.textContent = 'Loaded ' + new Date().toLocaleString([], {dateStyle:'medium', timeStyle:'short'});
+    const q = document.getElementById('home-quick');
+    if(q) q.innerHTML = HOME_QUICK.map(it=>homeCard(it,false)).join('');
+    const r = document.getElementById('home-rest');
+    if(r) r.innerHTML = HOME_REST.map(it=>homeCard(it,true)).join('');
+    const l = document.getElementById('home-links');
+    if(l) l.innerHTML = HOME_RELATIONS.map(([k,v])=>`<div class="home-link-row"><b>${k}</b><span>${v}</span></div>`).join('');
   }
   // Jump to the Notes tab and scroll/flash a specific note block. Used by the
   // small "See Notes -> X" links that replaced the long inline caveat
@@ -4260,6 +4394,7 @@
     dcRenderQueue();
     dcRenderPullQueue();
     dcCheckLinkedFolderOnLoad();
+    renderHome();
   });
   document.querySelectorAll('nav button[data-panel]').forEach(btn=>{
     btn.addEventListener('click', ()=> showPanel(btn.dataset.panel));
@@ -10540,6 +10675,7 @@
     await sdBoard.load(file);
     if(sdBoard.img){ document.getElementById('sd-scale').value = 'cal'; sdOnScale(); }
   }
+
   // ---- Shared folder: SE Review\_snow drift\<project - sheet>\ written by Export for Snow Drift ----
   var sdRoot = null, sdProjDir = null, sdSaveTimer = null;
   function sdIdb(mode, fn){ return new Promise((res,rej)=>{ const r = indexedDB.open('tfr-snow-drift',1); r.onupgradeneeded = ()=> r.result.createObjectStore('h'); r.onsuccess = ()=>{ const tx = r.result.transaction('h', mode); const q = fn(tx.objectStore('h')); tx.oncomplete = ()=> res(q && q.result); tx.onerror = ()=> rej(tx.error); }; r.onerror = ()=> rej(r.error); }); }
@@ -11045,13 +11181,14 @@
           <div><label>Label (optional)</label><input data-f="label" type="text"></div>
         </div>
         <div class="note" data-out style="margin-top:8px;"></div>
-        ${init.splitNote ? `<div class="note" style="margin-top:6px;padding:6px 8px;background:#e8f0fb;border-radius:6px;color:#0d3c78"><b>Height changes along this line.</b> ${smEsc(init.splitNote.replace(/^The height changes along this line: /,''))} Split it so each part gets its own drift, or save it as one.</div>` : ''}
+        ${init.splitNote ? `<div class="note" style="margin-top:6px;padding:6px 8px;background:#e8f0fb;border-radius:6px;color:#0d3c78"><b>Height changes along this line.</b> ${smEsc(init.splitNote.replace(/^The height changes along this line: /,''))} Split it so each part gets its own drift, or pick one height below and save it as one.${init.heightOpts?`<div class="row" style="gap:6px;margin-top:6px;flex-wrap:wrap"><button class="run secondary" data-useh="${init.heightOpts.avg}" style="width:auto;padding:3px 8px">Use average (${sdFtIn(init.heightOpts.avg)})</button><button class="run secondary" data-useh="${init.heightOpts.max}" style="width:auto;padding:3px 8px">Use highest (${sdFtIn(init.heightOpts.max)})</button><button class="run secondary" data-useh="${init.heightOpts.min}" style="width:auto;padding:3px 8px">Use lowest (${sdFtIn(init.heightOpts.min)})</button></div>`:''}</div>` : ''}
         <div class="row" style="margin-top:10px;gap:8px;"><button class="run" data-act="ok">Save drift</button>${nSplit>1?`<button class="run" data-act="split" style="background:#1565c0">Split into ${nSplit} drifts</button>`:''}${canFlip?'<button class="run secondary" data-act="flip" title="The drift is drawn on the wrong side of the line">Drift on the other side</button>':''}<button class="run secondary" data-act="cancel">Cancel</button></div>
       </div>`;
       document.body.appendChild(back);
       const f = k=> back.querySelector(`[data-f="${k}"]`);
-      delete init.splitNote;
+      delete init.splitNote; delete init.heightOpts;
       Object.keys(init).forEach(k=>{ if(f(k) && init[k]!=null) f(k).value = f(k).hasAttribute('data-ftin') ? (init[k] ? sdFtIn(+init[k]) : '') : init[k]; });
+      back.querySelectorAll('[data-useh]').forEach(b=> b.onclick = ()=>{ f('h').value = sdFtIn(+b.dataset.useh); refresh(); });
       back.querySelectorAll('[data-ftin]').forEach(inp=> inp.addEventListener('blur', ()=>{ const v = sdParseFtIn(inp.value); if(v!=null) inp.value = sdFtIn(v); }));
       if(sec){
         let span = 50, center = 0, meas = [];
@@ -11214,7 +11351,15 @@
         if(auto && auto.type){ Object.assign(init, {type: auto.type, h: auto.h}); if(auto.luUp) init.luUp = auto.luUp; if(auto.luLow) init.luLow = auto.luLow; init.autoNote = 'Filled in from the Revit model - check them against the section.' + (auto.note ? ' ' + auto.note : ''); }
         const prof = sdProfile(a, c, s), runs = (prof||[]).filter(r=> r.h!=null);
         const splits = runs.length > 1 ? runs : null;
-        if(splits) init.splitNote = `The height changes along this line: ${splits.map(r=> `${sdFtIn(r.h)} for ${sdFtIn(r.len)}`).join(', ')}. The blue ticks on the plan show where.`;
+        if(splits){
+          init.splitNote = `The height changes along this line: ${splits.map(r=> `${sdFtIn(r.h)} for ${sdFtIn(r.len)}`).join(', ')}. The blue ticks on the plan show where.`;
+          const totLen = splits.reduce((s,r)=> s+r.len, 0);
+          init.heightOpts = {
+            avg: totLen ? splits.reduce((s,r)=> s+r.h*r.len, 0)/totLen : splits.reduce((s,r)=> s+r.h, 0)/splits.length,
+            max: Math.max(...splits.map(r=> r.h)),
+            min: Math.min(...splits.map(r=> r.h))
+          };
+        }
         sdPreviewSide = {a, c, s, cuts: splits ? splits.slice(1).map(r=> r.f0) : []}; sdDraw();
         d = await sdDriftDialog(init, sec, true, splits ? splits.length : 0);
         sdPreviewSide = null;
