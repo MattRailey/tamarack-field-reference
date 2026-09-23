@@ -51,6 +51,17 @@
   }
   nav button:hover{ background:var(--navy-light); color:#fff; }
   nav button.active{ border-left-color:var(--blueprint); color:#fff; font-weight:600; background:var(--navy-light); }
+  /* docked list panes (Snow Drift's drift list, PDF Viewer's sheet
+     thumbnails, SE Markup's markup list) living inside the nav column itself,
+     right under the tab buttons - see #nav-sd-dock etc. above. */
+  nav{ display:flex; flex-direction:column; }
+  .nav-dock{ width:100%; box-sizing:border-box; padding:10px 10px 14px; border-top:1px solid rgba(255,255,255,.14); margin-top:6px; flex:1; min-height:0; overflow:auto; }
+  .nav-dock .card{ padding:8px 9px; margin-bottom:8px; font-size:.8rem; }
+  .nav-dock .card h2{ font-size:.82rem; }
+  .nav-dock strong, .nav-dock h2{ font-size:.82rem; }
+  .nav-dock .sm-side, .nav-dock .thumb-rail, .nav-dock .side{ width:100% !important; max-width:100% !important; max-height:none !important; height:auto !important; overflow:visible !important; position:static !important; }
+  .nav-dock .thumb-grid{ grid-template-columns:1fr !important; }
+  .nav-dock select{ width:100%; }
   nav .idx{ display:none; }
   .nav-dot{ display:none; position:absolute; right:14px; top:50%; margin-top:-4px; width:8px; height:8px; border-radius:50%; background:var(--rust,#e0592c); box-shadow:0 0 0 2px var(--navy); }
   .nav-dot.show{ display:block; }
@@ -471,7 +482,7 @@
   </header>
 
   <div class="layout">
-    <nav>
+    <nav id="mainNav">
       <button class="active" data-panel="home"><span class="idx">&#8226;</span>Home</button>
       <button data-panel="detailcatalog"><span class="idx">01</span>Detail Catalog</button>
       <button data-panel="snowdrift"><span class="idx">02</span>Snow Drift<span class="nav-dot" data-dot="snowdrift" title="New saved drift view"></span></button>
@@ -489,6 +500,13 @@
       <button data-panel="rebar"><span class="idx">14</span>Rebar Shapes</button>
       <button data-panel="tutorial"><span class="idx">15</span>Tutorial</button>
       <button data-panel="notes"><span class="idx">16</span>Notes</button>
+      <!-- docked list panes for the three sheet tools - each is the tool's own
+           scrollable list (drifts / markups / sheet thumbnails), physically
+           moved here so it sits under the tab buttons in this same column,
+           instead of as a separate panel beside the working area. -->
+      <div id="nav-sd-dock" class="nav-dock" style="display:none;"></div>
+      <div id="nav-pv-dock" class="nav-dock" style="display:none;"></div>
+      <div id="nav-se-dock" class="nav-dock" style="display:none;"></div>
     </nav>
 
     <nav class="mobile-topbar" id="mobileTopbar">
@@ -1762,7 +1780,7 @@
 
 &lt;div class=&quot;wrap&quot;&gt;
   &lt;div class=&quot;shell&quot;&gt;
-    &lt;div class=&quot;side&quot;&gt;
+    &lt;div class=&quot;side&quot; id=&quot;seSideList&quot;&gt;
       &lt;div class=&quot;card&quot;&gt;
         &lt;h2&gt;Markups on this sheet&lt;/h2&gt;
         &lt;div id=&quot;list&quot;&gt;&lt;span class=&quot;status&quot;&gt;None yet.&lt;/span&gt;&lt;/div&gt;
@@ -1832,7 +1850,16 @@
 &lt;script src=&quot;https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js&quot;&gt;&lt;/script&gt;
 &lt;script&gt;
 (function(){
-  const $ = id =&gt; document.getElementById(id);
+  const $ = id =&gt; document.getElementById(id) || (window.parent &amp;&amp; window.parent !== window ? window.parent.document.getElementById(id) : null);
+  // Dock the markup list into the parent page's nav column, under the tab
+  // buttons, instead of leaving it as a side panel next to the viewer.
+  try{
+    if(window.parent &amp;&amp; window.parent !== window){
+      const host = window.parent.document.getElementById(&#x27;nav-se-dock&#x27;);
+      const side = document.getElementById(&#x27;seSideList&#x27;);
+      if(host &amp;&amp; side) host.appendChild(side);
+    }
+  }catch(e){}
   const RED = &#x27;#c8281e&#x27;;
   const esc = s =&gt; String(s==null?&#x27;&#x27;:s).replace(/&amp;/g,&#x27;&amp;amp;&#x27;).replace(/&lt;/g,&#x27;&amp;lt;&#x27;).replace(/&gt;/g,&#x27;&amp;gt;&#x27;).replace(/&quot;/g,&#x27;&amp;quot;&#x27;);
   if(window.pdfjsLib) pdfjsLib.GlobalWorkerOptions.workerSrc = &#x27;https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js&#x27;;
@@ -2329,8 +2356,8 @@
   $(&#x27;zoomIn&#x27;).onclick = ()=&gt; zoomAt(zoom*1.25);
   $(&#x27;zoomOut&#x27;).onclick = ()=&gt; zoomAt(zoom/1.25);
   $(&#x27;fitBtn&#x27;).onclick = fit;
-  $(&#x27;sideBtn&#x27;).onclick = ()=&gt;{ const m = document.querySelector(&#x27;.shell&#x27;); m.classList.toggle(&#x27;noside&#x27;); $(&#x27;sideBtn&#x27;).textContent = m.classList.contains(&#x27;noside&#x27;) ? &#x27;Show list&#x27; : &#x27;Hide list&#x27;; try{ localStorage.setItem(&#x27;seNoSide&#x27;, m.classList.contains(&#x27;noside&#x27;)?&#x27;1&#x27;:&#x27;&#x27;); }catch(e){} scheduleHires(); };
-  try{ if(localStorage.getItem(&#x27;seNoSide&#x27;)){ document.querySelector(&#x27;.shell&#x27;).classList.add(&#x27;noside&#x27;); $(&#x27;sideBtn&#x27;).textContent = &#x27;Show list&#x27;; } }catch(e){}
+  $(&#x27;sideBtn&#x27;).onclick = ()=&gt;{ const s = $(&#x27;seSideList&#x27;); const hidden = s.classList.toggle(&#x27;hide&#x27;); $(&#x27;sideBtn&#x27;).textContent = hidden ? &#x27;Show list&#x27; : &#x27;Hide list&#x27;; try{ localStorage.setItem(&#x27;seNoSide&#x27;, hidden?&#x27;1&#x27;:&#x27;&#x27;); }catch(e){} scheduleHires(); };
+  try{ if(localStorage.getItem(&#x27;seNoSide&#x27;)){ $(&#x27;seSideList&#x27;).classList.add(&#x27;hide&#x27;); $(&#x27;sideBtn&#x27;).textContent = &#x27;Show list&#x27;; } }catch(e){}
 
   // ---------- wheel zoom + pan ----------
   const viewerEl = $(&#x27;viewer&#x27;);
@@ -2847,7 +2874,7 @@
       case &#x27;callout&#x27;: g += `&lt;line x1=&quot;${i.x1}&quot; y1=&quot;${i.y1}&quot; x2=&quot;${i.x0}&quot; y2=&quot;${i.y0}&quot; ${st}/&gt;&lt;g ${st}&gt;${head(i.x1,i.y1,i.x0,i.y0,6*ppx())}&lt;/g&gt;` + tsvg(i.x1+2, i.y1+i.size*0.35, i.text, i.size, RED); break;
       case &#x27;x&#x27;: g += `&lt;line x1=&quot;${i.x0}&quot; y1=&quot;${i.y0}&quot; x2=&quot;${i.x1}&quot; y2=&quot;${i.y1}&quot; ${st}/&gt;&lt;line x1=&quot;${i.x1}&quot; y1=&quot;${i.y0}&quot; x2=&quot;${i.x0}&quot; y2=&quot;${i.y1}&quot; ${st}/&gt;`; break;
       case &#x27;cloud&#x27;: g += `&lt;path d=&quot;${cloudPath(i.x0,i.y0,i.x1,i.y1)}&quot; ${st}/&gt;`; break;
-      case &#x27;arrow&#x27;: g += `&lt;line x1=&quot;${i.x0}&quot; y1=&quot;${i.y0}&quot; x2=&quot;${i.x1}&quot; y2=&quot;${i.y1}&quot; ${st}/&gt;&lt;g ${st}&gt;${head(i.x0,i.y0,i.x1,i.y1,6*ppx())}&lt;/g&gt;`; break;
+      case &#x27;arrow&#x27;: g += `&lt;line x1=&quot;${i.x0}&quot; y1=&quot;${i.y0}&quot; x2=&quot;${i.x1}&quot; y2=&quot;${i.y1}&quot; ${st}/&gt;&lt;g ${st}&gt;${head(i.x1,i.y1,i.x0,i.y0,6*ppx())}&lt;/g&gt;`; break;
       case &#x27;line&#x27;: g += `&lt;line x1=&quot;${i.x0}&quot; y1=&quot;${i.y0}&quot; x2=&quot;${i.x1}&quot; y2=&quot;${i.y1}&quot; ${st}/&gt;`; break;
       case &#x27;check&#x27;: g += `&lt;path d=&quot;M ${i.x-i.s} ${i.y} L ${i.x-i.s*0.3} ${i.y+i.s*0.7} L ${i.x+i.s} ${i.y-i.s}&quot; stroke=&quot;#2e7d32&quot; stroke-width=&quot;2.5&quot; vector-effect=&quot;non-scaling-stroke&quot; fill=&quot;none&quot;/&gt;`; break;
       case &#x27;highlight&#x27;: g += `&lt;rect x=&quot;${Math.min(i.x0,i.x1)}&quot; y=&quot;${Math.min(i.y0,i.y1)}&quot; width=&quot;${Math.abs(i.x1-i.x0)}&quot; height=&quot;${Math.abs(i.y1-i.y0)}&quot; fill=&quot;#ffe14d&quot; opacity=&quot;0.42&quot;/&gt;`; break;
@@ -2972,7 +2999,7 @@
         <h2>Snow Drift Key Plan</h2>
         <p class="sub">Open the roof plan sheet, set the snow criteria, and click along each roof step, parapet or rooftop unit to calculate its drift (ASCE 7-16 &sect;7.7&ndash;7.8). Drifts draw live as a hatched band with the drift triangle and PSF tag. Save the drift file; in Revit, <b>Import Snow Drifts</b> places the bands, triangles and tags into the plan view on that sheet.</p>
         <div class="sm-layout" id="sd-layout">
-          <div class="card sm-side">
+          <div class="card sm-side" id="sd-side-panel">
             <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;">
               <strong id="sd-list-h">Drifts on this sheet</strong>
               <select id="sd-pagesel" style="max-width:100%;font-weight:600;font-size:.82rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" onchange="sdGoToPage(this.value)" title="Switch drawing / key plan view"><option>No plan open</option></select>
@@ -3144,6 +3171,11 @@
     document.querySelectorAll('.mobile-more-panel button[data-panel]').forEach(b=>b.classList.toggle('active', b.dataset.panel===name));
     document.querySelectorAll('.panel').forEach(p=>p.classList.toggle('active', p.id===name));
     document.body.classList.toggle('tfr-fullbleed', TFR_FULLBLEED_TABS.includes(name));
+    // dock only the active tool's own list pane (drifts / markups / sheet
+    // thumbnails) inside the nav column - see #nav-sd-dock etc. above.
+    const dockEl = document.getElementById('nav-sd-dock'); if(dockEl) dockEl.style.display = name==='snowdrift' ? 'block' : 'none';
+    const dockEl2 = document.getElementById('nav-pv-dock'); if(dockEl2) dockEl2.style.display = name==='pdfcompare' ? 'block' : 'none';
+    const dockEl3 = document.getElementById('nav-se-dock'); if(dockEl3) dockEl3.style.display = name==='semarkup' ? 'block' : 'none';
     const moreBtn = document.getElementById('mobileMoreBtn');
     if(moreBtn){
       const inMoreSheet = ['glulam','spancalc','joist','footing','spans','site','loadpath','code','sheetindex','rebar','tutorial','notes'].includes(name);
@@ -9357,7 +9389,7 @@
       if(i.k==='cloud') return `<path d="${smCloudPath(i.x0,i.y0,i.x1,i.y1)}" ${st}/>`;
       if(i.k==='x') return `<line x1="${i.x0}" y1="${i.y0}" x2="${i.x1}" y2="${i.y1}" ${st}/><line x1="${i.x1}" y1="${i.y0}" x2="${i.x0}" y2="${i.y1}" ${st}/>`;
       if(i.k==='line') return `<line x1="${i.x0}" y1="${i.y0}" x2="${i.x1}" y2="${i.y1}" ${st}/>`;
-      if(i.k==='arrow'){ const a = Math.atan2(i.y1-i.y0, i.x1-i.x0), L = strokeW*6; return `<line x1="${i.x0}" y1="${i.y0}" x2="${i.x1}" y2="${i.y1}" ${st}/><path d="M ${i.x1-L*Math.cos(a-0.4)} ${i.y1-L*Math.sin(a-0.4)} L ${i.x1} ${i.y1} L ${i.x1-L*Math.cos(a+0.4)} ${i.y1-L*Math.sin(a+0.4)}" ${st}/>`; }
+      if(i.k==='arrow'){ const a = Math.atan2(i.y0-i.y1, i.x0-i.x1), L = strokeW*6; return `<line x1="${i.x0}" y1="${i.y0}" x2="${i.x1}" y2="${i.y1}" ${st}/><path d="M ${i.x0-L*Math.cos(a-0.4)} ${i.y0-L*Math.sin(a-0.4)} L ${i.x0} ${i.y0} L ${i.x0-L*Math.cos(a+0.4)} ${i.y0-L*Math.sin(a+0.4)}" ${st}/>`; }
       if(i.k==='leadertext'){ const a = Math.atan2(i.y-i.y0, i.x-i.x0), L = strokeW*6; return `<line x1="${i.x}" y1="${i.y}" x2="${i.x0}" y2="${i.y0}" ${st}/><path d="M ${i.x0-L*Math.cos(a-0.4)} ${i.y0-L*Math.sin(a-0.4)} L ${i.x0} ${i.y0} L ${i.x0-L*Math.cos(a+0.4)} ${i.y0-L*Math.sin(a+0.4)}" ${st}/>` + i.t.split('\n').map((l,n)=>`<text x="${i.x}" y="${i.y + n*i.s*1.2}" font-size="${i.s}" font-family="Arial, sans-serif" fill="${color}">${smEsc(l)}</text>`).join(''); }
       if(i.k==='length' || i.k==='polylength' || i.k==='area'){
         const closed = i.k==='area';
@@ -11531,7 +11563,7 @@
         g += smTextSvg(i.x1 + 2, i.y1 + i.size*0.35, i.text, i.size, SM_RED); break;
       case 'x': g += `<line x1="${i.x0}" y1="${i.y0}" x2="${i.x1}" y2="${i.y1}" ${st}/><line x1="${i.x1}" y1="${i.y0}" x2="${i.x0}" y2="${i.y1}" ${st}/>`; break;
       case 'cloud': g += `<path d="${smCloudPath(i.x0,i.y0,i.x1,i.y1)}" ${st}/>`; break;
-      case 'arrow': g += `<line x1="${i.x0}" y1="${i.y0}" x2="${i.x1}" y2="${i.y1}" ${st}/><g ${st}>${smArrowHead(i.x0,i.y0,i.x1,i.y1,head)}</g>`; break;
+      case 'arrow': g += `<line x1="${i.x0}" y1="${i.y0}" x2="${i.x1}" y2="${i.y1}" ${st}/><g ${st}>${smArrowHead(i.x1,i.y1,i.x0,i.y0,head)}</g>`; break;
       case 'line': g += `<line x1="${i.x0}" y1="${i.y0}" x2="${i.x1}" y2="${i.y1}" ${st}/>`; break;
       case 'check': g += `<path d="M ${i.x-i.s} ${i.y} L ${i.x-i.s*0.3} ${i.y+i.s*0.7} L ${i.x+i.s} ${i.y-i.s}" ${st.replace('stroke-width="2"','stroke-width="2.5"')} stroke="#2e7d32"/>`; break;
       case 'highlight': g += `<rect x="${Math.min(i.x0,i.x1)}" y="${Math.min(i.y0,i.y1)}" width="${Math.abs(i.x1-i.x0)}" height="${Math.abs(i.y1-i.y0)}" fill="#ffeb3b" opacity="0.4"/>`; break;
@@ -11913,7 +11945,7 @@
     document.getElementById('sd-wallsbtn').textContent = sdBoard.wallsOnly ? 'Show whole sheet' : 'Walls only';
     sdDrawWalls(); sdBoard.refreshHires();
   }
-  function sdToggleSide(){ const l = document.getElementById('sd-layout'); l.classList.toggle('noside'); document.getElementById('sd-sidebtn').textContent = l.classList.contains('noside') ? 'Show list' : 'Hide list'; sdBoard.refreshHires(); }
+  function sdToggleSide(){ const p = document.getElementById('sd-side-panel'); const hidden = p.classList.toggle('hide'); document.getElementById('sd-sidebtn').textContent = hidden ? 'Show list' : 'Hide list'; sdBoard.refreshHires(); }
   var sdWtKey = '';
   function sdDefaultWallWeight(){
     const segs = (sdBoard.segs||[]).filter(q=>!q.fill); if(!segs.length) return 1;
@@ -13069,7 +13101,7 @@
       if(i.k==='cloud') return `<path d="${smCloudPath(i.x0,i.y0,i.x1,i.y1)}" ${st}/>`;
       if(i.k==='x') return `<line x1="${i.x0}" y1="${i.y0}" x2="${i.x1}" y2="${i.y1}" ${st}/><line x1="${i.x1}" y1="${i.y0}" x2="${i.x0}" y2="${i.y1}" ${st}/>`;
       if(i.k==='line') return `<line x1="${i.x0}" y1="${i.y0}" x2="${i.x1}" y2="${i.y1}" ${st}/>`;
-      if(i.k==='arrow'){ const a = Math.atan2(i.y1-i.y0, i.x1-i.x0), L = strokeW*6; return `<line x1="${i.x0}" y1="${i.y0}" x2="${i.x1}" y2="${i.y1}" ${st}/><path d="M ${i.x1-L*Math.cos(a-0.4)} ${i.y1-L*Math.sin(a-0.4)} L ${i.x1} ${i.y1} L ${i.x1-L*Math.cos(a+0.4)} ${i.y1-L*Math.sin(a+0.4)}" ${st}/>`; }
+      if(i.k==='arrow'){ const a = Math.atan2(i.y0-i.y1, i.x0-i.x1), L = strokeW*6; return `<line x1="${i.x0}" y1="${i.y0}" x2="${i.x1}" y2="${i.y1}" ${st}/><path d="M ${i.x0-L*Math.cos(a-0.4)} ${i.y0-L*Math.sin(a-0.4)} L ${i.x0} ${i.y0} L ${i.x0-L*Math.cos(a+0.4)} ${i.y0-L*Math.sin(a+0.4)}" ${st}/>`; }
       if(i.k==='leadertext'){ const a = Math.atan2(i.y-i.y0, i.x-i.x0), L = strokeW*6; return `<line x1="${i.x}" y1="${i.y}" x2="${i.x0}" y2="${i.y0}" ${st}/><path d="M ${i.x0-L*Math.cos(a-0.4)} ${i.y0-L*Math.sin(a-0.4)} L ${i.x0} ${i.y0} L ${i.x0-L*Math.cos(a+0.4)} ${i.y0-L*Math.sin(a+0.4)}" ${st}/>` + i.t.split('\n').map((l,n)=>`<text x="${i.x}" y="${i.y + n*i.s*1.2}" font-size="${i.s}" font-family="Arial, sans-serif" fill="#d32f2f">${smEsc(l)}</text>`).join(''); }
       return '';
     }).join('');
@@ -13113,6 +13145,15 @@
     dcCloseRedline();
     if(typeof showLoadToast==='function') showLoadToast('Request sent — it shows under "Detail requests" in the catalog.');
   }
+
+  // Dock the Snow Drift and PDF Viewer side lists into the nav column itself
+  // (right under the tab buttons), instead of leaving them as a separate
+  // panel beside the working area. Runs once the DOM is ready.
+  (function(){
+    function dock(hostId, elId){ const h = document.getElementById(hostId), e = document.getElementById(elId); if(h && e) h.appendChild(e); }
+    dock('nav-sd-dock', 'sd-side-panel');
+    dock('nav-pv-dock', 'pv-thumbs');
+  })();
 </script>
 </body>
 </html>
