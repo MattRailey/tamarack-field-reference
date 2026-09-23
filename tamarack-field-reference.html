@@ -10705,7 +10705,6 @@
   // manual boxing needed) becomes a "view" here, so each key plan can be worked on, listed and
   // cleared on its own, in sync with the "Plan view to use" picker in the Revit model card.
   function sdViewsFor(n){
-    const stored = (sdBoard.pageSheet[n]||{}).views; if(stored && stored.length) return stored;
     if(!sdModel || n!==sdBoard.pageNum || !sdModelOnPage() || sdModel.viewports.length<=1) return [];
     const mp = sdMP(); if(!mp) return [];
     return sdModel.viewports.map((vp,vi)=>{
@@ -11110,6 +11109,7 @@
       const d = JSON.parse(localStorage.getItem(sdKey())||'null');
       if(d){
         sdItems = d.items||[]; sdBoard.pageSheet = d.pageSheet||{};
+        Object.keys(sdBoard.pageSheet).forEach(k=> delete sdBoard.pageSheet[k].views); // clear old manual key-plan boxes - views are auto-derived from the Revit model now
         if(d.criteria) sdApplyCriteria(d.criteria);
         if(d.ptsPerFt) sdPtsPerFt = d.ptsPerFt;
         if(d.scaleSel) document.getElementById('sd-scale').value = d.scaleSel;
@@ -11621,7 +11621,7 @@
     edges.forEach((e,k)=>{
       const mx = (e.a.x+e.c.x)/2, my = (e.a.y+e.c.y)/2, dx = mx-cx, dy = my-cy, L = Math.hypot(dx,dy)||1;
       const s = {x: mx+dx/L*20, y: my+dy/L*20};
-      const it = Object.assign({}, d, {id:'d'+Date.now().toString(36)+k, page: sdBoard.pageNum, sheetNumber: sdBoard.sheetNumber(), view: sdActiveView, ax:e.a.x, ay:e.a.y, bx:e.c.x, by:e.c.y, sx:s.x, sy:s.y, label: d.label || 'RTU'});
+      const it = Object.assign({}, d, {id:'d'+Date.now().toString(36)+k, page: sdBoard.pageNum, sheetNumber: sdBoard.sheetNumber(), view: sdActiveView, ax:e.a.x, ay:e.a.y, bx:e.c.x, by:e.c.y, sx:s.x, sy:s.y, label: d.label || 'RTU', rectSide: true});
       sdItems.push(it);
     });
     sdRecalcAll();
@@ -11651,7 +11651,13 @@
     let nx = -ty, ny = tx;
     if(((it.sx-it.ax)*nx + (it.sy-it.ay)*ny) < 0){ nx = -nx; ny = -ny; }
     const wP = (r.wDrawn||0) * sdPtsPerFt;
-    const band = [[it.ax,it.ay],[it.bx,it.by],[it.bx+nx*wP,it.by+ny*wP],[it.ax+nx*wP,it.ay+ny*wP]];
+    // RTU-rectangle sides miter into their neighbors so the drift wraps the
+    // obstruction with no gap at the corners: extend the band by its own
+    // width at each end. The adjacent side does the same (same inputs, so
+    // the same width), so the two corner squares overlap and fully cover it.
+    const ext = it.rectSide ? wP : 0;
+    const ax = it.ax - tx*ext, ay = it.ay - ty*ext, bx = it.bx + tx*ext, by = it.by + ty*ext;
+    const band = [[ax,ay],[bx,by],[bx+nx*wP,by+ny*wP],[ax+nx*wP,ay+ny*wP]];
     const mx = (it.ax+it.bx)/2, my = (it.ay+it.by)/2;
     const half = Math.min(wP*0.18, L*0.25);
     // Drift symbol: right triangle - the tall, flat side sits on the wall,
@@ -11894,6 +11900,7 @@
     const items = sdItems.map(it=>{
       const g = sdGeom(it), r = it.result||{};
       return {id: it.id, page: it.page, sheetNumber: (sdBoard.pageSheet[it.page]||{}).sheetNumber || it.sheetNumber || '', type: it.type, label: it.label,
+        view: it.view || null, rectSide: !!it.rectSide,
         inputs: {h: it.h, luUp: it.luUp, luLow: it.luLow, unitLen: it.unitLen},
         edge: [[it.ax,it.ay],[it.bx,it.by]], side: [it.sx,it.sy], result: r,
         band: r.none ? null : g.band, triangle: r.none ? null : g.tri, tagAnchor: g.tagAnchor, tagPoint: g.tagPt, dimPoint: g.dimPt,
@@ -11910,8 +11917,9 @@
       if(d.format!=='tdd-snow-drift') throw new Error('Not a snow drift file.');
       if(d.criteria) sdApplyCriteria(d.criteria);
       if(d.ptsPerFt) sdPtsPerFt = d.ptsPerFt;
-      Object.keys(d.pages||{}).forEach(k=>{ sdBoard.pageSheet[k] = Object.assign(sdBoard.pageSheet[k]||{}, d.pages[k]); });
+      Object.keys(d.pages||{}).forEach(k=>{ const pg = Object.assign({}, d.pages[k]); delete pg.views; sdBoard.pageSheet[k] = Object.assign(sdBoard.pageSheet[k]||{}, pg); });
       sdItems = (d.items||[]).map(x=> Object.assign({id:x.id, page:x.page, sheetNumber:x.sheetNumber, type:x.type, label:x.label,
+        view: x.view || null, rectSide: !!x.rectSide,
         ax:x.edge[0][0], ay:x.edge[0][1], bx:x.edge[1][0], by:x.edge[1][1], sx:x.side[0], sy:x.side[1]}, x.inputs||{}));
       sdRecalcAll();
       document.getElementById('sd-sheetnum').value = sdBoard.sheetNumber();
