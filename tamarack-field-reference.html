@@ -595,16 +595,20 @@
             <div class="grp" id="gb-lib">
               <p class="grp-label">Saved beams</p>
               <div class="row" style="flex-direction:column;align-items:stretch;gap:5px;margin-bottom:0;">
-                <div class="pv-field" style="justify-content:space-between;">Title<input id="gb-title" type="text" placeholder="e.g. 26-027 B1 garage header" style="flex:1;max-width:190px;padding:3px 6px;font-size:.76rem;"></div>
+                <div class="pv-field" style="justify-content:space-between;">Project<input id="gb-project" type="text" list="gb-projects" placeholder="e.g. 26-027 River Ranch" oninput="gbAutoSave()" style="flex:1;max-width:190px;padding:3px 6px;font-size:.76rem;"><datalist id="gb-projects"></datalist></div>
+                <div class="pv-field" style="justify-content:space-between;">Title<input id="gb-title" type="text" placeholder="e.g. B1 garage header" oninput="gbAutoSave()" style="flex:1;max-width:190px;padding:3px 6px;font-size:.76rem;"></div>
                 <div class="pv-field" style="justify-content:space-between;gap:6px;">
                   <button class="pv-btn" onclick="document.getElementById('gb-pdf').click()" title="Attach the PDF sheet this beam is on - it's stored with the beam">Attach PDF&hellip;</button>
                   <input id="gb-pdf" type="file" accept="application/pdf" style="display:none" onchange="gbPickPdf(this.files[0]); this.value='';">
                   <span id="gb-pdfname" class="note" style="margin:0;flex:1;overflow:hidden;text-overflow:ellipsis;">No PDF</span>
                 </div>
                 <div style="display:flex;gap:6px;">
-                  <button class="pv-btn" onclick="gbSave(false)" title="Save as a new beam in the list">Save as new</button>
-                  <button class="pv-btn" id="gb-update" onclick="gbSave(true)" style="display:none;" title="Overwrite the beam you loaded with the current inputs">Update loaded</button>
+                  <button class="pv-btn" onclick="gbSave()" title="Save under this project + title (asks before replacing one with the same name)">Save</button>
+                  <span id="gb-update" style="display:none;"></span>
                   <button class="pv-btn" onclick="gbNew()" title="Clear the title/PDF and start a fresh beam (your current inputs stay)">New</button>
+                </div>
+                <div class="pv-field" style="justify-content:space-between;">Show
+                  <select id="gb-filter" onchange="gbRenderList()" style="flex:1;max-width:190px;"><option value="">All projects</option></select>
                 </div>
                 <input id="gb-search" type="text" placeholder="Search saved beams&hellip;" oninput="gbRenderList()" style="padding:3px 6px;font-size:.76rem;">
                 <div id="gb-list" style="max-height:220px;overflow:auto;font-size:.8rem;"></div>
@@ -5783,7 +5787,7 @@
   function gbAutoSave(){
     if(gbRestoring) return;
     clearTimeout(gbTimer);
-    gbTimer = setTimeout(()=>{ try{ localStorage.setItem(GB_KEY, JSON.stringify({state:gbCapture(), loadedId:gbLoadedId, title:(document.getElementById('gb-title')||{}).value||''})); }catch(e){} }, 300);
+    gbTimer = setTimeout(()=>{ try{ localStorage.setItem(GB_KEY, JSON.stringify({state:gbCapture(), loadedId:gbLoadedId, title:(document.getElementById('gb-title')||{}).value||'', project:(document.getElementById('gb-project')||{}).value||'', filter:(document.getElementById('gb-filter')||{}).value||''})); }catch(e){} }, 300);
   }
   function gbIdb(mode, fn){
     return new Promise((resolve, reject)=>{
@@ -5803,7 +5807,7 @@
   function gbShowPdf(){ const el = document.getElementById('gb-pdfname'); if(el) el.textContent = gbPdf ? gbPdf.name : 'No PDF'; }
   function gbNew(){
     gbLoadedId = null; gbPdf = null;
-    document.getElementById('gb-title').value = '';
+    document.getElementById('gb-title').value = ''; // project stays, so the next beam goes in the same job
     document.getElementById('gb-update').style.display = 'none';
     gbShowPdf(); gbAutoSave(); gbRenderList();
   }
@@ -5811,18 +5815,23 @@
     const r = document.querySelector('#g-result .headline');
     return r ? r.textContent.replace(/^Suggested:\s*/,'') : '';
   }
-  async function gbSave(overwrite){
-    const titleEl = document.getElementById('gb-title');
-    let title = titleEl.value.trim();
-    if(!title){ title = prompt('Title for this beam:', '') || ''; title = title.trim(); if(!title) return; titleEl.value = title; }
-    const id = (overwrite && gbLoadedId) ? gbLoadedId : ('b' + Date.now().toString(36));
-    const rec = {id, title, savedAt:new Date().toISOString(), state:gbCapture(), summary:gbSummary(), pdfName:gbPdf?gbPdf.name:'', pdf:gbPdf?gbPdf.buf:null};
+  async function gbSave(){
+    const titleEl = document.getElementById('gb-title'), projEl = document.getElementById('gb-project');
+    let title = titleEl.value.trim(), project = projEl.value.trim();
+    if(!project){ project = (prompt('Project for this beam (e.g. 26-027 River Ranch):', '') || '').trim(); if(!project) return; projEl.value = project; }
+    if(!title){ title = (prompt('Title for this beam:', '') || '').trim(); if(!title) return; titleEl.value = title; }
+    let all = []; try{ all = await gbIdb('readonly', st=> st.getAll()) || []; }catch(e){}
+    const same = all.find(r=> (r.project||'').toLowerCase()===project.toLowerCase() && r.title.toLowerCase()===title.toLowerCase());
+    if(same && same.id!==gbLoadedId && !confirm(`"${title}" already exists in ${project}. Replace it?`)) return;
+    const id = same ? same.id : ('b' + Date.now().toString(36));
+    const rec = {id, project, title, savedAt:new Date().toISOString(), state:gbCapture(), summary:gbSummary(), pdfName:gbPdf?gbPdf.name:'', pdf:gbPdf?gbPdf.buf:null};
     try{ await gbIdb('readwrite', st=> st.put(rec)); }
     catch(e){ alert('Could not save the beam: ' + (e && e.message || e)); return; }
     gbLoadedId = id;
     document.getElementById('gb-update').style.display = '';
     gbAutoSave(); gbRenderList();
-    if(typeof showLoadToast==='function') showLoadToast(`Saved "${title}"${gbPdf?' with '+gbPdf.name:''}.`);
+    const f = document.getElementById('gb-filter'); if(f && f.value && f.value!==project) f.value = project;
+    if(typeof showLoadToast==='function') showLoadToast(`Saved "${title}" to ${project}${gbPdf?' with '+gbPdf.name:''}.`);
   }
   async function gbLoad(id){
     const rec = await gbIdb('readonly', st=> st.get(id));
@@ -5830,6 +5839,7 @@
     gbApply(rec.state);
     gbLoadedId = rec.id;
     document.getElementById('gb-title').value = rec.title;
+    document.getElementById('gb-project').value = rec.project || '';
     gbPdf = rec.pdf ? {name:rec.pdfName||'attached.pdf', buf:rec.pdf} : null;
     gbShowPdf();
     document.getElementById('gb-update').style.display = '';
@@ -5849,19 +5859,33 @@
     if(gbLoadedId===id){ gbLoadedId = null; document.getElementById('gb-update').style.display = 'none'; }
     gbRenderList();
   }
+  let gbFilterWanted = '';
   async function gbRenderList(){
     const el = document.getElementById('gb-list'); if(!el) return;
     let all = [];
     try{ all = await gbIdb('readonly', st=> st.getAll()) || []; }catch(e){}
+    // project pickers
+    const projects = [...new Set(all.map(r=> r.project || '(no project)'))].sort((a,b)=> b.localeCompare(a, undefined, {numeric:true}));
+    const dl = document.getElementById('gb-projects'); if(dl) dl.innerHTML = projects.filter(p=>p!=='(no project)').map(p=>`<option value="${smEsc(p)}">`).join('');
+    const fsel = document.getElementById('gb-filter');
+    if(fsel){
+      const cur = gbFilterWanted || fsel.value; gbFilterWanted = '';
+      fsel.innerHTML = '<option value="">All projects</option>' + projects.map(p=>`<option value="${smEsc(p)}">${smEsc(p)} (${all.filter(r=>(r.project||'(no project)')===p).length})</option>`).join('');
+      if(projects.includes(cur)) fsel.value = cur;
+    }
+    const pf = fsel ? fsel.value : '';
     const q = ((document.getElementById('gb-search')||{}).value||'').toLowerCase().trim();
-    all = all.filter(r=> !q || (r.title+' '+(r.summary||'')+' '+(r.pdfName||'')).toLowerCase().includes(q))
-             .sort((a,b)=> b.savedAt.localeCompare(a.savedAt));
-    if(!all.length){ el.innerHTML = `<div class="note" style="margin:4px 0 0;">${q?'No matches.':'Nothing saved yet.'}</div>`; return; }
-    el.innerHTML = all.map(r=>`<div class="sm-listitem${r.id===gbLoadedId?' sel':''}" style="padding:5px 7px;margin-bottom:4px;" onclick="gbLoad('${r.id}')" title="Load this beam's inputs">
+    all = all.filter(r=> (!pf || (r.project||'(no project)')===pf) && (!q || ((r.project||'')+' '+r.title+' '+(r.summary||'')+' '+(r.pdfName||'')).toLowerCase().includes(q)));
+    if(!all.length){ el.innerHTML = `<div class="note" style="margin:4px 0 0;">${q||pf?'No matches.':'Nothing saved yet.'}</div>`; return; }
+    const groups = {};
+    all.forEach(r=>{ const k = r.project || '(no project)'; (groups[k] = groups[k] || []).push(r); });
+    el.innerHTML = Object.keys(groups).sort((a,b)=> b.localeCompare(a, undefined, {numeric:true})).map(k=>
+      `<div class="grp-label" style="margin:6px 0 3px;">${smEsc(k)}</div>` +
+      groups[k].sort((a,b)=> a.title.localeCompare(b.title, undefined, {numeric:true})).map(r=>`<div class="sm-listitem${r.id===gbLoadedId?' sel':''}" style="padding:5px 7px;margin-bottom:4px;" onclick="gbLoad('${r.id}')" title="Load this beam's inputs">
         <div style="display:flex;justify-content:space-between;gap:6px;align-items:center;"><b style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${smEsc(r.title)}</b>
           <span style="display:flex;gap:4px;flex:none;">${r.pdf?`<a href="#" onclick="event.stopPropagation();gbOpenPdf('${r.id}');return false;" title="Open ${smEsc(r.pdfName||'')} in PDF Viewer">PDF</a>`:''}<a href="#" onclick="event.stopPropagation();gbDelete('${r.id}');return false;" style="color:#c62828;" title="Remove from the list">&times;</a></span></div>
         <div class="note" style="margin:0;">${smEsc(r.summary||'')}${r.summary?' &middot; ':''}${new Date(r.savedAt).toLocaleDateString()}</div>
-      </div>`).join('');
+      </div>`).join('')).join('');
   }
   window.addEventListener('load', ()=> setTimeout(()=>{
     try{
@@ -5871,6 +5895,8 @@
         gbApply(w.state);
         gbLoadedId = w.loadedId || null;
         if(w.title) document.getElementById('gb-title').value = w.title;
+        if(w.project) document.getElementById('gb-project').value = w.project;
+        gbFilterWanted = w.filter || '';
         if(gbLoadedId){
           document.getElementById('gb-update').style.display = '';
           gbIdb('readonly', st=> st.get(gbLoadedId)).then(rec=>{ if(rec && rec.pdf){ gbPdf = {name:rec.pdfName, buf:rec.pdf}; gbShowPdf(); } else if(!rec){ gbLoadedId = null; document.getElementById('gb-update').style.display = 'none'; } }).catch(()=>{});
