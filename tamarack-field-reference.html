@@ -2811,6 +2811,7 @@
             <button class="run" onclick="document.getElementById('fi78076').click()" title="Pick the PDF - and, from Export for Snow Drift, the snow model .json and iso .png files too (select them all together)">Open roof plan (PDF + Revit files)&hellip;</button><input id="fi78076" type="file" multiple accept="application/pdf,image/*,.json,application/json" style="display:none" onchange="sdOpenFiles(this.files); this.value='';">
             <button class="run secondary" onclick="document.getElementById('fi16440').click()">Open drift file&hellip;</button><input id="fi16440" type="file" accept=".json,application/json" style="display:none" onchange="sdOpenDriftFile(this.files[0])">
             <button class="run secondary" onclick="sdDownload()">Save drift file</button>
+            <button class="run secondary" onclick="sdExportCalcPdf()" title="Roof plan + a loading diagram and ASCE 7 calc for each drift on this sheet - for the truss manufacturer or plan reviewer">Export drift calc PDF</button>
             <label style="display:flex;align-items:center;gap:6px;margin:0;font-weight:normal;">Drawing scale
               <select id="sd-scale" onchange="sdOnScale()">
                 <option value="4.5">1/16" = 1'-0"</option><option value="6.75">3/32" = 1'-0"</option><option value="9" selected>1/8" = 1'-0"</option><option value="13.5">3/16" = 1'-0"</option><option value="18">1/4" = 1'-0"</option><option value="cal">Calibrated (2 clicks)</option><option value="revit" disabled>From Revit</option>
@@ -2818,9 +2819,11 @@
           </div>
           <div id="sd-toolbar" class="sm-toolbar" style="margin-top:10px;"></div>
           <div class="row" style="margin-top:8px;gap:8px;align-items:center;flex-wrap:wrap;">
-            <button class="run secondary" onclick="sdBoard.go(-1)">&larr; Prev</button>
-            <span id="sd-pageinfo" style="font-size:.9rem;">No plan open</span>
-            <button class="run secondary" onclick="sdBoard.go(1)">Next &rarr;</button>
+            <label style="display:flex;align-items:center;gap:6px;margin:0;font-weight:600;">Drawing
+              <select id="sd-pagesel" style="min-width:240px;font-weight:600;" onchange="sdGoToPage(this.value)"><option>No plan open</option></select></label>
+            <button class="run secondary" onclick="sdBoard.go(-1)" title="Previous sheet">&larr;</button>
+            <button class="run secondary" onclick="sdBoard.go(1)" title="Next sheet">&rarr;</button>
+            <span id="sd-pageinfo" class="note" style="margin:0"></span>
             <label style="display:flex;align-items:center;gap:6px;margin:0;font-weight:normal;">Sheet # <input id="sd-sheetnum" type="text" style="width:90px;" onchange="sdSetSheetNumber(this.value)"></label>
             <button class="run secondary" onclick="sdBoard.zoomBy(1/1.25)">&minus;</button>
             <button class="run secondary" onclick="sdBoard.zoomBy(1.25)">+</button>
@@ -2829,14 +2832,14 @@
             <label id="sd-wallwt-wrap" style="display:none;align-items:center;gap:6px;margin:0;font-weight:normal;" title="Lines at least this heavy count as walls">Line weight &ge; <input id="sd-wallwt" type="range" min="0" max="3" step="0.05" value="1" style="width:110px" oninput="sdDrawWalls()"></label>
             <label style="display:flex;align-items:center;gap:6px;margin:0;font-weight:normal;" title="Snap to line ends, corners and intersections (hold Alt to turn off). Lines are orthogonal unless you hold Shift."><input type="checkbox" id="sd-snap" checked style="width:18px;height:18px;margin:0;flex:none"> <span style="white-space:nowrap">Snap + ortho</span></label>
             <button class="run secondary" onclick="sdToggleSide()" id="sd-sidebtn">Hide list</button>
-            <span class="note" id="sd-status" style="margin:0;"></span>
+            <span class="note" id="sd-status" style="margin:0;display:inline-block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:min(46vw,480px);vertical-align:bottom;"></span>
           </div>
         </div>
         <div class="sm-layout" id="sd-layout">
           <div id="sd-mini" class="sd-mini" hidden><div class="sd-mini-h">Section across this edge <span id="sd-mini-info"></span></div><div id="sd-mini-body"></div></div>
           <div class="sm-viewer" id="sd-viewer"><div class="sm-page" id="sd-page"><canvas id="sd-canvas"></canvas><svg id="sd-svg" xmlns="http://www.w3.org/2000/svg"></svg></div></div>
           <div class="card sm-side">
-            <strong>Drifts on this sheet</strong>
+            <strong id="sd-list-h">Drifts on this sheet</strong>
             <div id="sd-list" style="margin-top:6px;font-size:.85rem;"></div>
             <div id="sd-model-card" style="margin-top:10px;font-size:.85rem;"></div>
             <p class="note" style="margin-top:10px;"><b>Add drift</b>: click the two ends of the wall/parapet/step edge. The drift side is picked for you (the lower roof); use <b>Drift on the other side</b> in the dialog if it's wrong. <b>Measure</b>: click two points to read a length (it's pre-filled into the next drift). Values follow ASCE 7-16: h<sub>d</sub> = 0.43&#8731;l<sub>u</sub>&middot;&#8732;(p<sub>g</sub>+10) &minus; 1.5 (l<sub>u</sub> &ge; 20 ft), windward = 0.75h<sub>d</sub>, &gamma; = 0.13p<sub>g</sub>+14 &le; 30, w = 4h<sub>d</sub> (or 4h<sub>d</sub>&sup2;/h<sub>c</sub> &le; 8h<sub>c</sub> when h<sub>d</sub> &gt; h<sub>c</sub>), no drift when h<sub>c</sub>/h<sub>b</sub> &lt; 0.2. Confirm against the engineer's own calculation.</p>
@@ -4650,13 +4653,17 @@
   </div>
 </body></html>`;
 
-    // Shown as an in-page iframe overlay rather than a new window/tab —
-    // window.open() gets silently blocked in sandboxed webviews (Claude's
-    // in-app browser, some mobile contexts) with no pop-up-permission toggle
-    // for the person to grant. An iframe is just a DOM element, not a new
-    // browsing context, so it isn't subject to pop-up blocking; its own
-    // "Print / Save as PDF" button calls window.print() against the
-    // iframe's own window, which prints only that iframe's content.
+    showPrintFrame(html);
+  }
+  // Shown as an in-page iframe overlay rather than a new window/tab —
+  // window.open() gets silently blocked in sandboxed webviews (Claude's
+  // in-app browser, some mobile contexts) with no pop-up-permission toggle
+  // for the person to grant. An iframe is just a DOM element, not a new
+  // browsing context, so it isn't subject to pop-up blocking; its own
+  // "Print / Save as PDF" button calls window.print() against the
+  // iframe's own window, which prints only that iframe's content.
+  // Shared by every "Print / Export PDF" flow in this file (calc sheets, Snow Drift export, etc).
+  function showPrintFrame(html){
     let frame = document.getElementById('print-sheet-frame');
     if(!frame){
       frame = document.createElement('iframe');
@@ -10638,37 +10645,78 @@
   let sdLastMeasure = null;
   let sdPtsPerFt = 9;     // 1/8" = 1'-0" on a 100% print
   let sdSelected = null;
+  let sdActiveView = null;   // id of the key-plan view currently being worked in, when a sheet has more than one
+  // Some sheets have more than one separate key plan (e.g. two roof areas on one page).
+  // A "view" is a named rectangle on the page; drifts remember which view they were
+  // drawn in, so each key plan can be worked on, listed and cleared on its own.
+  function sdViewsFor(n){ return (sdBoard.pageSheet[n]||{}).views || []; }
+  function sdViewsHere(){ return sdViewsFor(sdBoard.pageNum); }
+  function sdViewFor(it, views){
+    if(it.view) return it.view;
+    if(!views || !views.length) return null;
+    const mx = (it.ax+it.bx)/2, my = (it.ay+it.by)/2;
+    const v = views.find(v=> mx>=v.box[0] && mx<=v.box[2] && my>=v.box[1] && my<=v.box[3]);
+    return v ? v.id : null;
+  }
+  // Drifts on the current sheet, narrowed to the active view (if one's picked).
+  function sdHereItems(){
+    let arr = sdItems.filter(i=> i.page===sdBoard.pageNum);
+    if(sdActiveView){ const views = sdViewsHere(); arr = arr.filter(i=> sdViewFor(i, views)===sdActiveView); }
+    return arr;
+  }
 
   const sdBoard = PdfBoard('sd', {
     onLoad(){ sdLoadLocal(); },
-    onRender(){ document.getElementById('sd-sheetnum').value = sdBoard.sheetNumber(); sdUpdatePageInfo(); sdIndexSnaps(); sdDrawWalls(); sdDraw(); sdRenderModelCard(); },
+    onRender(){ document.getElementById('sd-sheetnum').value = sdBoard.sheetNumber(); sdApplyPageScale(); sdUpdatePageInfo(); sdIndexSnaps(); sdDrawWalls(); sdDraw(); sdRenderModelCard(); },
     onPointer: sdPointer,
     wantSegs: true,
     dblFromDown: true,
   });
+  // Each page/sheet in a multi-drawing PDF can be drawn at its own scale - remember
+  // what was set (or calibrated) per page, and restore it when you flip back to that page.
+  function sdSavePageScale(sel, ptsPerFt){
+    if(!sdBoard.pageSheet[sdBoard.pageNum]) sdBoard.pageSheet[sdBoard.pageNum] = {pageW:sdBoard.pageW, pageH:sdBoard.pageH};
+    sdBoard.pageSheet[sdBoard.pageNum].scaleSel = sel;
+    sdBoard.pageSheet[sdBoard.pageNum].ptsPerFt = ptsPerFt!=null ? ptsPerFt : sdPtsPerFt;
+  }
+  var sdScalePageSeen = null;
+  function sdApplyPageScale(){
+    if(sdScalePageSeen === sdBoard.name+'|'+sdBoard.pageNum) return; // already applied for this page - avoid re-firing on every zoom/pan render
+    sdScalePageSeen = sdBoard.name+'|'+sdBoard.pageNum;
+    // Landed on a (possibly new) page - resolve which key plan (if any) is active here.
+    if(sdPendingView!==undefined){ sdActiveView = sdPendingView; sdPendingView = undefined; }
+    else { const views = sdViewsHere(); sdActiveView = views.length ? views[0].id : null; }
+    const ps = sdBoard.pageSheet[sdBoard.pageNum] || {}, sel = document.getElementById('sd-scale');
+    if(!sel) return;
+    if(!ps.scaleSel){ sdSavePageScale(sel.value, sdPtsPerFt); return; } // lock in today's scale as this page's own, so a later change on another page can't leak back here
+    if(ps.ptsPerFt) sdPtsPerFt = ps.ptsPerFt;
+    if(ps.scaleSel==='revit'){ if(sdModelOnPage()) sdApplyModelScale(); else sel.value = ps.ptsPerFt ? 'cal' : sel.value; }
+    else sel.value = ps.scaleSel;
+    sdStatus(`Scale for this sheet: ${sel.options[sel.selectedIndex] ? sel.options[sel.selectedIndex].text : sdPtsPerFt.toFixed(2)+' units/ft'}.`);
+  }
   (function sdInitToolbar(){
     const tb = document.getElementById('sd-toolbar');
     if(!tb) return;
-    const tools = [{id:'drift',label:'Add drift'},{id:'measure',label:'Measure'},{id:'select',label:'Select'}];
+    const tools = [{id:'drift',label:'Add drift'},{id:'rect',label:'RTU (rectangle)'},{id:'measure',label:'Measure'},{id:'select',label:'Select'},{id:'splitpt',label:'Split at click'}];
     tb.innerHTML = tools.map(t=>`<button class="sm-tool" data-tool="${t.id}">${t.label}</button>`).join('') +
-      `<span style="flex:1"></span><button class="run secondary" onclick="sdSplitSelected()" title="Cut the selected drift in two, then drag the joint to the right spot">Split</button><button class="run secondary" onclick="sdJoinSelected()" title="Merge the selected drift with the one in line with it">Join</button><button class="run secondary" onclick="sdFlipSelected()" title="Put the selected drift on the other side of its line (F)">Flip side</button><button class="run secondary" onclick="sdDeleteSelected()">Delete selected</button>`;
+      `<span style="flex:1"></span><button class="run secondary" onclick="sdSplitSelected()" title="Cut the selected drift in two at its middle, then drag the joint to the right spot">Split middle</button><button class="run secondary" onclick="sdJoinSelected()" title="Merge the selected drift with the one in line with it">Join</button><button class="run secondary" onclick="sdFlipSelected()" title="Put the selected drift on the other side of its line (F)">Flip side</button><button class="run secondary" onclick="sdDeleteSelected()">Delete selected</button><button class="run secondary" onclick="sdClearSheet()" style="color:#c62828;border-color:#c62828;" title="Remove every drift on this sheet only">Clear sheet</button><button class="run secondary" onclick="sdClearAll()" style="color:#c62828;border-color:#c62828;" title="Remove every drift on every sheet of this file">Clear all</button>`;
     tb.addEventListener('click', e=>{ const t = e.target.closest('[data-tool]'); if(t) sdSetTool(t.dataset.tool); });
     sdSetTool('drift');
     sdRecalcAll();
   })();
   function sdSetTool(id){
-    sdTool = id; sdPending = null; sdSnapMark = null;
+    sdTool = id; sdPending = null; sdSnapMark = null; sdHover = null;
     const mini = document.getElementById('sd-mini'); if(mini) mini.hidden = true;
     document.querySelectorAll('#sd-toolbar .sm-tool').forEach(b=> b.classList.toggle('active', b.dataset.tool===id));
-    sdStatus(id==='drift' ? 'Click the two ends of the wall / parapet / step edge.' : id==='measure' ? 'Click the first point.' : 'Click a drift to select it; double-click to edit. Drag the square handles to move an end (it snaps to walls); Split / Join to change how the line is divided.');
+    sdStatus(id==='drift' ? 'Click the two ends of the wall / parapet / step edge.' : id==='rect' ? 'Click one corner of the RTU / obstruction, then the opposite corner - drift is added on all 4 sides.' : id==='measure' ? 'Click the first point.' : id==='splitpt' ? 'Click a point along a drift line to split it there - the new joint can be dragged right away.' : 'Click a drift to select it; double-click to edit. Drag the square handles to move an end (it snaps to walls); Split / Join to change how the line is divided.');
     sdDraw();
   }
   function sdStatus(t){ const el = document.getElementById('sd-status'); if(el) el.textContent = t||''; }
   function sdOnScale(){
     const v = document.getElementById('sd-scale').value;
     if(v==='cal'){ sdSetTool('calibrate'); sdStatus('Calibrate: click two points a known distance apart.'); return; }
-    if(v==='revit'){ sdApplyModelScale(); return; }
-    sdPtsPerFt = parseFloat(v); sdRecalcAll();
+    if(v==='revit'){ sdApplyModelScale(); sdSavePageScale('revit', sdPtsPerFt); return; }
+    sdPtsPerFt = parseFloat(v); sdSavePageScale(v); sdRecalcAll();
   }
   async function sdOpenFile(file){
     if(!file) return;
@@ -10904,11 +10952,11 @@
     });
     sdSnapGrid = {segs, grid};
   }
-  function sdSnap(p, ev, from){
+  function sdSnap(p, ev, from, noOrtho){
     sdSnapMark = null;
     const on = document.getElementById('sd-snap').checked && !(ev && ev.altKey);
     let q = {x:p.x, y:p.y};
-    const ortho = on && from && !(ev && ev.shiftKey);
+    const ortho = on && from && !noOrtho && !(ev && ev.shiftKey);
     let axis = null;
     if(ortho){ axis = Math.abs(p.x-from.x) >= Math.abs(p.y-from.y) ? 'h' : 'v'; if(axis==='h') q.y = from.y; else q.x = from.x; }
     if(!on || !sdSnapGrid) return q;
@@ -10934,10 +10982,47 @@
     sdSnapMark = {x:best.x, y:best.y, kind:best.kind, ax:q.x, ay:q.y};
     return q;
   }
-  function sdSetSheetNumber(v){ sdBoard.setSheetNumber(v); sdItems.forEach(i=>{ if(i.page===sdBoard.pageNum) i.sheetNumber = sdBoard.sheetNumber(); }); sdSaveLocal(); }
+  function sdSetSheetNumber(v){ sdBoard.setSheetNumber(v); sdItems.forEach(i=>{ if(i.page===sdBoard.pageNum) i.sheetNumber = sdBoard.sheetNumber(); }); sdSaveLocal(); sdRefreshPageSel(); }
   function sdUpdatePageInfo(){
     const el = document.getElementById('sd-pageinfo');
-    if(el) el.textContent = `${sdBoard.name} — page ${sdBoard.pageNum} of ${sdBoard.pageCount} · ${sdItems.filter(i=>i.page===sdBoard.pageNum).length} drift(s) here`;
+    if(el) el.textContent = sdBoard.pageCount > 1 ? `${sdHereItems().length} drift(s) on this${sdActiveView?' view':' sheet'}` : (sdBoard.name ? `${sdItems.length} drift(s)` : '');
+    sdRefreshPageSel();
+  }
+  // Dropdown to jump straight to any drawing/sheet in the open PDF - more obvious than paging one at a time.
+  // Dropdown lists every sheet - and, on a sheet boxed into more than one key plan, each key plan as its own row.
+  function sdRefreshPageSel(){
+    const sel = document.getElementById('sd-pagesel'); if(!sel) return;
+    if(!sdBoard.pageCount){ sel.innerHTML = '<option>No plan open</option>'; return; }
+    const opts = [];
+    for(let n=1;n<=sdBoard.pageCount;n++){
+      const sn = (sdBoard.pageSheet[n]||{}).sheetNumber, label = sn ? smEsc(sn) : 'no sheet # yet';
+      const views = sdViewsFor(n);
+      if(views.length){
+        views.forEach(v=>{
+          const cnt = sdItems.filter(i=> i.page===n && sdViewFor(i, views)===v.id).length;
+          const cur = n===sdBoard.pageNum && sdActiveView===v.id;
+          opts.push(`<option value="${n}:${v.id}"${cur?' selected':''}>${n} of ${sdBoard.pageCount} — ${label} → ${smEsc(v.name)}${cnt?` (${cnt} drift${cnt>1?'s':''})`:''}</option>`);
+        });
+      } else {
+        const cnt = sdItems.filter(i=>i.page===n).length;
+        const cur = n===sdBoard.pageNum && !sdActiveView;
+        opts.push(`<option value="${n}"${cur?' selected':''}>${n} of ${sdBoard.pageCount} — ${label}${cnt?` (${cnt} drift${cnt>1?'s':''})`:''}</option>`);
+      }
+    }
+    sel.innerHTML = opts.join('');
+  }
+  var sdPendingView; // view id to land on once a cross-page navigation's render completes (see sdApplyPageScale)
+  function sdGoToPage(v){
+    if(!v || (!sdBoard.pdf && !sdBoard.img)) return;
+    const parts = String(v).split(':'), n = +parts[0], viewId = parts[1] || null;
+    if(n===sdBoard.pageNum){
+      sdActiveView = viewId; sdSelected = null; sdDraw(); sdRefreshPageSel();
+      const v2 = viewId && sdViewsHere().find(x=>x.id===viewId);
+      sdStatus(v2 ? `Working in "${v2.name}".` : 'Working on the whole sheet.');
+      return;
+    }
+    sdPendingView = viewId;
+    sdBoard.pageNum = Math.min(sdBoard.pageCount, Math.max(1, n)); sdBoard.fit();
   }
   function sdKey(){ return 'sdDrifts::' + sdBoard.name; }
   function sdSaveLocal(){
@@ -11073,7 +11158,11 @@
     const zLow = sdSecZ(sec, 3) ?? sdSecZ(sec, 1.5) ?? sdSecZ(sec, 6);
     if(zLow==null) return null;
     const zUp = sdSecZ(sec, -3) ?? sdSecZ(sec, -1.5);
-    const edgeWalls = sec.walls.filter(w=> Math.abs(w.d) <= w.w/2 + 1.5);
+    // Walls "at" this edge: within a few feet of where the edge was drawn (not just
+    // touching it exactly), so a wall that's bumped out/in a bit from the drawn line
+    // still counts - but only if it actually sits on this roof (its base is near zLow),
+    // so a taller wall from an unrelated level further along the section isn't grabbed.
+    const edgeWalls = sec.walls.filter(w=> Math.abs(w.d) <= w.w/2 + 3 && w.base <= zLow + 1.5);
     const wallTop = edgeWalls.length ? Math.max(...edgeWalls.map(w=>w.top)) : null;
     const box = sec.boxes.find(b=> b.d1 <= 1.5 && b.d2 >= -1.5 && b.top > zLow + 0.5);
     const a = {zLow, zUp, wallTop};
@@ -11153,7 +11242,9 @@
     document.getElementById('sd-mini-body').innerHTML = sdSectionSvg(sec, {auto}).svg;
     document.getElementById('sd-mini-info').textContent = auto && auto.type ? `${SD_TYPE_LABEL[auto.type]}: h ${sdFtIn(auto.h)}${auto.luUp?` · lᵤ ${sdFtIn(auto.luUp)}`:''}` : (side ? '' : `edge ${sdFtIn(sec.len)} long - now click the drift side`);
   }
+  var sdHoverInfoT = 0;
   function sdHoverInfo(p){
+    const now = performance.now(); if(now - sdHoverInfoT < 80) return; sdHoverInfoT = now;
     const g = sdModelGeo(); if(!g) return;
     let best = null; const tol = 8*sdBoard.ptPerPx();
     g.walls.forEach(w=>{ for(let i=1;i<w.pts.length;i++){ const [x1,y1] = w.pts[i-1], [x2,y2] = w.pts[i], L2 = (x2-x1)**2+(y2-y1)**2; if(!L2) continue; let t = ((p.x-x1)*(x2-x1)+(p.y-y1)*(y2-y1))/L2; t = Math.max(0,Math.min(1,t)); const d = Math.hypot(x1+t*(x2-x1)-p.x, y1+t*(y2-y1)-p.y) - w.wPt/2; if(d <= tol && (!best || d < best.d)){ const L = Math.sqrt(L2); best = {d, w, nx:-(y2-y1)/L, ny:(x2-x1)/L, x:x1+t*(x2-x1), y:y1+t*(y2-y1)}; } } });
@@ -11235,7 +11326,7 @@
   var sdHover = null;
   var sdPreviewSide = null, sdDragEnd = null;
   function sdHandleAt(p){
-    const tol = 9*sdBoard.ptPerPx(), here = sdItems.filter(i=> i.page===sdBoard.pageNum);
+    const tol = 9*sdBoard.ptPerPx(), here = sdHereItems();
     let best = null;
     here.forEach(it=>['a','b'].forEach(end=>{ const x = it[end+'x'], y = it[end+'y'], d = Math.hypot(x-p.x, y-p.y); if(d <= tol && (!best || d < best.d)) best = {d, x, y}; }));
     if(!best) return null;
@@ -11245,13 +11336,30 @@
     const sel = list.findIndex(q=> q.it.id===sdSelected); if(sel > 0) list.unshift(list.splice(sel,1)[0]);
     return {list};
   }
+  // Split a drift item at a given point along its line, returning the new (second) piece.
+  function sdSplitAt(it, x, y){
+    const b = Object.assign({}, it, {id:'d'+Date.now().toString(36), ax:x, ay:y});
+    it.bx = x; it.by = y; sdItems.push(b); sdRecalcAll();
+    return b;
+  }
   // Split the selected drift at its middle, or join it with a drift that shares an end and runs the same way.
   function sdSplitSelected(){
     const it = sdItems.find(i=> i.id===sdSelected); if(!it){ sdStatus('Select a drift first.'); return; }
     const mx = (it.ax+it.bx)/2, my = (it.ay+it.by)/2;
-    const b = Object.assign({}, it, {id:'d'+Date.now().toString(36), ax:mx, ay:my});
-    it.bx = mx; it.by = my; sdItems.push(b); sdRecalcAll();
+    sdSplitAt(it, mx, my);
     sdStatus('Split in two - drag the joint (square handle) to where the height changes, then double-click each part to set its height.');
+  }
+  // Nearest point on any drift's line (this page) to p, for click-to-split.
+  function sdNearestOnLine(p){
+    const here = sdHereItems();
+    let best = null;
+    here.forEach(it=>{
+      const dx = it.bx-it.ax, dy = it.by-it.ay, L2 = dx*dx+dy*dy || 1;
+      let t = ((p.x-it.ax)*dx + (p.y-it.ay)*dy)/L2; t = Math.max(0.04, Math.min(0.96, t));
+      const x = it.ax+dx*t, y = it.ay+dy*t, d = Math.hypot(p.x-x, p.y-y);
+      if(!best || d < best.d) best = {it, x, y, t, d};
+    });
+    return best;
   }
   function sdJoinSelected(){
     const it = sdItems.find(i=> i.id===sdSelected); if(!it){ sdStatus('Select a drift first.'); return; }
@@ -11295,6 +11403,19 @@
   });
   async function sdPointer(type, p, ev){
     if(type==='dbl'){ const hit = sdHit(p); if(hit){ sdPending = null; sdSnapMark = null; const mini = document.getElementById('sd-mini'); if(mini) mini.hidden = true; sdDraw(); await sdEdit(hit); } return; }
+    // ---- split-at-click: tap a point along a drift's line to split it right there ----
+    if(sdTool==='splitpt'){
+      if(type==='move'){ const hit = sdNearestOnLine(p); sdHover = hit && hit.d <= 10*sdBoard.ptPerPx() ? {x:hit.x,y:hit.y} : null; sdDraw(); return; }
+      if(type==='down'){
+        const hit = sdNearestOnLine(p), tol = 10*sdBoard.ptPerPx();
+        if(hit && hit.d<=tol){
+          const b = sdSplitAt(hit.it, hit.x, hit.y);
+          sdSelected = b.id; sdSetTool('select');
+          sdStatus('Split there - drag the square handle if you need to fine-tune it, then double-click each part to set its height.');
+        } else sdStatus('Click closer to a drift line to split it there.');
+      }
+      return;
+    }
     // ---- end handles (Select tool): drag a drift's end; joined ends move together ----
     if(sdTool==='select'){
       if(type==='down'){
@@ -11310,7 +11431,7 @@
       if(type==='up' && sdDragEnd){ const h = sdDragEnd; sdDragEnd = null; sdSnapMark = null; if(h.moved) sdRecalcAll(); else sdDraw(); return; }
     }
     const n0 = sdPending ? sdPending.pts.length : 0;
-    const snapped = ()=> (sdTool==='drift' && n0>=2) ? p : sdSnap(p, ev, n0 ? sdPending.pts[n0-1] : null);
+    const snapped = ()=> (sdTool==='drift' && n0>=2) ? p : sdSnap(p, ev, n0 ? sdPending.pts[n0-1] : null, sdTool==='rect');
     if(type!=='down'){
       if(type!=='move') return;
       if(sdTool==='select'){ sdHoverInfo(p); return; }
@@ -11333,13 +11454,19 @@
       if(sdTool==='calibrate'){
         const v = await smEditDialog('Real distance between those two points, in feet (e.g. 61 or 61.5)', '', {rows:1, okLabel:'Set scale'});
         const ft = parseFloat(v);
-        if(ft>0){ sdPtsPerFt = dist/ft; sdStatus(`Scale set: ${sdPtsPerFt.toFixed(2)} units per ft.`); sdRecalcAll(); }
+        if(ft>0){ sdPtsPerFt = dist/ft; sdSavePageScale('cal', sdPtsPerFt); sdStatus(`Scale set: ${sdPtsPerFt.toFixed(2)} units per ft.`); sdRecalcAll(); }
         sdSetTool('drift');
         return;
       }
       sdLastMeasure = dist/sdPtsPerFt;
       sdStatus(`Measured ${fmtFtIn(sdLastMeasure)} (${sdLastMeasure.toFixed(1)} ft) — pre-filled as lᵤ in the next drift.`);
       sdDraw(); return;
+    }
+    if(sdTool==='rect'){
+      if(n===1){ sdStatus('Click the opposite corner.'); sdDraw(); return; }
+      const [a,c] = sdPending.pts; sdPending = null; sdDraw();
+      await sdRectFinish(a, c);
+      return;
     }
     if(sdTool==='drift'){
       if(n===1){ sdStatus('Click the other end of the edge (lines stay square; hold Shift for any angle, Alt to stop snapping).'); sdDraw(); return; }
@@ -11369,7 +11496,7 @@
           splits.forEach((r,k)=>{
             const p0 = {x:a.x+(c.x-a.x)*r.f0, y:a.y+(c.y-a.y)*r.f0}, p1 = {x:a.x+(c.x-a.x)*r.f1, y:a.y+(c.y-a.y)*r.f1};
             const au = sdAuto(sdSection(p0, p1, s)) || {};
-            const it = Object.assign({}, base, {h: Math.round(r.h*100)/100, id: 'd'+Date.now().toString(36)+k, page: sdBoard.pageNum, sheetNumber: sdBoard.sheetNumber(), ax:p0.x, ay:p0.y, bx:p1.x, by:p1.y, sx:s.x, sy:s.y});
+            const it = Object.assign({}, base, {h: Math.round(r.h*100)/100, id: 'd'+Date.now().toString(36)+k, page: sdBoard.pageNum, sheetNumber: sdBoard.sheetNumber(), view: sdActiveView, ax:p0.x, ay:p0.y, bx:p1.x, by:p1.y, sx:s.x, sy:s.y});
             if(au.luUp) it.luUp = au.luUp; if(au.luLow) it.luLow = au.luLow;
             it.label = base.label ? `${base.label} ${k+1}` : '';
             sdItems.push(it);
@@ -11382,7 +11509,7 @@
       sdDraw();
       sdStatus('Click the first end of the next edge.');
       if(!d){ sdDraw(); return; }
-      const it = Object.assign(d, {id: 'd'+Date.now().toString(36), page: sdBoard.pageNum, sheetNumber: sdBoard.sheetNumber(), ax:a.x, ay:a.y, bx:c.x, by:c.y, sx:s.x, sy:s.y});
+      const it = Object.assign(d, {id: 'd'+Date.now().toString(36), page: sdBoard.pageNum, sheetNumber: sdBoard.sheetNumber(), view: sdActiveView, ax:a.x, ay:a.y, bx:c.x, by:c.y, sx:s.x, sy:s.y});
       sdItems.push(it); sdRecalcAll();
     }
   }
@@ -11400,9 +11527,49 @@
     if(!d) return;
     Object.assign(it, d); sdRecalcAll();
   }
+  // Finish an RTU/rectangle: two opposite corners -> one shared dialog -> a drift edge on all 4 sides, sloping outward.
+  async function sdRectFinish(a, c){
+    const x0 = Math.min(a.x,c.x), x1 = Math.max(a.x,c.x), y0 = Math.min(a.y,c.y), y1 = Math.max(a.y,c.y);
+    if(Math.hypot(x1-x0, y1-y0) < 6*sdBoard.ptPerPx()){ sdStatus('Rectangle too small - click two corners further apart.'); sdSetTool('rect'); return; }
+    const corners = [{x:x0,y:y0},{x:x1,y:y0},{x:x1,y:y1},{x:x0,y:y1}];
+    const cx = (x0+x1)/2, cy = (y0+y1)/2;
+    const edges = [0,1,2,3].map(i=> ({a: corners[i], c: corners[(i+1)%4]}));
+    const e0 = edges[0], m0 = {x:(e0.a.x+e0.c.x)/2, y:(e0.a.y+e0.c.y)/2};
+    const s0 = {x: m0.x + (m0.x-cx), y: m0.y + (m0.y-cy)};
+    const sec = sdSection(e0.a, e0.c, s0), auto = sdAuto(sec);
+    const init = {type:'rtu', h: 3, luUp: sdLastMeasure ? +sdLastMeasure.toFixed(1) : 20, luLow: 20, label:'RTU'};
+    if(auto && auto.h){ init.h = auto.h; if(auto.luUp) init.luUp = auto.luUp; init.autoNote = 'Filled in from the Revit model - check it against the section.'; }
+    sdPreviewSide = {a: e0.a, c: e0.c, s: s0};
+    sdDraw();
+    const d = await sdDriftDialog(init, sec, false, 0);
+    sdPreviewSide = null;
+    if(!d){ sdDraw(); sdSetTool('rect'); return; }
+    edges.forEach((e,k)=>{
+      const mx = (e.a.x+e.c.x)/2, my = (e.a.y+e.c.y)/2, dx = mx-cx, dy = my-cy, L = Math.hypot(dx,dy)||1;
+      const s = {x: mx+dx/L*20, y: my+dy/L*20};
+      const it = Object.assign({}, d, {id:'d'+Date.now().toString(36)+k, page: sdBoard.pageNum, sheetNumber: sdBoard.sheetNumber(), view: sdActiveView, ax:e.a.x, ay:e.a.y, bx:e.c.x, by:e.c.y, sx:s.x, sy:s.y, label: d.label || 'RTU'});
+      sdItems.push(it);
+    });
+    sdRecalcAll();
+    sdSetTool('select');
+    sdStatus('Added drift on all 4 sides of the rectangle. Select an edge to flip its side, adjust height, or delete just one side.');
+  }
   function sdFlip(it){ if(!it) return; const mx = it.ax+it.bx, my = it.ay+it.by; it.sx = mx - it.sx; it.sy = my - it.sy; sdRecalcAll(); }
   function sdFlipSelected(){ const it = sdItems.find(i=> i.id===sdSelected); if(!it){ sdStatus('Pick Select, click a drift, then Flip side.'); return; } sdFlip(it); }
   function sdDeleteSelected(){ if(!sdSelected) return; sdItems = sdItems.filter(i=>i.id!==sdSelected); sdSelected = null; sdRecalcAll(); }
+  function sdClearSheet(){
+    const doomed = sdHereItems(), ids = new Set(doomed.map(i=>i.id));
+    if(!ids.size){ sdStatus(`No drifts on this ${sdActiveView?'view':'sheet'}.`); return; }
+    if(!confirm(`Clear all ${ids.size} drift(s) on this ${sdActiveView?'view':'sheet'}? Save drift file first if you want a backup - this can't be undone here.`)) return;
+    sdItems = sdItems.filter(i=> !ids.has(i.id)); sdSelected = null; sdRecalcAll();
+    sdStatus(`Drifts on this ${sdActiveView?'view':'sheet'} cleared.`);
+  }
+  function sdClearAll(){
+    if(!sdItems.length){ sdStatus('No drifts to clear.'); return; }
+    if(!confirm(`Clear ALL ${sdItems.length} drift(s) on every sheet of "${sdBoard.name}"? Save drift file first if you want a backup - this can't be undone here.`)) return;
+    sdItems = []; sdSelected = null; sdRecalcAll();
+    sdStatus('All drifts cleared.');
+  }
   function sdGeom(it){
     const r = it.result || {};
     const ux = it.bx-it.ax, uy = it.by-it.ay, L = Math.hypot(ux,uy) || 1;
@@ -11423,7 +11590,7 @@
     return {band, tri, tagAnchor, tagPt, dimPt, nx, ny, tx, ty, wP};
   }
   function sdHit(p){
-    const here = sdItems.filter(i=>i.page===sdBoard.pageNum);
+    const here = sdHereItems();
     for(let k=here.length-1;k>=0;k--){
       const g = sdGeom(here[k]);
       const xs = g.band.map(q=>q[0]), ys = g.band.map(q=>q[1]);
@@ -11465,7 +11632,12 @@
         [[it.ax,it.ay],[it.bx,it.by]].forEach(e=>{ out += `<line x1="${e[0]-qx}" y1="${e[1]-qy}" x2="${e[0]+qx}" y2="${e[1]+qy}" stroke="${sel?'#1565c0':'#d32f2f'}" stroke-width="2.5" vector-effect="non-scaling-stroke"/>`; });
         if(sdTool==='select') [[it.ax,it.ay],[it.bx,it.by]].forEach(e=>{ out += `<rect x="${e[0]-4*px}" y="${e[1]-4*px}" width="${8*px}" height="${8*px}" fill="#fff" stroke="#1565c0" stroke-width="1.5" vector-effect="non-scaling-stroke" style="cursor:move"/>`; }); }
     });
-    if(sdPending && sdPending.pts.length){
+    if(sdTool==='rect' && sdPending && sdPending.pts.length){
+      const a = sdPending.pts[0], c = sdPending.hover || sdPending.pts[0];
+      const x0 = Math.min(a.x,c.x), x1 = Math.max(a.x,c.x), y0 = Math.min(a.y,c.y), y1 = Math.max(a.y,c.y);
+      out += `<rect x="${x0}" y="${y0}" width="${x1-x0}" height="${y1-y0}" fill="none" stroke="#1565c0" stroke-width="1.5" stroke-dasharray="4 3" vector-effect="non-scaling-stroke"/>`;
+      out += `<circle cx="${a.x}" cy="${a.y}" r="${3*sdBoard.ptPerPx()}" fill="#1565c0"/>`;
+    } else if(sdPending && sdPending.pts.length){
       const P = sdPending.pts.concat(sdPending.hover ? [sdPending.hover] : []);
       out += `<polyline points="${P.map(q=>q.x+','+q.y).join(' ')}" fill="none" stroke="#1565c0" stroke-width="1.5" stroke-dasharray="4 3" vector-effect="non-scaling-stroke"/>`;
       P.forEach(q=>{ out += `<circle cx="${q.x}" cy="${q.y}" r="${3*sdBoard.ptPerPx()}" fill="#1565c0"/>`; });
@@ -11478,6 +11650,7 @@
       (sdPreviewSide.cuts||[]).forEach(f=>{ const x = a.x+ux*f, y = a.y+uy*f, qx = -uy/UL*30*px, qy = ux/UL*30*px; out += `<line x1="${x-qx}" y1="${y-qy}" x2="${x+qx}" y2="${y+qy}" stroke="#1565c0" stroke-width="3" vector-effect="non-scaling-stroke"/>`; });
       out += `<line x1="${a.x}" y1="${a.y}" x2="${c.x}" y2="${c.y}" stroke="#1565c0" stroke-width="3" vector-effect="non-scaling-stroke"/><line x1="${m.x}" y1="${m.y}" x2="${e.x}" y2="${e.y}" stroke="#d32f2f" stroke-width="3" vector-effect="non-scaling-stroke"/><circle cx="${e.x}" cy="${e.y}" r="${5*px}" fill="#d32f2f"/>`;
     }
+    if(sdTool==='splitpt' && sdHover){ const px = sdBoard.ptPerPx(); out += `<circle cx="${sdHover.x}" cy="${sdHover.y}" r="${6*px}" fill="#fff" stroke="#1565c0" stroke-width="2" vector-effect="non-scaling-stroke"/>`; }
     if(sdSnapMark && sdTool!=='select'){
       const px = sdBoard.ptPerPx(), m = sdSnapMark, r = 6*px;
       out += m.kind==='int' ? `<path d="M ${m.x-r} ${m.y-r} L ${m.x+r} ${m.y+r} M ${m.x+r} ${m.y-r} L ${m.x-r} ${m.y+r}" stroke="#00a3d9" stroke-width="2" vector-effect="non-scaling-stroke"/>`
@@ -11490,7 +11663,9 @@
   }
   function sdRenderList(){
     const el = document.getElementById('sd-list'); if(!el) return;
-    const here = sdItems.filter(i=>i.page===sdBoard.pageNum);
+    const hEl = document.getElementById('sd-list-h');
+    if(hEl){ const v = sdActiveView ? sdViewsHere().find(v=>v.id===sdActiveView) : null; hEl.textContent = v ? `Drifts in "${v.name}"` : 'Drifts on this sheet'; }
+    const here = sdHereItems();
     if(!here.length){ el.innerHTML = '<span class="note">None yet.</span>'; return; }
     el.innerHTML = here.map((it,n)=>{
       const r = it.result||{};
@@ -11502,6 +11677,135 @@
     if(!sdItems.length){ alert('No drifts yet.'); return; }
     const base = (sdBoard.name||'roof').replace(/\.(pdf|png|jpe?g)$/i,'');
     smDownloadJson(sdExportObject(), `${base} - snow drifts.json`);
+  }
+  // A generic ASCE 7 loading-diagram schematic for one drift: the wall/step of height h,
+  // the flat/balanced load band, and the triangular drift surcharge tapering from p_d
+  // at the wall out to width w. Doesn't depend on the Revit model - works for every drift.
+  function sdLoadDiagramSvg(it, r, C){
+    const Wv = 480, Hv = 190, padB = 42, roofY = Hv - padB, wallX = 76;
+    const wallHpx = Math.min(90, 20 + Math.min(20, it.h||0)*6);
+    const wPx = Math.min(340, Math.max(70, Math.min(80, r.wDrawn||0)*4));
+    const peakPx = Math.min(80, Math.max(8, Math.min(40, r.pd||0)*1.3));
+    let g = '';
+    g += `<line x1="${wallX-30}" y1="${roofY}" x2="${wallX+wPx+30}" y2="${roofY}" stroke="#333" stroke-width="1.5"/>`;
+    g += `<rect x="${wallX-6}" y="${roofY-wallHpx}" width="12" height="${wallHpx}" fill="#9aa3ad" stroke="#333" stroke-width="1"/>`;
+    g += `<line x1="${wallX-18}" y1="${roofY-wallHpx}" x2="${wallX-18}" y2="${roofY}" stroke="#333" stroke-width="1"/><line x1="${wallX-22}" y1="${roofY-wallHpx}" x2="${wallX-14}" y2="${roofY-wallHpx}" stroke="#333" stroke-width="1"/><line x1="${wallX-22}" y1="${roofY}" x2="${wallX-14}" y2="${roofY}" stroke="#333" stroke-width="1"/>`;
+    g += `<text x="${wallX-26}" y="${roofY-wallHpx/2}" font-size="11" font-family="Arial" fill="#333" text-anchor="end">h = ${fmtFtIn(it.h||0)}</text>`;
+    g += `<rect x="${wallX}" y="${roofY}" width="${wPx}" height="9" fill="#dbe7f5" stroke="#5b6b83" stroke-width="0.75"/>`;
+    g += `<text x="${wallX+wPx+6}" y="${roofY+9}" font-size="10" font-family="Arial" fill="#5b6b83">p&#8320; = ${C.pf.toFixed(0)} psf</text>`;
+    if(!r.none){
+      g += `<polygon points="${wallX},${roofY-peakPx} ${wallX+wPx},${roofY} ${wallX},${roofY}" fill="rgba(198,40,40,0.18)" stroke="#c62828" stroke-width="1.5"/>`;
+      g += `<text x="${wallX+4}" y="${Math.max(14,roofY-peakPx-8)}" font-size="12" font-weight="bold" font-family="Arial" fill="#c62828">p_d = ${r.pd.toFixed(0)} psf</text>`;
+      g += `<text x="${wallX+4}" y="${Math.max(30,roofY-peakPx+10)}" font-size="10" font-family="Arial" fill="#c62828">total = ${r.total.toFixed(0)} psf</text>`;
+    } else {
+      g += `<text x="${wallX+wPx/2}" y="${roofY-40}" font-size="12" font-family="Arial" fill="#c62828" text-anchor="middle">No drift required</text>`;
+    }
+    g += `<line x1="${wallX}" y1="${roofY+18}" x2="${wallX+wPx}" y2="${roofY+18}" stroke="#333" stroke-width="1"/><line x1="${wallX}" y1="${roofY+14}" x2="${wallX}" y2="${roofY+22}" stroke="#333" stroke-width="1"/><line x1="${wallX+wPx}" y1="${roofY+14}" x2="${wallX+wPx}" y2="${roofY+22}" stroke="#333" stroke-width="1"/>`;
+    g += `<text x="${wallX+wPx/2}" y="${roofY+35}" font-size="11" font-family="Arial" fill="#333" text-anchor="middle">w = ${fmtFtIn(r.wDrawn||0)}</text>`;
+    return `<svg viewBox="0 0 ${Wv} ${Hv}" xmlns="http://www.w3.org/2000/svg" style="width:100%;max-width:420px;height:auto;">${g}</svg>`;
+  }
+  // A raster of the current sheet exactly as drawn on screen (base PDF/image + the drift bands/tags overlay), for the export PDF's plan page.
+  async function sdPlanSnapshot(){
+    const canvas = document.getElementById('sd-canvas'), svg = document.getElementById('sd-svg');
+    if(!canvas || !canvas.width) return null;
+    const out = document.createElement('canvas');
+    out.width = canvas.width; out.height = canvas.height;
+    const ctx = out.getContext('2d');
+    ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, out.width, out.height);
+    ctx.drawImage(canvas, 0, 0, out.width, out.height);
+    try{
+      const clone = svg.cloneNode(true);
+      clone.setAttribute('width', out.width); clone.setAttribute('height', out.height);
+      const xml = new XMLSerializer().serializeToString(clone);
+      const img = await new Promise((res, rej)=>{ const im = new Image(); im.onload = ()=>res(im); im.onerror = rej; im.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(xml); });
+      ctx.drawImage(img, 0, 0, out.width, out.height);
+    }catch(e){}
+    return out.toDataURL('image/png');
+  }
+  // Roof plan + a loading diagram and full ASCE 7 calc for every drift on the current
+  // sheet, in a printable report - the thing to hand a truss manufacturer or a plan reviewer.
+  async function sdExportCalcPdf(){
+    const rows = sdHereItems();
+    if(!rows.length){ sdStatus('No drifts on this sheet to export.'); return; }
+    sdStatus('Building the calc PDF…');
+    const C = sdCriteria();
+    const planImg = await sdPlanSnapshot();
+    const sheetLabel = sdBoard.sheetNumber() || ('Page ' + sdBoard.pageNum);
+    const dateStr = new Date().toLocaleDateString('en-US', {year:'numeric', month:'long', day:'numeric'});
+    const items = rows.map((it,i)=> ({it, r: it.result || sdCompute(it, C), n:i+1}));
+    const summaryRows = items.map(({it,r,n})=> `<tr><td>${n}</td><td>${smEsc(SD_TYPE_LABEL[it.type]||it.type)}${it.label?' — '+smEsc(it.label):''}</td><td class="cval">${fmtFtIn(it.h||0)}</td><td class="cval">${fmtFtIn(r.hd||0)}</td><td class="cval">${fmtFtIn(r.wDrawn||0)}</td><td class="cval">${r.pd.toFixed(0)}</td><td class="cval">${r.total.toFixed(0)}</td><td class="cval">${r.none?'No drift':r.tag+' PSF'}</td></tr>`).join('');
+    const detailBlocks = items.map(({it,r,n})=>{
+      const svg = sdLoadDiagramSvg(it, r, C);
+      return `<div class="sd-block">
+        <div class="sd-h">Drift ${n}${it.label?' — '+smEsc(it.label):''} — ${smEsc(SD_TYPE_LABEL[it.type]||it.type)}</div>
+        <div class="diagram-wrap">${svg}</div>
+        <table class="inputs">
+          <tr><td class="label">Condition</td><td class="value">${smEsc(r.governs||'')}</td></tr>
+          <tr><td class="label">Wall / step / unit height, h</td><td class="value">${fmtFtIn(it.h||0)}</td></tr>
+          <tr><td class="label">Upwind fetch, l<sub>u</sub></td><td class="value">${fmtFtIn(it.luUp||0)}</td></tr>
+          ${it.type==='step'?`<tr><td class="label">Lower roof length, l<sub>u,low</sub></td><td class="value">${fmtFtIn(it.luLow||0)}</td></tr>`:''}
+          <tr><td class="label">Clear height, h<sub>c</sub></td><td class="value">${fmtFtIn(r.hc||0)}</td></tr>
+          <tr><td class="label">Balanced snow depth, h<sub>b</sub></td><td class="value">${C.hb.toFixed(2)} ft</td></tr>
+          <tr><td class="label">Drift height, h<sub>d</sub></td><td class="value">${fmtFtIn(r.hd||0)}</td></tr>
+          <tr><td class="label">Drift width, w</td><td class="value">${fmtFtIn(r.wDrawn||0)}</td></tr>
+          <tr><td class="label">Snow density, &gamma;</td><td class="value">${C.gamma.toFixed(1)} pcf</td></tr>
+          <tr><td class="label">Drift surcharge, p<sub>d</sub> = h<sub>d</sub>&gamma;</td><td class="value">${r.pd.toFixed(1)} psf</td></tr>
+          <tr><td class="label">Flat-roof snow load, p<sub>f</sub></td><td class="value">${C.pf.toFixed(1)} psf</td></tr>
+          <tr><td class="label">Total at wall, p<sub>f</sub> + p<sub>d</sub></td><td class="value">${r.total.toFixed(1)} psf</td></tr>
+          <tr><td class="label">Design tag</td><td class="value">${r.none?'No drift required':r.tag+' PSF'}</td></tr>
+        </table>
+        ${(r.notes&&r.notes.length)?`<p class="notep">${r.notes.map(smEsc).join(' &middot; ')}</p>`:''}
+      </div>`;
+    }).join('');
+    const html = `<!doctype html><html><head><meta charset="utf-8"><title>Snow Drift Calcs — ${smEsc(sheetLabel)}</title>
+<style>
+  @page{ margin:0.6in; }
+  *{ box-sizing:border-box; }
+  body{ font-family:'Georgia','Times New Roman',serif; color:#1c2438; margin:0; padding:0 6px; }
+  .letterhead{ border-bottom:3px solid #1c2438; padding-bottom:12px; margin-bottom:18px; display:flex; justify-content:space-between; align-items:flex-end; }
+  .letterhead h1{ font-size:1.4rem; margin:0; font-family:Arial,Helvetica,sans-serif; }
+  .letterhead .firm{ font-size:.8rem; color:#5b6b83; font-family:Arial,sans-serif; margin-top:2px; }
+  .meta{ font-size:.75rem; color:#5b6b83; text-align:right; font-family:Arial,sans-serif; line-height:1.5; }
+  h2.rt{ font-family:Arial,sans-serif; font-size:1.05rem; margin:16px 0 8px; color:#1c2438; border-bottom:1px solid #c7c2b4; padding-bottom:4px; }
+  .criteria{ font-family:Arial,sans-serif; font-size:.82rem; margin:0 0 14px; color:#333; }
+  .plan-wrap{ text-align:center; margin:8px 0 18px; page-break-inside:avoid; }
+  .plan-wrap img{ max-width:100%; border:1px solid #c7c2b4; border-radius:4px; }
+  table.summary{ width:100%; border-collapse:collapse; font-family:Arial,sans-serif; font-size:.78rem; margin-bottom:18px; }
+  table.summary th{ text-align:left; font-size:.66rem; text-transform:uppercase; letter-spacing:.03em; color:#5b6b83; border-bottom:2px solid #1c2438; padding:4px 6px; }
+  table.summary td{ padding:4px 6px; border-bottom:1px solid #e4e0d4; }
+  table.summary td.cval{ text-align:right; white-space:nowrap; }
+  .sd-block{ page-break-inside:avoid; margin-bottom:22px; border-top:1px solid #c7c2b4; padding-top:12px; }
+  .sd-h{ font-family:Arial,sans-serif; font-weight:700; font-size:.95rem; margin-bottom:6px; }
+  .diagram-wrap{ text-align:center; margin:6px 0 10px; }
+  table.inputs{ width:100%; border-collapse:collapse; font-family:Arial,sans-serif; font-size:.8rem; }
+  table.inputs td{ padding:3px 6px; border-bottom:1px solid #e4e0d4; }
+  table.inputs td.label{ color:#5b6b83; width:60%; }
+  table.inputs td.value{ font-weight:600; text-align:right; }
+  .notep{ font-family:Arial,sans-serif; font-size:.72rem; color:#7a1f1f; margin:6px 0 0; }
+  .disclaimer{ margin-top:20px; padding-top:10px; border-top:1px dashed #c7c2b4; font-family:Arial,sans-serif; font-size:.7rem; color:#7a1f1f; line-height:1.5; }
+  .sig{ margin-top:40px; display:flex; gap:50px; font-family:Arial,sans-serif; font-size:.8rem; }
+  .sig div{ flex:1; border-top:1px solid #1c2438; padding-top:4px; color:#5b6b83; }
+  .toolbar{ text-align:center; margin:14px 0 22px; font-family:Arial,sans-serif; }
+  .toolbar button{ font-size:.9rem; padding:8px 20px; border-radius:6px; border:1px solid #1c2438; background:#1c2438; color:#fff; cursor:pointer; }
+  @media print{ .toolbar{ display:none; } }
+</style></head>
+<body>
+  <div class="toolbar no-print"><button onclick="window.print()">Print / Save as PDF</button></div>
+  <div class="letterhead">
+    <div><h1>Tamarack Drafting &amp; Design, LLC</h1><div class="firm">Snow drift calculations — ASCE 7-16 &sect;7.6&ndash;7.8</div></div>
+    <div class="meta">Sheet: ${smEsc(sheetLabel)}<br>Date: ${dateStr}<br>Prepared by: Matt Railey</div>
+  </div>
+  <p class="criteria">p<sub>g</sub> = ${C.pg} psf &middot; C<sub>e</sub> = ${C.Ce} &middot; C<sub>t</sub> = ${C.Ct} &middot; I<sub>s</sub> = ${C.Is} &middot; p<sub>f</sub> = 0.7C<sub>e</sub>C<sub>t</sub>I<sub>s</sub>p<sub>g</sub> = <b>${C.pf.toFixed(1)} psf</b> &middot; minimum p<sub>m</sub> = ${C.pm.toFixed(0)} psf${C.pm>C.pf?' (governs for balanced load)':''} &middot; &gamma; = ${C.gamma.toFixed(1)} pcf &middot; h<sub>b</sub> = ${C.hb.toFixed(2)} ft</p>
+  ${planImg ? `<h2 class="rt">Roof Plan — ${smEsc(sheetLabel)}</h2><div class="plan-wrap"><img src="${planImg}"></div>` : ''}
+  <h2 class="rt">Drift Summary</h2>
+  <table class="summary"><tr><th>#</th><th>Location / Type</th><th>h</th><th>h<sub>d</sub></th><th>w</th><th>p<sub>d</sub> (psf)</th><th>Total (psf)</th><th>Design tag</th></tr>${summaryRows}</table>
+  <h2 class="rt">Per-Drift Calculations</h2>
+  ${detailBlocks}
+  <div class="disclaimer">Preliminary drift calculation for coordination — the engineer of record's stamped calculations control. Confirm site snow criteria (p<sub>g</sub>, exposure, thermal, importance) and drift locations against the current drawing set before use.</div>
+  <div class="sig"><div>Prepared by</div><div>Date</div></div>
+</body></html>`;
+    showPrintFrame(html);
+    sdStatus(`Built the calc PDF for ${rows.length} drift(s) on this sheet.`);
   }
   function sdExportObject(){
     const C = sdCriteria();
