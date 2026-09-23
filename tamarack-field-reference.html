@@ -74,6 +74,15 @@
   body.tfr-fullbleed main{ height:auto; flex:1; min-height:0; min-width:0; overflow:hidden; display:flex; flex-direction:column; box-sizing:border-box; padding-bottom:16px; }
   body.tfr-fullbleed .panel.active{ display:flex; flex-direction:column; min-height:0; min-width:0; flex:1; width:100%; box-sizing:border-box; overflow:hidden; }
   body.tfr-fullbleed .panel.active > *{ flex:none; }
+  /* trim the header chrome on the fullbleed sheet tools so more of the
+     viewport goes to the PDF itself - the title/description are useful once,
+     not every time you switch back to this tab. */
+  body.tfr-fullbleed #pdfcompare.panel.active > h2,
+  body.tfr-fullbleed #pdfcompare.panel.active > p.sub,
+  body.tfr-fullbleed #snowdrift.panel.active > h2,
+  body.tfr-fullbleed #snowdrift.panel.active > p.sub{ display:none; }
+  body.tfr-fullbleed #pdfcompare.panel.active > .row{ margin:0 0 6px; }
+  body.tfr-fullbleed .pv-bar{ padding:4px 8px; margin-bottom:4px; }
   body.tfr-fullbleed #snowdrift.panel.active > #sd-layout{ flex:1; min-height:0; min-width:0; margin-top:6px; }
   body.tfr-fullbleed #pdfcompare.panel.active > #pcSingleMode{ flex:1; min-height:0; min-width:0; width:100%; box-sizing:border-box; display:flex; flex-direction:column; overflow:hidden; }
   body.tfr-fullbleed #pdfcompare.panel.active > #pcSingleMode > *{ flex:none; }
@@ -83,6 +92,16 @@
   body.tfr-fullbleed .sm-layout{ align-items:stretch; min-width:0; }
   body.tfr-fullbleed .sm-viewer{ height:auto !important; flex:1; min-height:0; min-width:0; }
   body.tfr-fullbleed .sm-side, body.tfr-fullbleed .thumb-rail{ height:auto !important; max-height:none !important; overflow:auto; }
+  /* ---- compact vertical criteria list (Snow Drift) - a narrow stack of
+     label/value rows instead of a wide grid of full-size boxes, sized to
+     content like SE Markup's dense controls rather than the touch-sized
+     44px inputs used elsewhere in the app. ---- */
+  .sd-crit{ display:inline-flex; flex-direction:column; gap:0; width:auto; min-width:230px; max-width:300px; }
+  .sd-crit-row{ display:flex; align-items:center; justify-content:space-between; gap:10px; padding:4px 2px; border-bottom:1px solid var(--line); }
+  .sd-crit-row:last-child{ border-bottom:none; }
+  .sd-crit-row label{ margin:0; font-size:.78rem; color:var(--steel); white-space:nowrap; }
+  .sd-crit-row select, .sd-crit-row input{ width:110px; min-height:0; padding:3px 6px; font-size:.8rem; border-radius:5px; text-align:right; flex:none; }
+  .sd-crit-row select{ text-align:left; width:150px; }
   h2{ font-family:var(--sans); font-size:1.15rem; font-weight:700; margin:0 0 4px; color:var(--ink); }
   .sub{ color:var(--steel); font-size:.85rem; margin:0 0 16px; max-width:70ch; }
   .card{ background:#fff; border:1px solid var(--line); border-radius:8px; padding:16px; margin-bottom:16px; box-shadow:0 1px 2px rgba(20,20,40,.04); }
@@ -1030,6 +1049,13 @@
             <button class="pv-btn" onclick="pvBoard.fit()" title="Fit to window">Fit</button>
             <button class="pv-btn" onclick="document.getElementById('pv-thumbs').classList.toggle('hide')" title="Show/hide the sheet thumbnails">Sheets</button>
             <div class="sep"></div>
+            <div class="pv-field">Scale
+              <select id="pv-scale" onchange="pvOnScale()" title="Drawing scale used by the measure tools below - pick the printed scale, or Calibrate against a known dimension on the sheet">
+                <option value="4.5">1/16" = 1'-0"</option><option value="6.75">3/32" = 1'-0"</option><option value="9" selected>1/8" = 1'-0"</option><option value="13.5">3/16" = 1'-0"</option><option value="18">1/4" = 1'-0"</option><option value="cal">Calibrated (2 clicks)</option>
+              </select>
+            </div>
+            <span class="note" id="pv-measstatus" style="margin:0;"></span>
+            <div class="sep"></div>
             <div class="pv-field">
               <select id="pv-papersize" onchange="pvUpdatePreview()" title="Paper size">
                 <option value="auto" selected>Sheet's own size</option>
@@ -1048,6 +1074,7 @@
             <button class="pv-btn" onclick="pvOpenPrintPreview()" title="Preview and print">Print&hellip;</button>
             <button class="pv-btn" onclick="pvSaveToFolder()" title="Save a redlined PDF into a Dropbox-linked folder">Save&hellip;</button>
             <button class="pv-btn" onclick="pvDownload()" title="Download a redlined PDF">Download</button>
+            <button class="pv-btn" onclick="pvCopyScreenshot()" title="Copy exactly what's on screen right now (the visible, zoomed-in part of the sheet, redlines included) to the clipboard as an image">&#128247; Copy view</button>
             <span class="note" id="pv-savestatus" style="margin:0;"></span>
           </div>
           <div class="sm-layout" style="margin-top:0;">
@@ -2979,7 +3006,6 @@
           </div>
         </div>
         <div class="sm-layout" id="sd-layout">
-          <div class="sm-viewer" id="sd-viewer"><div class="sm-page" id="sd-page"><canvas id="sd-canvas"></canvas><svg id="sd-svg" xmlns="http://www.w3.org/2000/svg"></svg></div></div>
           <div class="card sm-side">
             <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;">
               <strong id="sd-list-h">Drifts on this sheet</strong>
@@ -2989,6 +3015,7 @@
             <div id="sd-model-card" style="margin-top:10px;font-size:.85rem;"></div>
             <p class="note" style="margin-top:10px;"><b>Add drift</b>: click the two ends of the wall/parapet/step edge. The drift side is picked for you (the lower roof); use <b>Drift on the other side</b> in the dialog if it's wrong. <b>Measure</b>: click two points to read a length (it's pre-filled into the next drift). Values follow ASCE 7-16: h<sub>d</sub> = 0.43&#8731;l<sub>u</sub>&middot;&#8732;(p<sub>g</sub>+10) &minus; 1.5 (l<sub>u</sub> &ge; 20 ft), windward = 0.75h<sub>d</sub>, &gamma; = 0.13p<sub>g</sub>+14 &le; 30, w = 4h<sub>d</sub> (or 4h<sub>d</sub>&sup2;/h<sub>c</sub> &le; 8h<sub>c</sub> when h<sub>d</sub> &gt; h<sub>c</sub>), no drift when h<sub>c</sub>/h<sub>b</sub> &lt; 0.2. Confirm against the engineer's own calculation.</p>
           </div>
+          <div class="sm-viewer" id="sd-viewer"><div class="sm-page" id="sd-page"><canvas id="sd-canvas"></canvas><svg id="sd-svg" xmlns="http://www.w3.org/2000/svg"></svg></div></div>
         </div>
       </section>
 
@@ -9308,25 +9335,39 @@
       if(i.k==='line') return `<line x1="${i.x0}" y1="${i.y0}" x2="${i.x1}" y2="${i.y1}" ${st}/>`;
       if(i.k==='arrow'){ const a = Math.atan2(i.y1-i.y0, i.x1-i.x0), L = strokeW*6; return `<line x1="${i.x0}" y1="${i.y0}" x2="${i.x1}" y2="${i.y1}" ${st}/><path d="M ${i.x1-L*Math.cos(a-0.4)} ${i.y1-L*Math.sin(a-0.4)} L ${i.x1} ${i.y1} L ${i.x1-L*Math.cos(a+0.4)} ${i.y1-L*Math.sin(a+0.4)}" ${st}/>`; }
       if(i.k==='leadertext'){ const a = Math.atan2(i.y-i.y0, i.x-i.x0), L = strokeW*6; return `<line x1="${i.x}" y1="${i.y}" x2="${i.x0}" y2="${i.y0}" ${st}/><path d="M ${i.x0-L*Math.cos(a-0.4)} ${i.y0-L*Math.sin(a-0.4)} L ${i.x0} ${i.y0} L ${i.x0-L*Math.cos(a+0.4)} ${i.y0-L*Math.sin(a+0.4)}" ${st}/>` + i.t.split('\n').map((l,n)=>`<text x="${i.x}" y="${i.y + n*i.s*1.2}" font-size="${i.s}" font-family="Arial, sans-serif" fill="${color}">${smEsc(l)}</text>`).join(''); }
+      if(i.k==='length' || i.k==='polylength' || i.k==='area'){
+        const closed = i.k==='area';
+        const d = i.pts.map((q,n)=>(n?'L':'M')+q[0]+' '+q[1]).join(' ') + (closed?' Z':'');
+        const mst = `stroke="#1f5f99" stroke-width="${strokeW}" ${closed?'fill="rgba(31,95,153,.12)"':'fill="none"'} stroke-linecap="round" stroke-linejoin="round"`;
+        const last = i.pts[i.pts.length-1];
+        return `<path d="${d}" ${mst}/>` + i.pts.map(q=>`<circle cx="${q[0]}" cy="${q[1]}" r="${strokeW*1.4}" fill="#1f5f99"/>`).join('') +
+          `<text x="${last[0]+6*strokeW}" y="${last[1]-6*strokeW}" font-size="${11*strokeW/1.2}" fill="#1f5f99" font-family="Arial, sans-serif" font-weight="bold">${smEsc(i.label||'')}</text>`;
+      }
       return '';
     }).join('');
   }
 
-  const PV_TOOLS = [['pen','Pen'],['text','Text','Click the feature, then click where the text should sit — draws a leader arrow between them (Esc cancels)'],['cloud','Cloud'],['arrow','Arrow'],['x','X'],['line','Line']];
+  const PV_TOOLS = [['pen','Pen'],['text','Text','Click the feature, then click where the text should sit — draws a leader arrow between them (Esc cancels)'],['cloud','Cloud'],['arrow','Arrow'],['x','X'],['line','Line'],['length','Length','Click two points to measure a distance, using the Scale set above'],['polylength','Poly-length','Click each point along a run, double-click (or Enter) to finish'],['area','Area','Click each corner of an area, double-click (or Enter) to finish']];
   const PV_ICON = {
     pen: '<path d="M4 20l1-4L15 6l3 3L8 19l-4 1z"/>',
     text: '<path d="M5 6h14M12 6v12"/>',
     cloud: '<path d="M7 18a4 4 0 0 1-1-7.9A5 5 0 0 1 15.5 8 4.5 4.5 0 0 1 16 17H7z"/>',
     arrow: '<path d="M4 20 20 4M20 4h-7M20 4v7"/>',
     x: '<path d="M5 5l14 14M19 5 5 19"/>',
-    line: '<path d="M4 20 20 4"/>'
+    line: '<path d="M4 20 20 4"/>',
+    length: '<path d="M4 17 17 4M4 17l3-3M7 14l2 2M10 11l2 2M13 8l2 2M16 5l2 2"/>',
+    polylength: '<path d="M3 18 9 9l5 4 7-9"/><circle cx="3" cy="18" r="1.6"/><circle cx="9" cy="9" r="1.6"/><circle cx="14" cy="13" r="1.6"/><circle cx="21" cy="4" r="1.6"/>',
+    area: '<path d="M4 6h16v12H4z"/><circle cx="4" cy="6" r="1.6"/><circle cx="20" cy="6" r="1.6"/><circle cx="4" cy="18" r="1.6"/><circle cx="20" cy="18" r="1.6"/>'
   };
+  const PV_MEASURE_TOOLS = ['length','polylength','area'];
   let pvTool = 'pen', pvDrag = null, pvMarks = {}; // pvMarks[pageNum] = [items]
   let pvFile = null; // {name}
   let pvTextLeader = null, pvTextLeaderPreview = null; // two-click leader/arrow + text placement
+  let pvPtsPerFt = 9; // points-per-foot at native PDF scale (72pt/in); matches the Scale select's option values
+  let pvPoly = null; // {kind, pts, live} while collecting a poly-length/area click chain
 
   const pvBoard = PdfBoard('pv', {
-    onLoad(){ pvMarks = {}; document.getElementById('pv-pagenum').value = 1; pvRenderThumbs(); },
+    onLoad(){ pvMarks = {}; document.getElementById('pv-pagenum').value = 1; pvRenderThumbs(); pvPoly = null; document.getElementById('pv-scale').value = '9'; pvPtsPerFt = 9; pvMeasStatus(''); },
     onRender(){ pvUpdatePageInfo(); pvDraw(); pvSaveState(); },
     onPointer: pvPointer,
     dblFromDown: false,
@@ -9337,18 +9378,132 @@
     if(!tb) return;
     tb.innerHTML = PV_TOOLS.map(([k,l,tt])=>`<button class="pv-btn" data-t="${k}" title="${(tt||l).replace(/"/g,'&quot;')}"><svg viewBox="0 0 24 24" aria-hidden="true">${PV_ICON[k]||''}</svg>${l}</button>`).join('') +
       `<div class="sep"></div><button class="pv-btn" onclick="pvUndo()" title="Undo the last stroke">Undo</button><button class="pv-btn" onclick="pvClearSheet()" title="Clear every redline on this sheet">Clear</button>`;
-    tb.onclick = e=>{ const b = e.target.closest('[data-t]'); if(b){ pvTool = b.dataset.t; pvTextLeader = null; pvTextLeaderPreview = null; pvDraw(); pvToolsUI(); } };
+    tb.onclick = e=>{ const b = e.target.closest('[data-t]'); if(b){ pvTool = b.dataset.t; pvTextLeader = null; pvTextLeaderPreview = null; pvPoly = null; pvMeasStatus(pvTool==='length' ? 'Click two points to measure.' : pvTool==='polylength' ? 'Click each point along the run, double-click (or Enter) to finish.' : pvTool==='area' ? 'Click each corner, double-click (or Enter) to finish.' : ''); pvDraw(); pvToolsUI(); } };
     pvToolsUI();
   })();
   function pvToolsUI(){ document.querySelectorAll('#pv-rl-tools .pv-btn[data-t]').forEach(b=> b.classList.toggle('active', b.dataset.t===pvTool)); }
   function pvUndo(){ const arr = pvMarks[pvBoard.pageNum]; if(arr && arr.length) arr.pop(); pvDraw(); pvSaveState(); }
   function pvClearSheet(){ if(!confirm('Clear every redline on this sheet? (Undo only goes back one stroke at a time — this clears all of them.)')) return; pvMarks[pvBoard.pageNum] = []; pvDraw(); pvSaveState(); }
+  function pvMeasStatus(t){ const el = document.getElementById('pv-measstatus'); if(el) el.textContent = t||''; }
+
+  // Copy exactly the visible, zoomed-in crop of the sheet (redlines included)
+  // to the clipboard as a PNG - not the whole page, just what's on screen.
+  async function pvCopyScreenshot(){
+    const viewer = document.getElementById('pv-viewer');
+    const canvas = document.getElementById('pv-canvas');
+    const svg = document.getElementById('pv-svg');
+    if(!viewer || !canvas || !canvas.width || !pvBoard.pageW){ document.getElementById('pv-savestatus').textContent = 'Open a PDF first.'; return; }
+    const vr = viewer.getBoundingClientRect(), cr = canvas.getBoundingClientRect();
+    const left = Math.max(vr.left, cr.left), top = Math.max(vr.top, cr.top);
+    const right = Math.min(vr.right, cr.right), bottom = Math.min(vr.bottom, cr.bottom);
+    const wCss = right - left, hCss = bottom - top;
+    const statusEl = document.getElementById('pv-savestatus');
+    if(wCss <= 0 || hCss <= 0 || !cr.width || !cr.height){ statusEl.textContent = 'Nothing visible to capture.'; return; }
+    const cropL = left - cr.left, cropT = top - cr.top;
+    const out = document.createElement('canvas');
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    out.width = Math.round(wCss*dpr); out.height = Math.round(hCss*dpr);
+    const octx = out.getContext('2d');
+    octx.fillStyle = '#fff'; octx.fillRect(0, 0, out.width, out.height);
+    // canvas pixel-buffer source rect
+    octx.drawImage(canvas,
+      cropL*(canvas.width/cr.width), cropT*(canvas.height/cr.height),
+      wCss*(canvas.width/cr.width), hCss*(canvas.height/cr.height),
+      0, 0, out.width, out.height);
+    // redline overlay, rasterized from the same crop in the svg's own point units
+    try{
+      const svgClone = svg.cloneNode(true);
+      const svgSx = cropL*(pvBoard.pageW/cr.width), svgSy = cropT*(pvBoard.pageH/cr.height);
+      const svgSw = wCss*(pvBoard.pageW/cr.width), svgSh = hCss*(pvBoard.pageH/cr.height);
+      svgClone.setAttribute('width', out.width); svgClone.setAttribute('height', out.height);
+      svgClone.setAttribute('viewBox', `${svgSx} ${svgSy} ${svgSw} ${svgSh}`);
+      const svgStr = new XMLSerializer().serializeToString(svgClone);
+      const svgUrl = 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(svgStr)));
+      const img = new Image();
+      await new Promise((res,rej)=>{ img.onload = res; img.onerror = rej; img.src = svgUrl; });
+      octx.drawImage(img, 0, 0, out.width, out.height);
+    }catch(e){ /* redlines are a bonus on top of the sheet capture - fine if this fails */ }
+    out.toBlob(async blob=>{
+      if(!blob){ statusEl.textContent = 'Screenshot failed.'; return; }
+      try{
+        await navigator.clipboard.write([ new ClipboardItem({'image/png': blob}) ]);
+        statusEl.textContent = 'View copied to clipboard.';
+      }catch(e){
+        const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'sheet-view.png'; a.click();
+        statusEl.textContent = 'Clipboard unavailable here — downloaded the screenshot instead.';
+      }
+      setTimeout(()=>{ if(statusEl.textContent==='View copied to clipboard.') statusEl.textContent=''; }, 2500);
+    }, 'image/png');
+  }
+
+  // ---- scale + measuring (mirrors Snow Drift's scale system) ----
+  function pvOnScale(){
+    const v = document.getElementById('pv-scale').value;
+    if(v==='cal'){ pvTool = 'calibrate'; pvPoly = null; pvToolsUI(); pvDraw(); pvMeasStatus('Calibrate: click two points a known distance apart.'); return; }
+    pvPtsPerFt = parseFloat(v) || 9; pvMeasStatus(''); pvDraw();
+  }
+  function pvFmtFtIn(ft){
+    let inch = Math.round(ft*12*2)/2, f = Math.floor(inch/12); inch = inch - f*12;
+    const whole = Math.floor(inch), half = inch - whole > 0.01 ? ' 1/2' : '';
+    return `${f}'-${whole}${half}"`;
+  }
+  function pvMeasureLabel(kind, pts){
+    const k = 1/pvPtsPerFt; // real feet per PDF point at the current scale
+    if(kind==='area'){
+      let a = 0; for(let i=0;i<pts.length;i++){ const [x0,y0] = pts[i], [x1,y1] = pts[(i+1)%pts.length]; a += x0*y1 - x1*y0; }
+      return (Math.abs(a)/2*k*k).toFixed(1) + ' SF';
+    }
+    let L = 0; for(let i=1;i<pts.length;i++) L += Math.hypot(pts[i][0]-pts[i-1][0], pts[i][1]-pts[i-1][1]);
+    return pvFmtFtIn(L*k);
+  }
+  function pvFinishPoly(){
+    const pl = pvPoly; pvPoly = null;
+    if(!pl){ pvDraw(); return; }
+    const px = pvBoard.ptPerPx();
+    const pts = pl.pts.filter((q,i,a)=> i===0 || Math.hypot(q[0]-a[i-1][0], q[1]-a[i-1][1]) > 2*px);
+    if(pts.length < (pl.kind==='area'?3:2)){ pvDraw(); return; }
+    const n = pvBoard.pageNum; if(!pvMarks[n]) pvMarks[n] = [];
+    pvMarks[n].push({k: pl.kind, pts, label: pvMeasureLabel(pl.kind, pts)});
+    pvDraw(); pvSaveState();
+  }
 
   function pvPointer(type, p, ev){
     if(!pvBoard.pageW) return;
     const n = pvBoard.pageNum;
     if(!pvMarks[n]) pvMarks[n] = [];
     const px = pvBoard.ptPerPx();
+
+    if(pvTool==='calibrate'){
+      if(type==='down'){
+        if(!pvPoly){ pvPoly = {kind:'calibrate', pts:[[p.x,p.y]]}; pvDraw(); return; }
+        pvPoly.pts.push([p.x,p.y]); const pts = pvPoly.pts; pvPoly = null; pvDraw();
+        const dist = Math.hypot(pts[1][0]-pts[0][0], pts[1][1]-pts[0][1]);
+        smEditDialog('Known distance (ft)', '', {okLabel:'Set scale'}).then(v=>{
+          const ft = parseFloat(v);
+          if(ft>0){ pvPtsPerFt = dist/ft; pvMeasStatus(`Scale set: ${pvPtsPerFt.toFixed(2)} points/ft.`); }
+          pvTool = 'length'; document.getElementById('pv-scale').value = '9'; pvToolsUI(); pvDraw();
+        });
+        return;
+      }
+      if(type==='move' && pvPoly){ pvPoly.live = [p.x,p.y]; pvDraw(); }
+      return;
+    }
+    if(pvTool==='polylength' || pvTool==='area'){
+      if(type==='down'){ if(!pvPoly) pvPoly = {kind:pvTool, pts:[]}; pvPoly.pts.push([p.x,p.y]); pvDraw(); return; }
+      if(type==='move' && pvPoly){ pvPoly.live = [p.x,p.y]; pvDraw(); return; }
+      if(type==='dbl'){ pvFinishPoly(); return; }
+      return;
+    }
+    if(pvTool==='length'){
+      if(type==='down'){
+        if(!pvPoly){ pvPoly = {kind:'length', pts:[[p.x,p.y]]}; pvDraw(); return; }
+        pvPoly.pts.push([p.x,p.y]); pvFinishPoly();
+        return;
+      }
+      if(type==='move' && pvPoly){ pvPoly.live = [p.x,p.y]; pvDraw(); }
+      return;
+    }
+
     if(type==='down'){
       if(pvTool==='text'){
         if(!pvTextLeader){ pvTextLeader = {x:p.x, y:p.y}; pvTextLeaderPreview = {x:p.x, y:p.y}; pvDraw(); return; }
@@ -9380,6 +9535,16 @@
     const sw = Math.max(1.2, pvBoard.pageW/500);
     svg.setAttribute('viewBox', `0 0 ${pvBoard.pageW} ${pvBoard.pageH}`);
     svg.innerHTML = rlMarkupSvg(items, sw);
+    // live preview for calibrate / poly-length / area / in-progress length
+    if(pvPoly && pvPoly.pts.length){
+      const livePts = pvPoly.pts.concat(pvPoly.live ? [pvPoly.live] : []);
+      if(pvPoly.kind==='calibrate'){
+        if(livePts.length>1) svg.innerHTML += `<line x1="${livePts[0][0]}" y1="${livePts[0][1]}" x2="${livePts[1][0]}" y2="${livePts[1][1]}" stroke="#1f5f99" stroke-width="${sw}" stroke-dasharray="${sw*2},${sw*2}"/>`;
+      } else {
+        const label = livePts.length>1 ? pvMeasureLabel(pvPoly.kind, livePts) : '';
+        svg.innerHTML += rlMarkupSvg([{k: pvPoly.kind, pts: livePts, label}], sw);
+      }
+    }
   }
   function pvUpdatePageInfo(){
     const el = document.getElementById('pv-pageinfo'); if(!el) return;
@@ -9398,6 +9563,8 @@
     const panel = document.getElementById('pdfcompare');
     if(!panel || !panel.classList.contains('active') || document.getElementById('pcSingleMode').style.display==='none') return;
     if(['INPUT','TEXTAREA','SELECT'].includes((document.activeElement||{}).tagName) || document.querySelector('.dc-modal-backdrop.open')) return;
+    if(pvPoly && (pvPoly.kind==='polylength' || pvPoly.kind==='area') && e.key==='Enter'){ e.preventDefault(); pvFinishPoly(); return; }
+    if(e.key==='Escape' && pvPoly){ pvPoly = null; pvDraw(); return; }
     if(e.key==='ArrowLeft' || e.key==='PageUp'){ e.preventDefault(); pvBoard.go(-1); }
     else if(e.key==='ArrowRight' || e.key==='PageDown'){ e.preventDefault(); pvBoard.go(1); }
     else if(e.key==='Escape' && pvTextLeader){ pvTextLeader = null; pvTextLeaderPreview = null; pvDraw(); }
