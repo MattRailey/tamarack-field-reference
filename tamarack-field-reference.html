@@ -338,9 +338,6 @@
   .sm-side{ width:300px; flex:none; max-height:calc(100vh - 120px); overflow:auto; }
   .sm-layout.noside .sm-side{ display:none; }
   #sd-layout{ position:relative; }
-  .sd-mini{ position:absolute; left:18px; bottom:18px; z-index:5; width:min(520px,70%); background:#fff; border:2px solid #1565c0; border-radius:8px; box-shadow:0 6px 24px rgba(0,0,0,.35); padding:6px 8px; pointer-events:none; }
-  .sd-mini-h{ font-family:var(--sans); font-size:.75rem; font-weight:700; color:#1565c0; text-transform:uppercase; letter-spacing:.04em; }
-  .sd-mini-h span{ font-weight:600; color:#333; text-transform:none; letter-spacing:0; margin-left:6px; }
   .sd-sec svg{ display:block; width:100%; height:auto; background:#fbfcfe; border:1px solid var(--line); border-radius:6px; }
   .sd-iso{ display:grid; grid-template-columns:1fr 1fr; gap:6px; margin-top:6px; }
   .sd-iso img{ width:100%; border:1px solid var(--line); border-radius:4px; cursor:zoom-in; background:#fff; }
@@ -1730,7 +1727,10 @@
   //   &lt;set&gt;/status.json                   new / in review / reviewed
   // Mimics the small slice of the shared-db API the tool code uses.
   // =================================================================
-  const IDB = &#x27;se-review-dropbox&#x27;, IDB_STORE = &#x27;h&#x27;;
+  // Shared with Snow Drift and Detail Catalog in the parent page (same
+  // origin, so this srcdoc iframe sees the same IndexedDB by name/store) -
+  // connect the folder once in any one of the three tabs.
+  const IDB = &#x27;tfr-se-shared&#x27;, IDB_STORE = &#x27;h&#x27;;
   function idb(mode, fn){ return new Promise((res,rej)=&gt;{ const r = indexedDB.open(IDB,1); r.onupgradeneeded = ()=&gt; r.result.createObjectStore(IDB_STORE); r.onsuccess = ()=&gt;{ const tx = r.result.transaction(IDB_STORE, mode); const q = fn(tx.objectStore(IDB_STORE)); tx.oncomplete = ()=&gt; res(q &amp;&amp; q.result); tx.onerror = ()=&gt; rej(tx.error); }; r.onerror = ()=&gt; rej(r.error); }); }
   let root = null;
   const setDirs = {};      // set id -&gt; {dir, pdfs:[File], maps:[obj], status}
@@ -2850,7 +2850,6 @@
           </div>
         </div>
         <div class="sm-layout" id="sd-layout">
-          <div id="sd-mini" class="sd-mini" hidden><div class="sd-mini-h">Section across this edge <span id="sd-mini-info"></span></div><div id="sd-mini-body"></div></div>
           <div class="sm-viewer" id="sd-viewer"><div class="sm-page" id="sd-page"><canvas id="sd-canvas"></canvas><svg id="sd-svg" xmlns="http://www.w3.org/2000/svg"></svg></div></div>
           <div class="card sm-side">
             <strong id="sd-list-h">Drifts on this sheet</strong>
@@ -3002,6 +3001,44 @@
   setInterval(tfrRefreshBadges, 4000);
   document.addEventListener('DOMContentLoaded', tfrRefreshBadges);
   window.addEventListener('storage', e=>{ if(e.key && e.key.indexOf('tfr')===0) tfrRefreshBadges(); });
+
+  // ---- One shared "SE Review" folder link for Snow Drift, Detail Catalog,
+  // and SE Markup (a same-origin srcdoc iframe, so it shares this IndexedDB
+  // by name). Connect it once in any one of the three tabs and the other
+  // two pick it up automatically - no separate picker per tab. If you had
+  // already linked a folder in one of these tabs before this update, the
+  // first read below quietly migrates that link into the shared store so
+  // nothing needs to be reconnected.
+  const TFR_SHARE_DB = 'tfr-se-shared', TFR_SHARE_STORE = 'h';
+  function tfrShareIdb(mode, fn){
+    return new Promise((res,rej)=>{
+      const r = indexedDB.open(TFR_SHARE_DB, 1);
+      r.onupgradeneeded = ()=> r.result.createObjectStore(TFR_SHARE_STORE);
+      r.onsuccess = ()=>{ const tx = r.result.transaction(TFR_SHARE_STORE, mode); const q = fn(tx.objectStore(TFR_SHARE_STORE)); tx.oncomplete = ()=> res(q && q.result); tx.onerror = ()=> rej(tx.error); };
+      r.onerror = ()=> rej(r.error);
+    });
+  }
+  function tfrLegacyIdbGet(dbName, storeName, key){
+    return new Promise(res=>{
+      try{
+        const r = indexedDB.open(dbName, 1);
+        r.onupgradeneeded = ()=>{ try{ r.result.createObjectStore(storeName); }catch(e){} };
+        r.onsuccess = ()=>{ try{ const tx = r.result.transaction(storeName, 'readonly'); const q = tx.objectStore(storeName).get(key); q.onsuccess = ()=> res(q.result||null); q.onerror = ()=> res(null); }catch(e){ res(null); } };
+        r.onerror = ()=> res(null);
+      }catch(e){ res(null); }
+    });
+  }
+  async function tfrSharedFolderHandle(){
+    let h = null;
+    try{ h = await tfrShareIdb('readonly', st=> st.get('root')); }catch(e){}
+    if(h) return h;
+    h = await tfrLegacyIdbGet('se-review-dropbox', 'h', 'root');
+    if(!h) h = await tfrLegacyIdbGet('tfr-snow-drift', 'h', 'root');
+    if(!h) h = await tfrLegacyIdbGet(REBAR_FS_DB, REBAR_FS_STORE, DC_FS_KEY);
+    if(h){ try{ await tfrShareIdb('readwrite', st=> st.put(h, 'root')); }catch(e){} }
+    return h;
+  }
+  async function tfrShareFolder(handle){ try{ await tfrShareIdb('readwrite', st=> st.put(handle, 'root')); }catch(e){} }
 
   // ---- HOME ----
   const HOME_ICONS = {
@@ -4290,15 +4327,15 @@
   }
 
   // ---- Persistence: localStorage always; a linked folder's JSON when one
-  // is set up, using the same File System Access API pattern as Rebar
-  // Shapes' "Link export folder" — reuses its generic IndexedDB handle
-  // store (rbIdbGet/rbIdbSet, defined in the Rebar Shapes section below)
-  // under a separate key so the two features' linked folders are independent.
+  // is set up. Shares the same folder link as Snow Drift and SE Markup
+  // (tfrShareIdb/tfrSharedFolderHandle) — connect once in any of the three
+  // tabs and the others pick it up. (Distinct from Rebar Shapes' own
+  // separate "Link export folder", which is untouched.)
   async function dcGetExportDirHandle(forcePicker){
     if(!('showDirectoryPicker' in window)) return null;
     let handle = null;
     if(!forcePicker){
-      try{ handle = await rbIdbGet(DC_FS_KEY); }catch(e){}
+      try{ handle = await tfrSharedFolderHandle(); }catch(e){}
       if(!handle) return null;
       try{
         let perm = await handle.queryPermission({mode:'readwrite'});
@@ -4309,7 +4346,7 @@
     }
     try{
       handle = await window.showDirectoryPicker({mode:'readwrite'});
-      await rbIdbSet(DC_FS_KEY, handle);
+      await tfrShareFolder(handle);
       return handle;
     }catch(e){ return null; }
   }
@@ -4427,7 +4464,7 @@
     const statusEl = document.getElementById('dc-export-status');
     if(!('showDirectoryPicker' in window)) return;
     try{
-      const handle = await rbIdbGet(DC_FS_KEY);
+      const handle = await tfrSharedFolderHandle();
       if(!handle) return;
       const perm = await handle.queryPermission({mode:'readwrite'});
       if(perm === 'granted'){
@@ -10778,7 +10815,6 @@
   })();
   function sdSetTool(id){
     sdTool = id; sdPending = null; sdSnapMark = null; sdHover = null;
-    const mini = document.getElementById('sd-mini'); if(mini) mini.hidden = true;
     document.querySelectorAll('#sd-toolbar .sm-tool').forEach(b=> b.classList.toggle('active', b.dataset.tool===id));
     sdStatus(id==='drift' ? 'Click the two ends of the wall / parapet / step edge.' : id==='rect' ? 'Click one corner of the RTU / obstruction, then the opposite corner - drift is added on all 4 sides.' : id==='measure' ? 'Click the first point.' : id==='splitpt' ? 'Click a point along a drift line to split it there - the new joint can be dragged right away.' : 'Click a drift to select it; double-click to edit. Drag the square handles to move an end (it snaps to walls); Split / Join to change how the line is divided.');
     sdDraw();
@@ -10797,13 +10833,14 @@
   }
 
   // ---- Shared folder: SE Review\_snow drift\<project - sheet>\ written by Export for Snow Drift ----
+  // Uses the same IndexedDB link as SE Markup and Detail Catalog (see
+  // tfrShareIdb/tfrSharedFolderHandle above) - connect once in any tab.
   var sdRoot = null, sdProjDir = null, sdSaveTimer = null;
-  function sdIdb(mode, fn){ return new Promise((res,rej)=>{ const r = indexedDB.open('tfr-snow-drift',1); r.onupgradeneeded = ()=> r.result.createObjectStore('h'); r.onsuccess = ()=>{ const tx = r.result.transaction('h', mode); const q = fn(tx.objectStore('h')); tx.oncomplete = ()=> res(q && q.result); tx.onerror = ()=> rej(tx.error); }; r.onerror = ()=> rej(r.error); }); }
   async function sdConnectFolder(pick){
     try{
       if(!window.showDirectoryPicker){ document.getElementById('sd-projstatus').textContent = 'Use Chrome or Edge for the project list.'; return; }
-      if(pick){ sdRoot = await window.showDirectoryPicker({id:'se-review', mode:'readwrite'}); await sdIdb('readwrite', st=> st.put(sdRoot, 'root')); }
-      else sdRoot = sdRoot || await sdIdb('readonly', st=> st.get('root'));
+      if(pick){ sdRoot = await window.showDirectoryPicker({id:'se-review', mode:'readwrite'}); await tfrShareFolder(sdRoot); }
+      else sdRoot = sdRoot || await tfrSharedFolderHandle();
       if(!sdRoot) return;
       let perm = await sdRoot.queryPermission({mode:'readwrite'});
       if(perm!=='granted') perm = await sdRoot.requestPermission({mode:'readwrite'});
@@ -10863,7 +10900,7 @@
     }catch(e){ document.getElementById('sd-projstatus').textContent = 'Could not save to the folder: ' + (e.message||e); }
   }
   setTimeout(()=> sdConnectFolder(false).catch(()=>{}), 0);
-  document.addEventListener('click', e=>{ if(e.target.closest && e.target.closest('[data-panel="snowdrift"]') && sdRoot) sdListProjects(); });
+  document.addEventListener('click', e=>{ if(e.target.closest && e.target.closest('[data-panel="snowdrift"]')){ if(sdRoot) sdListProjects(); else sdConnectFolder(false); } });
 
   // PDF + (optional) snow model json + iso pictures from "Export for Snow Drift".
   var sdModel = null, sdIsos = [];
@@ -11313,16 +11350,6 @@
     for(let i=runs.length-1;i>0;i--){ const A = runs[i-1], B = runs[i]; if((A.h==null && B.h==null) || (A.h!=null && B.h!=null && Math.abs(A.h-B.h) <= 0.25)){ A.f1 = B.f1; runs.splice(i,1); } }
     return runs.map(r=>({f0: Math.max(0,r.f0), f1: Math.min(1,r.f1), h: r.h, len: (Math.min(1,r.f1)-Math.max(0,r.f0))*Lft}));
   }
-  function sdUpdateMini(a, c, side){
-    const box = document.getElementById('sd-mini');
-    if(!box) return;
-    const sec = (a && c) ? sdSection(a, c, side) : null;
-    if(!sec){ box.hidden = true; return; }
-    const auto = side ? sdAuto(sec) : null;
-    box.hidden = false;
-    document.getElementById('sd-mini-body').innerHTML = sdSectionSvg(sec, {auto}).svg;
-    document.getElementById('sd-mini-info').textContent = auto && auto.type ? `${SD_TYPE_LABEL[auto.type]}: h ${sdFtIn(auto.h)}${auto.luUp?` · lᵤ ${sdFtIn(auto.luUp)}`:''}` : (side ? '' : `edge ${sdFtIn(sec.len)} long - now click the drift side`);
-  }
   var sdHoverInfoT = 0;
   function sdHoverInfo(p){
     const now = performance.now(); if(now - sdHoverInfoT < 80) return; sdHoverInfoT = now;
@@ -11337,7 +11364,6 @@
   }
 
   async function sdDriftDialog(init, sec, canFlip, nSplit){
-    const mini = document.getElementById('sd-mini'); if(mini) mini.hidden = true;
     return new Promise(resolve=>{
       const back = document.createElement('div');
       back.className = 'dc-modal-backdrop open';
@@ -11474,7 +11500,7 @@
   document.addEventListener('keydown', e=>{
     const panel = document.getElementById('snowdrift');
     if(!panel || !panel.classList.contains('active') || e.key!=='Escape' || document.querySelector('.dc-modal-backdrop.open')) return;
-    sdPending = null; sdSnapMark = null; const mini = document.getElementById('sd-mini'); if(mini) mini.hidden = true; sdSetTool(sdTool);
+    sdPending = null; sdSnapMark = null; sdSetTool(sdTool);
   });
   document.addEventListener('keydown', e=>{
     const panel = document.getElementById('snowdrift');
@@ -11483,7 +11509,7 @@
     if((e.key==='Delete'||e.key==='Backspace') && sdSelected){ e.preventDefault(); sdDeleteSelected(); }
   });
   async function sdPointer(type, p, ev){
-    if(type==='dbl'){ const hit = sdHit(p); if(hit){ sdPending = null; sdSnapMark = null; const mini = document.getElementById('sd-mini'); if(mini) mini.hidden = true; sdDraw(); await sdEdit(hit); } return; }
+    if(type==='dbl'){ const hit = sdHit(p); if(hit){ sdPending = null; sdSnapMark = null; sdDraw(); await sdEdit(hit); } return; }
     // ---- split-at-click: tap a point along a drift's line to split it right there ----
     if(sdTool==='splitpt'){
       if(type==='move'){ const hit = sdNearestOnLine(p); sdHover = hit && hit.d <= 10*sdBoard.ptPerPx() ? {x:hit.x,y:hit.y} : null; sdDraw(); return; }
@@ -11519,8 +11545,7 @@
       const q = snapped();
       if(sdPending){ sdPending.hover = q; }
       sdHover = q; sdDraw();
-      if(sdTool==='drift' && sdPending){ const P = sdPending.pts; if(P.length===1) sdUpdateMini(P[0], q, sdAutoSide(P[0], q)); }
-      else { const mini = document.getElementById('sd-mini'); if(mini) mini.hidden = true; if(!sdPending) sdHoverInfo(p); }
+      if(!(sdTool==='drift' && sdPending) && !sdPending) sdHoverInfo(p);
       return;
     }
     if(sdTool==='select'){ const hit = sdHit(p); sdSelected = hit ? hit.id : null; sdDraw(); return; }
