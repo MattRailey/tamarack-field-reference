@@ -418,6 +418,16 @@
   .pv-open{ display:flex; align-items:center; gap:8px; flex:1; min-width:180px; font-size:.78rem; }
   .pv-open .note{ margin:0; font-size:.76rem; }
   .pv-bar.dragover{ outline:2px dashed var(--blueprint); outline-offset:-2px; }
+  /* Tab strip along the top of PDF Viewer - one PDF per tab, so several sheet
+     sets can stay open (and keep their own redlines/scale/page) at once. */
+  .pv-tabs{ display:flex; align-items:flex-end; gap:2px; overflow-x:auto; overflow-y:hidden; margin-bottom:6px; padding:0 0 0 2px; scrollbar-width:thin; }
+  .pv-tab{ display:flex; align-items:center; gap:6px; max-width:200px; padding:6px 8px 6px 10px; font-size:.76rem; font-weight:600; font-family:var(--sans); color:var(--steel); background:#eceef2; border:1px solid var(--line); border-bottom:none; border-radius:7px 7px 0 0; cursor:pointer; white-space:nowrap; flex:none; }
+  .pv-tab.active{ background:#fff; color:var(--ink); }
+  .pv-tab-name{ overflow:hidden; text-overflow:ellipsis; max-width:150px; }
+  .pv-tab-x{ display:flex; align-items:center; justify-content:center; width:16px; height:16px; border-radius:4px; color:var(--steel); flex:none; }
+  .pv-tab-x:hover{ background:rgba(0,0,0,.1); color:var(--ink); }
+  .pv-tab-add{ display:flex; align-items:center; justify-content:center; width:26px; height:26px; align-self:center; border-radius:6px; border:1px dashed var(--line); color:var(--steel); background:none; cursor:pointer; flex:none; font-size:1rem; line-height:1; }
+  .pv-tab-add:hover{ border-color:var(--blueprint); color:var(--blueprint); }
   .sm-page{ position:relative; margin:0 auto; background:#fff; box-shadow:0 2px 10px rgba(0,0,0,.3); }
   .sm-page canvas, .sm-page svg{ position:absolute; left:0; top:0; }
   .sm-viewer{ position:relative; }
@@ -1084,10 +1094,11 @@
             </div>
             <div class="sd-viewercol">
               <div class="card" style="padding:0;background:none;border:none;box-shadow:none;">
+                <div class="pv-tabs" id="pv-tabs" style="display:none;"></div>
                 <div class="pv-bar" id="pv-openbar">
                   <div class="pv-open">
-                    <button class="pv-btn" onclick="document.getElementById('fileP').click()" title="Open a PDF"><svg viewBox="0 0 24 24"><path d="M12 4v12M7 11l5 5 5-5M5 20h14"/></svg>Open</button>
-                    <input type="file" id="fileP" accept="application/pdf" style="display:none">
+                    <button class="pv-btn" onclick="pvOpenFilePicker()" title="Open a PDF (or several at once - each opens in its own tab)"><svg viewBox="0 0 24 24"><path d="M12 4v12M7 11l5 5 5-5M5 20h14"/></svg>Open</button>
+                    <input type="file" id="fileP" accept="application/pdf" multiple style="display:none">
                     <span class="note" id="infoP">No file loaded — click Open or drop a PDF anywhere on this bar.</span>
                   </div>
                   <div class="sep"></div>
@@ -1128,7 +1139,7 @@
                   </div>
                   <label class="pv-field" style="cursor:pointer;" title="Print/save every sheet, not just this one"><input type="checkbox" id="pv-allpages" style="width:auto;min-height:0;">All sheets</label>
                   <button class="pv-btn" onclick="pvOpenPrintPreview()" title="Preview and print">Print&hellip;</button>
-                  <button class="pv-btn" onclick="pvSaveToFolder()" title="Save a redlined PDF into a Dropbox-linked folder">Save&hellip;</button>
+                  <button class="pv-btn" onclick="pvSaveAs()" title="Save a redlined PDF into a Dropbox-linked folder">Save&hellip;</button>
                   <button class="pv-btn" onclick="pvDownload()" title="Download a redlined PDF">Download</button>
                   <button class="pv-btn" onclick="pvCopyScreenshot()" title="Copy exactly what's on screen right now (the visible, zoomed-in part of the sheet, redlines included) to the clipboard as an image">&#128247; Copy view</button>
                   <span class="note" id="pv-savestatus" style="margin:0;"></span>
@@ -9714,20 +9725,27 @@
       };
     });
   }
+  // Persists ALL open tabs (not just the active one) under a single 'tabs'
+  // record, so every open PDF survives a reload - each tab keeps its own
+  // bytes, redlines, page, scale, and (when the browser granted one) its
+  // FileSystemFileHandle back to the real file it was opened from.
   function pvSaveState(){
     if(!pvFile) return;
+    pvCaptureActiveDocState();
     pvIdb('readwrite', store=> new Promise((res,rej)=>{
-      const r = store.put({name: pvFile.name, buf: pvFile.buf, marks: pvMarks, page: pvBoard.pageNum, t: Date.now()}, 'last');
+      const docsOut = pvDocs.map(d=> ({id:d.id, name:d.name, buf:d.buf, marks:d.marks, page:d.page, ptsPerFt:d.ptsPerFt, scaleSel:d.scaleSel, handle: d.handle||null}));
+      const r = store.put({docs: docsOut, activeId: pvActiveDoc, t: Date.now()}, 'tabs');
       r.onsuccess = res; r.onerror = ()=> rej(r.error);
     })).catch(()=>{});
   }
   async function pvForgetAndClear(){
+    try{ await pvIdb('readwrite', store=> new Promise((res,rej)=>{ const r = store.delete('tabs'); r.onsuccess=res; r.onerror=()=>rej(r.error); })); }catch(e){}
     try{ await pvIdb('readwrite', store=> new Promise((res,rej)=>{ const r = store.delete('last'); r.onsuccess=res; r.onerror=()=>rej(r.error); })); }catch(e){}
     document.getElementById('pvRestoreNote').style.display = 'none';
   }
-  async function pvOpen(buf, name, marks, page){
+  async function pvOpen(buf, name, marks, page, handle){
     const info = document.getElementById('infoP');
-    pvFile = {name, buf};
+    pvFile = {name, buf, handle: handle||null};
     pvMarks = marks || {};
     const pdf = await pdfjsLib.getDocument({data: buf.slice(0)}).promise;
     pvBoard.pdf = pdf; pvBoard.img = null; pvBoard.name = name; pvBoard.pageCount = pdf.numPages;
@@ -9736,37 +9754,163 @@
     await pvBoard.fit();
     await pvRenderThumbs();
   }
-  async function pvLoadFile(file){
+
+  // ---- multi-PDF tabs: several sheet sets open at once, each keeping its
+  // own redlines, scale, and current sheet - switching tabs swaps what's
+  // loaded into the one shared pvBoard/pvMarks/pvPtsPerFt state above. ----
+  let pvDocs = [], pvActiveDoc = null;
+  function pvNewDocId(){ return 'd' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7); }
+  function pvCaptureActiveDocState(){
+    if(!pvActiveDoc) return;
+    const d = pvDocs.find(x=> x.id===pvActiveDoc);
+    if(!d) return;
+    d.marks = pvMarks; d.page = pvBoard.pageNum; d.ptsPerFt = pvPtsPerFt;
+    const sel = document.getElementById('pv-scale'); if(sel) d.scaleSel = sel.value;
+    if(pvFile) d.handle = pvFile.handle || d.handle || null;
+  }
+  async function pvSwitchTab(id){
+    if(id===pvActiveDoc) return;
+    pvCaptureActiveDocState();
+    const d = pvDocs.find(x=> x.id===id);
+    if(!d) return;
+    pvActiveDoc = id;
+    await pvOpen(d.buf, d.name, d.marks, d.page, d.handle);
+    pvPtsPerFt = d.ptsPerFt || 9;
+    const sel = document.getElementById('pv-scale'); if(sel) sel.value = d.scaleSel || '9';
+    pvPoly = null; pvMeasStatus('');
+    pvRenderTabs();
+    pvSaveState();
+  }
+  function pvCloseTab(id, ev){
+    if(ev){ ev.preventDefault(); ev.stopPropagation(); }
+    const idx = pvDocs.findIndex(x=> x.id===id);
+    if(idx===-1) return;
+    const wasActive = pvActiveDoc===id;
+    pvDocs.splice(idx, 1);
+    if(!wasActive){ pvRenderTabs(); return; }
+    pvActiveDoc = null;
+    if(pvDocs.length){
+      pvSwitchTab(pvDocs[Math.min(idx, pvDocs.length-1)].id);
+    } else {
+      pvBoard.pdf = null; pvBoard.img = null; pvBoard.pageCount = 0; pvFile = null; pvMarks = {};
+      document.getElementById('infoP').textContent = 'No file loaded — click Open or drop a PDF anywhere on this bar.';
+      pvDraw(); pvRenderThumbs(); pvRenderTabs();
+    }
+  }
+  function pvRenderTabs(){
+    const wrap = document.getElementById('pv-tabs');
+    if(!wrap) return;
+    if(pvDocs.length<=1){ wrap.style.display = 'none'; wrap.innerHTML = ''; return; }
+    wrap.style.display = 'flex';
+    wrap.innerHTML = pvDocs.map(d=> `<div class="pv-tab${d.id===pvActiveDoc?' active':''}" onclick="pvSwitchTab('${d.id}')" title="${smEsc(d.name)}"><span class="pv-tab-name">${smEsc(d.name)}</span><span class="pv-tab-x" onclick="pvCloseTab('${d.id}', event)" title="Close this PDF">&times;</span></div>`).join('')
+      + `<button class="pv-tab-add" onclick="pvOpenFilePicker()" title="Open another PDF in a new tab">+</button>`;
+  }
+  // files: array of File objects; optionally each may carry a .pvHandle
+  // property (a FileSystemFileHandle) when it came from the real-file picker
+  // below, so "Save" can later write straight back to the original file.
+  async function pvLoadFiles(files){
     const info = document.getElementById('infoP');
-    info.textContent = 'Loading ' + file.name + ' …';
-    try{
-      const rawBuf = await file.arrayBuffer();
-      const storeBuf = rawBuf.slice(0);
-      await pvOpen(rawBuf, file.name, {}, 1);
-      pvFile = {name: file.name, buf: storeBuf};
-      pvSaveState();
-      document.getElementById('pvRestoreNote').style.display = 'none';
-    }catch(err){ info.textContent = 'Failed to load: ' + (err.message||err); }
+    for(const file of Array.from(files||[])){
+      if(!file) continue;
+      if(file.type!=='application/pdf' && !file.name.toLowerCase().endsWith('.pdf')){ info.textContent = 'Not a PDF: ' + file.name; continue; }
+      info.textContent = 'Loading ' + file.name + ' …';
+      try{
+        const buf = await file.arrayBuffer();
+        const id = pvNewDocId();
+        const handle = file.pvHandle || null;
+        pvCaptureActiveDocState();
+        pvDocs.push({id, name: file.name, buf, marks:{}, page:1, ptsPerFt:9, scaleSel:'9', handle});
+        pvActiveDoc = id;
+        await pvOpen(buf, file.name, {}, 1, handle);
+        pvPtsPerFt = 9;
+        const sel = document.getElementById('pv-scale'); if(sel) sel.value = '9';
+      }catch(err){ info.textContent = 'Failed to load: ' + (err.message||err); continue; }
+    }
+    pvRenderTabs();
+    pvSaveState();
+    document.getElementById('pvRestoreNote').style.display = 'none';
+  }
+  // Kept for the restore-last-session path below, which only ever re-opens
+  // a single remembered PDF as the first tab.
+  async function pvLoadFile(file){ return pvLoadFiles([file]); }
+  // Opens the real "pick a file" dialog. When the browser supports the File
+  // System Access API we grab a live FileSystemFileHandle per file so Save
+  // can write straight back to the original — otherwise we fall back to the
+  // plain <input type="file"> (which only ever yields bytes, no handle).
+  async function pvOpenFilePicker(){
+    if(window.showOpenFilePicker){
+      try{
+        const handles = await window.showOpenFilePicker({
+          multiple: true,
+          types: [{description:'PDF', accept:{'application/pdf':['.pdf']}}]
+        });
+        const files = [];
+        for(const h of handles){
+          try{
+            const f = await h.getFile();
+            f.pvHandle = h;
+            files.push(f);
+          }catch(e){}
+        }
+        if(files.length) await pvLoadFiles(files);
+      }catch(e){ if(e && e.name!=='AbortError'){ document.getElementById('infoP').textContent = 'Could not open: ' + (e.message||e); } }
+      return;
+    }
+    document.getElementById('fileP').click();
   }
   (function pvSetupDropzone(){
     const dz = document.getElementById('pv-openbar'), input = document.getElementById('fileP');
     if(!dz || !input) return;
-    input.addEventListener('change', e=>{ if(e.target.files[0]) pvLoadFile(e.target.files[0]); });
+    input.addEventListener('change', e=>{ if(e.target.files && e.target.files.length) pvLoadFiles(e.target.files); e.target.value = ''; });
     ['dragenter','dragover'].forEach(evt=> dz.addEventListener(evt, e=>{ e.preventDefault(); e.stopPropagation(); dz.classList.add('dragover'); }));
     ['dragleave','drop'].forEach(evt=> dz.addEventListener(evt, e=>{ e.preventDefault(); e.stopPropagation(); dz.classList.remove('dragover'); }));
-    dz.addEventListener('drop', e=>{
-      const files = e.dataTransfer.files; if(!files || !files.length) return;
-      const file = files[0];
-      if(file.type!=='application/pdf' && !file.name.toLowerCase().endsWith('.pdf')){ document.getElementById('infoP').textContent = 'Not a PDF: ' + file.name; return; }
-      pvLoadFile(file);
+    dz.addEventListener('drop', async e=>{
+      const items = e.dataTransfer.items, files = e.dataTransfer.files;
+      if(!files || !files.length) return;
+      // Try to capture a live handle for each dropped file too (Chrome/Edge support
+      // DataTransferItem.getAsFileSystemHandle for drag-and-drop, same as the picker).
+      if(items && items.length && items[0].getAsFileSystemHandle){
+        try{
+          const withHandles = [];
+          for(const it of Array.from(items)){
+            if(it.kind!=='file') continue;
+            const h = await it.getAsFileSystemHandle();
+            if(h && h.kind==='file'){ const f = await h.getFile(); f.pvHandle = h; withHandles.push(f); }
+          }
+          if(withHandles.length){ pvLoadFiles(withHandles); return; }
+        }catch(e){}
+      }
+      pvLoadFiles(files);
     });
   })();
   (async function pvRestoreLast(){
     if(!window.pdfjsLib) return;
     try{
-      const rec = await pvIdb('readonly', store=> new Promise((res,rej)=>{ const r = store.get('last'); r.onsuccess=()=>res(r.result||null); r.onerror=()=>rej(r.error); }));
-      if(!rec || !rec.buf) return;
-      await pvOpen(rec.buf, rec.name, rec.marks||{}, rec.page||1);
+      // Current format: all open tabs, under the 'tabs' key.
+      const tabsRec = await pvIdb('readonly', store=> new Promise((res,rej)=>{ const r = store.get('tabs'); r.onsuccess=()=>res(r.result||null); r.onerror=()=>rej(r.error); }));
+      let docsIn = null, activeId = null;
+      if(tabsRec && Array.isArray(tabsRec.docs) && tabsRec.docs.length){
+        docsIn = tabsRec.docs; activeId = tabsRec.activeId;
+      } else {
+        // Migration fallback: older single-file format under the 'last' key.
+        const rec = await pvIdb('readonly', store=> new Promise((res,rej)=>{ const r = store.get('last'); r.onsuccess=()=>res(r.result||null); r.onerror=()=>rej(r.error); }));
+        if(rec && rec.buf) docsIn = [{name: rec.name, buf: rec.buf, marks: rec.marks||{}, page: rec.page||1, ptsPerFt: rec.ptsPerFt||9, scaleSel: rec.scaleSel||'9', handle: null}];
+      }
+      if(!docsIn || !docsIn.length) return;
+      let activeIdx = 0;
+      docsIn.forEach((rec, idx)=>{
+        if(!rec || !rec.buf) return;
+        const id = pvNewDocId();
+        if(activeId && rec.id===activeId) activeIdx = pvDocs.length;
+        pvDocs.push({id, name: rec.name, buf: rec.buf, marks: rec.marks||{}, page: rec.page||1, ptsPerFt: rec.ptsPerFt||9, scaleSel: rec.scaleSel||'9', handle: rec.handle||null});
+      });
+      if(!pvDocs.length) return;
+      const active = pvDocs[activeIdx] || pvDocs[0];
+      pvActiveDoc = active.id;
+      await pvOpen(active.buf, active.name, active.marks||{}, active.page||1, active.handle||null);
+      pvPtsPerFt = active.ptsPerFt||9;
+      const sel0 = document.getElementById('pv-scale'); if(sel0) sel0.value = active.scaleSel||'9';
+      pvRenderTabs();
       document.getElementById('pvRestoreNote').style.display = 'inline';
     }catch(e){}
   })();
@@ -9889,10 +10033,12 @@
       return doc.output('blob');
     })();
   }
-  async function pvSaveToFolder(){
+  // "Save As...": always prompts for a location and always writes a new file
+  // (the old default behavior, kept as the explicit fallback/alternate option).
+  async function pvSaveAs(){
     if(!pvBoard.pdf){ alert('Open a PDF first.'); return; }
     const st = document.getElementById('pv-savestatus');
-    if(!window.showSaveFilePicker){ st.textContent = 'Your browser doesn\'t support "Save to folder" (needs Chrome or Edge) — use Download instead.'; return; }
+    if(!window.showSaveFilePicker){ st.textContent = 'Your browser doesn\'t support "Save As" (needs Chrome or Edge) — use Download instead.'; return; }
     st.textContent = 'Building the PDF…';
     try{
       const pages = await pvPagesToRender();
@@ -9905,6 +10051,39 @@
       const w = await handle.createWritable(); await w.write(blob); await w.close();
       st.textContent = 'Saved "' + handle.name + '".';
     }catch(e){ if(e && e.name!=='AbortError') st.textContent = 'Could not save: ' + (e.message||e); else st.textContent = ''; }
+  }
+  // "Save": the default. When this tab was opened via the real-file picker
+  // (or drag-and-drop, in Chrome/Edge) and we still hold a FileSystemFileHandle
+  // to it, write straight back to that same file - a true overwrite of the
+  // Windows/Dropbox file, no "Save As" dialog. Otherwise falls back to the
+  // picker-based Save As. Because pvBuildPdfBlob() flattens every page into a
+  // rendered image (redlines baked in), this always replaces the original's
+  // vector/searchable text with a raster copy - so the very first overwrite
+  // of a session gets a one-time warning before it proceeds.
+  let pvOverwriteWarned = false;
+  async function pvSave(){
+    if(!pvBoard.pdf){ alert('Open a PDF first.'); return; }
+    const st = document.getElementById('pv-savestatus');
+    const d = pvDocs.find(x=> x.id===pvActiveDoc);
+    const handle = (pvFile && pvFile.handle) || (d && d.handle) || null;
+    if(!handle) return pvSaveAs();
+    try{
+      let perm = await handle.queryPermission({mode:'readwrite'});
+      if(perm!=='granted') perm = await handle.requestPermission({mode:'readwrite'});
+      if(perm!=='granted'){ st.textContent = 'Permission to overwrite "' + handle.name + '" wasn\'t granted — use Save As instead.'; return; }
+    }catch(e){ st.textContent = 'Could not confirm write permission: ' + (e.message||e) + ' — use Save As instead.'; return; }
+    if(!pvOverwriteWarned){
+      const ok = confirm('This will overwrite "' + handle.name + '" in place with the redlined version.\n\nNote: saving flattens each sheet into a rendered image — the file will no longer have selectable/searchable text like the original PDF. This can\'t be undone from within this tool.\n\nContinue?');
+      if(!ok) return;
+      pvOverwriteWarned = true;
+    }
+    st.textContent = 'Building the PDF…';
+    try{
+      const pages = await pvPagesToRender();
+      const blob = await pvBuildPdfBlob(pages);
+      const w = await handle.createWritable(); await w.write(blob); await w.close();
+      st.textContent = 'Saved — overwrote "' + handle.name + '".';
+    }catch(e){ st.textContent = 'Could not save: ' + (e.message||e); }
   }
   async function pvDownload(){
     if(!pvBoard.pdf){ alert('Open a PDF first.'); return; }
