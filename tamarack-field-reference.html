@@ -68,6 +68,13 @@
   .mobile-topbar button{ position:relative; }
   .mobile-topbar .nav-dot{ right:10px; top:8px; margin-top:0; box-shadow:0 0 0 2px var(--navy-light,#1b2740); }
   .hc-new{ display:inline-block; font-size:.62rem; font-weight:800; letter-spacing:.03em; color:#fff; background:var(--rust,#e0592c); border-radius:10px; padding:2px 8px; margin-left:8px; vertical-align:middle; }
+  /* Drag handle between the tab column and the working area - lets the user
+     resize the nav column, and the choice sticks (localStorage) across every
+     tab, not just the one they resized it from. */
+  .nav-resize-handle{ width:7px; flex:none; cursor:col-resize; position:relative; touch-action:none; }
+  .nav-resize-handle::after{ content:''; position:absolute; top:0; bottom:0; left:3px; width:1px; background:var(--line); }
+  .nav-resize-handle:hover::after, .nav-resize-handle.dragging::after{ left:2px; width:3px; background:var(--blueprint,#2b6cb0); }
+  @media (max-width:900px){ .nav-resize-handle{ display:none; } }
   main{ flex:1; padding:22px 26px 90px; min-width:0; }
   .panel{ display:none; }
   .panel.active{ display:block; }
@@ -436,7 +443,7 @@
        always visible) that would just clip content on a small screen. */
     body.tfr-fullbleed{ height:auto; overflow:visible; }
     body.tfr-fullbleed .layout{ height:auto; }
-    body.tfr-fullbleed nav{ height:auto; overflow-y:visible; }
+    body.tfr-fullbleed nav{ height:auto; overflow-y:visible; width:200px; }
     body.tfr-fullbleed main{ height:auto; overflow:visible; display:block; }
     body.tfr-fullbleed .panel.active{ display:block; }
     body.tfr-fullbleed .panel.active > *{ flex:initial; }
@@ -498,8 +505,7 @@
       <button data-panel="code"><span class="idx">12</span>Code Reference</button>
       <button data-panel="sheetindex"><span class="idx">13</span>Sheet Index</button>
       <button data-panel="rebar"><span class="idx">14</span>Rebar Shapes</button>
-      <button data-panel="tutorial"><span class="idx">15</span>Tutorial</button>
-      <button data-panel="notes"><span class="idx">16</span>Notes</button>
+      <button data-panel="notes"><span class="idx">15</span>Notes</button>
       <!-- docked list panes for the three sheet tools - each is the tool's own
            scrollable list (drifts / markups / sheet thumbnails), physically
            moved here so it sits under the tab buttons in this same column,
@@ -508,6 +514,7 @@
       <div id="nav-pv-dock" class="nav-dock" style="display:none;"></div>
       <div id="nav-se-dock" class="nav-dock" style="display:none;"></div>
     </nav>
+    <div id="navResizeHandle" class="nav-resize-handle" title="Drag to resize the tab column (double-click to reset)" aria-hidden="true"></div>
 
     <nav class="mobile-topbar" id="mobileTopbar">
       <button class="primary active" data-panel="home"><svg viewBox="0 0 24 24"><path d="M3 11l9-7 9 7"/><path d="M5 10v9a1 1 0 0 0 1 1h4v-6h4v6h4a1 1 0 0 0 1-1v-9"/></svg><span>Home</span></button>
@@ -530,7 +537,6 @@
         <button data-panel="code"><svg viewBox="0 0 24 24"><path d="M4 4h16v16H4z"/><line x1="8" y1="9" x2="16" y2="9"/><line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="12" y2="17"/></svg>Code Reference</button>
         <button data-panel="sheetindex"><svg viewBox="0 0 24 24"><path d="M4 4h16v16H4z"/><line x1="4" y1="9" x2="20" y2="9"/></svg>Sheet Index</button>
         <button data-panel="rebar"><svg viewBox="0 0 24 24"><path d="M5 5v10a4 4 0 0 0 4 4h10"/></svg>Rebar Shapes</button>
-        <button data-panel="tutorial"><svg viewBox="0 0 24 24"><path d="M4 19V5a2 2 0 0 1 2-2h11l3 3v13a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2z"/><line x1="8" y1="8" x2="14" y2="8"/><line x1="8" y1="12" x2="14" y2="12"/></svg>Tutorial</button>
         <button data-panel="notes"><svg viewBox="0 0 24 24"><path d="M4 4h16v16H4z"/><line x1="8" y1="9" x2="16" y2="9"/><line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="12" y2="17"/></svg>Notes</button>
       </div>
     </div>
@@ -552,6 +558,15 @@
 
         <h3 style="margin-top:26px;">Everything else</h3>
         <div class="home-grid home-grid-small" id="home-rest"></div>
+
+        <h3 style="margin-top:26px;">Shared project folder</h3>
+        <div class="card">
+          <p class="note" style="margin-top:0;">Detail Catalog, Snow Drift, and SE Markup all read/write the same Dropbox <b>SE Review</b> folder — connect it once here and it's live in all three, instead of connecting it separately on each tab.</p>
+          <div class="row" style="align-items:center;gap:10px;flex-wrap:wrap;">
+            <button class="pv-btn" id="home-folderbtn" onclick="tfrConnectSharedFolder(true)">Connect SE Review folder&hellip;</button>
+            <span class="note" id="home-folderstatus" style="margin:0;"></span>
+          </div>
+        </div>
       </section>
 
       <!-- GLULAM -->
@@ -1335,91 +1350,6 @@
         </div>
       </section>
 
-      <!-- TUTORIAL -->
-      <section class="panel" id="tutorial">
-        <h2>Tutorial &mdash; sizing a simple deck</h2>
-        <p class="sub">A worked example walking Beam Sizing, Joist Spans, Section Properties, and Footing Sizing together on one real deck, so you can confirm the tools' numbers match a hand check.</p>
-
-        <div class="card">
-          <h3 style="margin-top:0;">The example project</h3>
-          <p>A simple ground-level deck, 12 ft wide (along the house) by 10 ft deep: a ledger bolted to the house on one side, a beam on <b>3 posts</b> at the outer edge (2 end posts + 1 mid post, so the beam is really two 6-ft bays, not one 12-ft span), and joists spanning between the ledger and the beam.</p>
-          <div style="background:#fff;border:1px solid var(--line);border-radius:8px;padding:14px;">
-            <svg viewBox="0 0 720 420" xmlns="http://www.w3.org/2000/svg" style="max-width:100%;height:auto;display:block;margin:0 auto;">
-              <rect x="60" y="40" width="600" height="24" fill="#1c2438"/>
-              <text x="360" y="30" text-anchor="middle" font-size="15" fill="#1c2438" font-family="sans-serif" font-weight="600">House wall — ledger board bolted here</text>
-              <g stroke="#697086" stroke-width="2">
-                <line x1="90" y1="64" x2="90" y2="340"/><line x1="150" y1="64" x2="150" y2="340"/>
-                <line x1="210" y1="64" x2="210" y2="340"/><line x1="270" y1="64" x2="270" y2="340"/>
-                <line x1="330" y1="64" x2="330" y2="340"/><line x1="390" y1="64" x2="390" y2="340"/>
-                <line x1="450" y1="64" x2="450" y2="340"/><line x1="510" y1="64" x2="510" y2="340"/>
-                <line x1="570" y1="64" x2="570" y2="340"/><line x1="630" y1="64" x2="630" y2="340"/>
-              </g>
-              <text x="200" y="205" font-size="13" fill="#2f7cf6" font-family="sans-serif" font-weight="600">2x8 joists @ 16" o.c.</text>
-              <text x="200" y="222" font-size="13" fill="#2f7cf6" font-family="sans-serif">span = 10'-0" (ledger to beam)</text>
-              <rect x="60" y="340" width="270" height="16" fill="#2f7cf6"/>
-              <rect x="360" y="340" width="270" height="16" fill="#2f7cf6"/>
-              <text x="360" y="378" text-anchor="middle" font-size="14" fill="#2f7cf6" font-family="sans-serif" font-weight="600">5-1/2" x 6" glulam beam — TWO 6'-0" bays (not one 12' span)</text>
-              <rect x="82" y="356" width="16" height="34" fill="#1c2438"/>
-              <rect x="352" y="356" width="16" height="34" fill="#1c2438"/>
-              <rect x="622" y="356" width="16" height="34" fill="#1c2438"/>
-              <text x="90" y="404" text-anchor="middle" font-size="12" fill="#1c2438" font-family="sans-serif">end post</text>
-              <text x="360" y="404" text-anchor="middle" font-size="12" fill="#1c2438" font-family="sans-serif">mid post</text>
-              <text x="630" y="404" text-anchor="middle" font-size="12" fill="#1c2438" font-family="sans-serif">end post</text>
-              <rect x="60" y="235" width="600" height="105" fill="#2f7cf6" opacity="0.08"/>
-              <text x="662" y="290" font-size="12" fill="#2f7cf6" font-family="sans-serif" writing-mode="vertical-rl">beam tributary width &#8776; 5'-0"</text>
-              <line x1="60" y1="16" x2="660" y2="16" stroke="#697086" stroke-width="1"/>
-              <text x="360" y="12" text-anchor="middle" font-size="12" fill="#697086" font-family="sans-serif">12'-0" wide (6' + 6' bays)</text>
-              <line x1="30" y1="64" x2="30" y2="340" stroke="#697086" stroke-width="1"/>
-              <text x="26" y="205" text-anchor="middle" font-size="12" fill="#697086" font-family="sans-serif" transform="rotate(-90 26 205)">10'-0" deep</text>
-            </svg>
-          </div>
-          <p class="sub" style="text-align:center;">Plan view — ledger at top, beam on 3 posts at bottom, joists spanning between them. The beam only picks up half the joist span (the ledger/house carries the other half), so its tributary width is about 5 ft, not the full 10 ft.</p>
-        </div>
-
-        <div class="card">
-          <h3 style="margin-top:0;">1 &middot; Beam Sizing &mdash; the beam (a mid-post changes the answer a lot)</h3>
-          <p>Enter: preset <b>Deck (DL 10 / LL 60)</b> &middot; width <b>5-1/2"</b> &middot; <b>Bay span(s): "6,6"</b> (this is the field to watch &mdash; NOT "12", since the mid post breaks the beam into two 6-ft spans) &middot; tributary <b>5 ft</b> &middot; Fb 2400 &middot; E 1.8 &middot; L/360.</p>
-          <p style="font-family:var(--sans);font-size:.85rem;color:var(--steel);">
-            w = (10+60) &times; 5 = 350 plf per bay &nbsp;&middot;&nbsp; each 6-ft bay: M = 350 &times; 6&sup2;/8 = 1,575 ft-lb &nbsp;&middot;&nbsp; Sx req = 1,575&times;12/2400 = 7.9 in&sup3; &nbsp;&middot;&nbsp; I req = 28.4 in&#8308;
-          </p>
-          <div class="result">Tool's answer for "6,6": <b>5-1/2" x 6"</b> &mdash; a much smaller beam than the 5-1/2" x 9" a (wrong) single 12-ft span would call for. Treating the mid post as if it weren't there is the single easiest way to over-order material on a deck this size &mdash; or, read backwards, entering "6,6" instead of "12" is the check that catches it. (Beam Sizing itself now handles a point load partway along a bay via its own point-load fields, alongside the multiple-bay diagram &mdash; the LVL/I-Joist Calc tab is only needed for an LVL or engineered I-joist member.)</p>
-          <p class="flag">Bending is checked two ways and the larger governs: each bay as its own simple span (worst bay), and the whole beam as a continuous member with patterned live load (which captures negative moment over interior supports and at overhangs). Also: the L/360 deflection check uses combined dead+live load, not live load alone, which is slightly conservative in the same safe direction.</p>
-        </div>
-
-        <div class="card">
-          <h3 style="margin-top:0;">2 &middot; Joist Spans &mdash; the joists</h3>
-          <p>Set: Grade <b>No. 1</b> &middot; preset <b>Deck (DL 10 / LL 60)</b> &middot; deflection <b>L/360</b>. For a 10-ft joist span, No. 1 2x8 @ 16" o.c. now shows a noticeably shorter allowable span under the deck's 60 psf live load than it does on the Residential Floor (40 psf) preset &mdash; still enough for our 10-ft span, but worth watching on a longer or more tightly-spaced layout. Switch the preset back and forth and watch the same row change &mdash; that's the whole point of these being inputs now instead of a fixed table.</p>
-          <p class="flag">These spans come from standard NDS-style Fb/E values with a repetitive-member factor, checking bending and live-load deflection only (no shear, no bearing) &mdash; they'll be close to, but won't exactly reproduce, a specific published AWC/IRC table. Still confirm against the adopted code table before it goes on a drawing set.</p>
-        </div>
-
-        <div class="card">
-          <h3 style="margin-top:0;">3 &middot; Section Properties &mdash; the cross-check</h3>
-          <p>No inputs here &mdash; just Sx and I generated from geometry, so you can verify what Beam Sizing handed you:</p>
-          <p style="font-family:var(--sans);font-size:.85rem;color:var(--steel);">Sx = b&middot;d&sup2;/6 = 5.5&times;6&sup2;/6 = 33.0 in&sup3; &nbsp;&middot;&nbsp; I = b&middot;d&sup3;/12 = 5.5&times;6&sup3;/12 = 99.0 in&#8308;</p>
-          <p>Filter Width to 5-1/2" and find the 6" row &mdash; it should read Sx 33.0, I 99, matching the Beam Sizing tool's "provided" numbers for the "6,6" case exactly. If those two tabs ever disagree, that's a real bug worth reporting.</p>
-        </div>
-
-        <div class="card">
-          <h3 style="margin-top:0;">4 &middot; Footing / Bearing &mdash; the posts</h3>
-          <p>Beam Sizing's own "Send to Footing" button (next to each support reaction) can carry this over automatically now, but by hand: with w = 350 plf and 6-ft bays on each side of the mid post, the <b>end posts</b> each pick up roughly <span class="mono">350&times;6/2 = 1,050 lb</span>, and the <b>mid post</b> picks up both adjacent half-bays: <span class="mono">350&times;6/2 + 350&times;6/2 = 2,100 lb</span> (2.1 kips &mdash; this tab takes load in kips, not lb).</p>
-          <p>Set: mode <b>Size a footing</b> &middot; type <b>Isolated / Spread</b> &middot; shape <b>Square</b> &middot; P <b>2.1</b> kips (the mid post, worst case) &middot; e = 0 &middot; q<sub>a</sub> <b>1,500 psf</b>.</p>
-          <div class="result">Tool's answer: <b>1'-3" x 1'-3"</b> square footing (1.6 ft&sup2;), q<sub>max</sub> = 1,344 psf against the 1,500 psf allowable &mdash; hand-checked (P/q<sub>a</sub> = 2,100/1,500 = 1.4 ft&sup2; &rarr; ~1.18 ft side, rounded up to the nearest inch) and it matches. Note this tool doesn't apply a code-minimum footing size floor the way some jurisdictions require (commonly 18"+ regardless of load) &mdash; that's on you to check separately, same as frost depth.</p>
-          <p class="flag">Service-level loads only, no concrete design (shear/flexure/reinforcing), no footing self-weight added automatically, uniaxial eccentricity only. Always confirm frost depth and the locally adopted minimum footing size for La Grande / Union County.</p>
-        </div>
-
-        <div class="card">
-          <h3 style="margin-top:0;">Using this as your own check, going forward</h3>
-          <ol style="padding-left:20px;">
-            <li>Sketch the framing first and count the actual supports &mdash; a mid post means two bays, not one span. This is the mistake that costs the most material if missed.</li>
-            <li>Work out w, M, and Sx required by hand for your actual span/tributary/load before opening the tool.</li>
-            <li>Confirm the tool's "required" lines match your hand calc almost exactly.</li>
-            <li>Cross-check the "provided" Sx/I against Section Properties for that width/depth.</li>
-            <li>Hand-carry the beam's post reactions (in kips) into the Footing tab &mdash; there's no automatic link between the two tabs.</li>
-            <li>Still run anything going on a drawing set past a stamped calc or the EOR &mdash; these tools are preliminary field checks, not a substitute.</li>
-          </ol>
-        </div>
-      </section>
-
       <!-- DETAIL CATALOG -->
       <section class="panel" id="detailcatalog">
         <h2>Detail Catalog</h2>
@@ -1428,10 +1358,9 @@
         <div class="card">
           <div class="row" style="align-items:center; gap:14px;">
             <span id="dc-status" class="note" style="margin:0;"></span>
-            <button class="run secondary" onclick="dcChooseExportFolder()">Link catalog folder&hellip;</button>
             <button class="run secondary" onclick="dcRecheckLibrary()">Re-check now</button>
           </div>
-          <p class="note" id="dc-export-status" style="margin-top:6px;">Not linked to a folder yet — link the same Dropbox-synced folder "Build Detail Database" exports into, so this tab can read the database and send placement requests back to "Import Queued Details."</p>
+          <p class="note" id="dc-export-status" style="margin-top:6px;">Not linked to a folder yet — connect the shared SE Review folder from the Home tab, so this tab can read the database and send placement requests back to "Import Queued Details."</p>
         </div>
 
         <div class="card">
@@ -1806,7 +1735,7 @@
         &lt;span class=&quot;spacer&quot;&gt;&lt;/span&gt;
         &lt;label class=&quot;label&quot; for=&quot;reviewer&quot;&gt;Your initials&lt;/label&gt;
         &lt;input type=&quot;text&quot; id=&quot;reviewer&quot; size=&quot;6&quot;&gt;
-        &lt;button class=&quot;btn&quot; id=&quot;folderBtn&quot;&gt;Connect SE Review folder&amp;hellip;&lt;/button&gt;
+        &lt;span id=&quot;folderBtn&quot; class=&quot;status&quot; title=&quot;Connect the shared SE Review folder once from the Home tab - it&#x27;s then live here too&quot;&gt;&lt;/span&gt;
         &lt;button class=&quot;btn&quot; id=&quot;manageBtn&quot; title=&quot;Clear markups, archive or restore review sets&quot;&gt;Manage sets&amp;hellip;&lt;/button&gt;
         &lt;button class=&quot;btn&quot; id=&quot;refreshBtn&quot; title=&quot;Re-read the folder (new sets, or changes saved from another computer)&quot;&gt;Refresh&lt;/button&gt;
         &lt;button class=&quot;btn primary&quot; id=&quot;doneBtn&quot; disabled&gt;Done &amp;ndash; send back&lt;/button&gt;
@@ -2046,6 +1975,22 @@
       return true;
     }catch(err){ if(err &amp;&amp; err.name!==&#x27;AbortError&#x27;) toast(&#x27;Could not open the folder: &#x27; + (err.message||err)); return false; }
   }
+  // Lets the parent page (Home screen&#x27;s single &quot;Connect SE Review folder&quot;
+  // control) push an already-picked FileSystemDirectoryHandle in here,
+  // instead of asking the user to connect a folder separately on this tab.
+  window.seConnectSharedFolder = async function(handle){
+    try{
+      if(!handle) return false;
+      let perm = await handle.queryPermission({mode:&#x27;readwrite&#x27;});
+      if(perm!==&#x27;granted&#x27;) perm = await handle.requestPermission({mode:&#x27;readwrite&#x27;});
+      if(perm!==&#x27;granted&#x27;) return false;
+      root = handle;
+      try{ await idb(&#x27;readwrite&#x27;, st=&gt; st.put(root, &#x27;root&#x27;)); }catch(e){}
+      $(&#x27;folderBtn&#x27;).textContent = &#x27;Folder: &#x27; + root.name;
+      await refreshSets();
+      return true;
+    }catch(e){ return false; }
+  };
   async function refreshSets(){
     if(!root) return;
     $(&#x27;setSelect&#x27;).innerHTML = &#x27;&lt;option&gt;Reading the folder…&lt;/option&gt;&#x27;;
@@ -3010,55 +2955,59 @@
           </div>
           <div class="sd-viewercol">
             <div class="card">
-              <div class="grp">
-                <p class="grp-label">Snow criteria</p>
-                <div class="sd-crit">
-                  <div class="sd-crit-row"><label>Code</label><select id="sd-code" onchange="sdRecalcAll()"><option value="7-16">ASCE 7-16</option></select></div>
-                  <div class="sd-crit-row"><label>Ground snow load p<sub>g</sub> (psf)</label><input id="sd-pg" type="number" inputmode="decimal" value="30" step="1" min="0" oninput="sdRecalcAll()"></div>
-                  <div class="sd-crit-row"><label>Exposure factor C<sub>e</sub></label><input id="sd-ce" type="number" inputmode="decimal" value="1.0" step="0.1" oninput="sdRecalcAll()"></div>
-                  <div class="sd-crit-row"><label>Thermal factor C<sub>t</sub></label><input id="sd-ct" type="number" inputmode="decimal" value="1.0" step="0.1" oninput="sdRecalcAll()"></div>
-                  <div class="sd-crit-row"><label>Importance factor I<sub>s</sub></label><input id="sd-is" type="number" inputmode="decimal" value="1.0" step="0.1" oninput="sdRecalcAll()"></div>
-                  <div class="sd-crit-row"><label>Tag shows</label><select id="sd-tagmode" onchange="sdRecalcAll()"><option value="pd">Max drift surcharge p<sub>d</sub></option><option value="total">Total at wall (p<sub>f</sub> + p<sub>d</sub>)</option></select></div>
+              <div style="display:flex;gap:10px;align-items:flex-start;flex-wrap:wrap;">
+                <div class="grp" style="flex:none;">
+                  <p class="grp-label">Snow criteria</p>
+                  <div class="sd-crit">
+                    <div class="sd-crit-row"><label>Code</label><select id="sd-code" onchange="sdRecalcAll()"><option value="7-16">ASCE 7-16</option></select></div>
+                    <div class="sd-crit-row"><label>Ground snow load p<sub>g</sub> (psf)</label><input id="sd-pg" type="number" inputmode="decimal" value="30" step="1" min="0" oninput="sdRecalcAll()"></div>
+                    <div class="sd-crit-row"><label>Exposure factor C<sub>e</sub></label><input id="sd-ce" type="number" inputmode="decimal" value="1.0" step="0.1" oninput="sdRecalcAll()"></div>
+                    <div class="sd-crit-row"><label>Thermal factor C<sub>t</sub></label><input id="sd-ct" type="number" inputmode="decimal" value="1.0" step="0.1" oninput="sdRecalcAll()"></div>
+                    <div class="sd-crit-row"><label>Importance factor I<sub>s</sub></label><input id="sd-is" type="number" inputmode="decimal" value="1.0" step="0.1" oninput="sdRecalcAll()"></div>
+                    <div class="sd-crit-row"><label>Tag shows</label><select id="sd-tagmode" onchange="sdRecalcAll()"><option value="pd">Max drift surcharge p<sub>d</sub></option><option value="total">Total at wall (p<sub>f</sub> + p<sub>d</sub>)</option></select></div>
+                  </div>
+                  <div id="sd-criteria" class="note" style="margin-top:6px;"></div>
                 </div>
-                <div id="sd-criteria" class="note" style="margin-top:6px;"></div>
-              </div>
-              <div class="grp">
-                <p class="grp-label">Project &amp; files (shared SE Review folder)</p>
-                <div class="row" style="flex-wrap:wrap;gap:4px;align-items:center;">
-                  <label style="display:flex;align-items:center;gap:5px;margin:0;font-weight:600;flex:none;">Project
-                    <select id="sd-proj" style="width:150px" onchange="sdOpenProject(this.value)"><option value="">Connect the SE Review folder to list projects</option></select></label>
-                  <button class="pv-btn" id="sd-folderbtn" onclick="sdConnectFolder(true)" title="The shared Dropbox SE Review folder - asked once, then remembered">Folder&hellip;</button>
-                  <button class="pv-btn" onclick="sdListProjects()" title="Re-read the folder">Refresh</button>
-                  <button class="pv-btn" style="color:#c62828;border-color:#c62828;" onclick="sdDeleteProject()" title="Move the selected project to _archive (nothing is permanently destroyed)">Delete&hellip;</button>
-                  <div class="sep"></div>
-                  <button class="pv-btn" onclick="document.getElementById('fi78076').click()" title="Pick the PDF - and, from Export for Snow Drift, the snow model .json and iso .png files too (select them all together)">Open plan&hellip;</button><input id="fi78076" type="file" multiple accept="application/pdf,image/*,.json,application/json" style="display:none" onchange="sdOpenFiles(this.files); this.value='';">
-                  <button class="pv-btn" onclick="document.getElementById('fi16440').click()" title="Open a previously saved drift file">Open file&hellip;</button><input id="fi16440" type="file" accept=".json,application/json" style="display:none" onchange="sdOpenDriftFile(this.files[0])">
-                  <button class="pv-btn" onclick="sdDownload()" title="Save the drift file">Save</button>
-                  <button class="pv-btn" onclick="sdExportCalcPdf()" title="Roof plan + a loading diagram and ASCE 7 calc for each drift on this sheet - for the truss manufacturer or plan reviewer">Export PDF</button>
-                  <div class="sep"></div>
-                  <div class="pv-field">Scale
-                    <select id="sd-scale" onchange="sdOnScale()">
-                      <option value="4.5">1/16" = 1'-0"</option><option value="6.75">3/32" = 1'-0"</option><option value="9" selected>1/8" = 1'-0"</option><option value="13.5">3/16" = 1'-0"</option><option value="18">1/4" = 1'-0"</option><option value="cal">Calibrated (2 clicks)</option><option value="revit" disabled>From Revit</option>
-                    </select></div>
-                  <span class="note" id="sd-projstatus" style="margin:0"></span>
-                </div>
-              </div>
-              <div id="sd-toolbar" class="sm-toolbar" style="margin-top:5px;"></div>
-              <div class="grp">
-                <p class="grp-label">Navigation &amp; view tools</p>
-                <div class="row" style="gap:5px;align-items:center;flex-wrap:wrap;">
-                  <button class="pv-btn" onclick="sdBoard.go(-1)" title="Previous sheet">&larr;</button>
-                  <button class="pv-btn" onclick="sdBoard.go(1)" title="Next sheet">&rarr;</button>
-                  <span id="sd-pageinfo" class="note" style="margin:0"></span>
-                  <div class="pv-field">Sheet # <input id="sd-sheetnum" type="text" style="width:80px;" onchange="sdSetSheetNumber(this.value)"></div>
-                  <div class="sep"></div>
-                  <button class="pv-btn" onclick="sdBoard.zoomBy(1/1.25)">&minus;</button>
-                  <button class="pv-btn" onclick="sdBoard.zoomBy(1.25)">+</button>
-                  <button class="pv-btn" onclick="sdBoard.fit()">Fit</button>
-                  <button class="pv-btn" id="sd-wallsbtn" onclick="sdToggleWalls()" title="Hide everything on the sheet except the walls (heavy lines, or the Revit walls when the snow model is loaded)">Walls only</button>
-                  <label id="sd-wallwt-wrap" class="pv-field" style="display:none;cursor:pointer;" title="Lines at least this heavy count as walls">Wt &ge; <input id="sd-wallwt" type="range" min="0" max="3" step="0.05" value="1" style="width:90px;min-height:0;" oninput="sdDrawWalls()"></label>
-                  <label class="pv-field" style="cursor:pointer;" title="Snap to line ends, corners and intersections (hold Alt to turn off). Lines are orthogonal unless you hold Shift."><input type="checkbox" id="sd-snap" checked style="width:16px;height:16px;min-height:0;margin:0;flex:none"> Snap + ortho</label>
-                  <button class="pv-btn" onclick="sdToggleSide()" id="sd-sidebtn">Hide list</button>
+                <div style="display:flex;flex-direction:column;gap:5px;flex:1;min-width:320px;">
+                  <div class="grp">
+                    <p class="grp-label">Project &amp; files (shared SE Review folder)</p>
+                    <div class="row" style="flex-wrap:wrap;gap:4px;align-items:center;">
+                      <label style="display:flex;align-items:center;gap:5px;margin:0;font-weight:600;flex:none;">Project
+                        <select id="sd-proj" style="width:150px" onchange="sdOpenProject(this.value)"><option value="">Connect the SE Review folder to list projects</option></select></label>
+                      <span id="sd-folderbtn" class="note" style="margin:0;font-weight:600;" title="Connect the shared SE Review folder once from the Home tab - it's then live here too"></span>
+                      <button class="pv-btn" onclick="sdListProjects()" title="Re-read the folder">Refresh</button>
+                      <button class="pv-btn" style="color:#c62828;border-color:#c62828;" onclick="sdDeleteProject()" title="Move the selected project to _archive (nothing is permanently destroyed)">Delete&hellip;</button>
+                      <div class="sep"></div>
+                      <button class="pv-btn" onclick="document.getElementById('fi78076').click()" title="Pick the PDF - and, from Export for Snow Drift, the snow model .json and iso .png files too (select them all together)">Open plan&hellip;</button><input id="fi78076" type="file" multiple accept="application/pdf,image/*,.json,application/json" style="display:none" onchange="sdOpenFiles(this.files); this.value='';">
+                      <button class="pv-btn" onclick="document.getElementById('fi16440').click()" title="Open a previously saved drift file">Open file&hellip;</button><input id="fi16440" type="file" accept=".json,application/json" style="display:none" onchange="sdOpenDriftFile(this.files[0])">
+                      <button class="pv-btn" onclick="sdDownload()" title="Save the drift file">Save</button>
+                      <button class="pv-btn" onclick="sdExportCalcPdf()" title="Roof plan + a loading diagram and ASCE 7 calc for each drift on this sheet - for the truss manufacturer or plan reviewer">Export PDF</button>
+                      <div class="sep"></div>
+                      <div class="pv-field">Scale
+                        <select id="sd-scale" onchange="sdOnScale()">
+                          <option value="4.5">1/16" = 1'-0"</option><option value="6.75">3/32" = 1'-0"</option><option value="9" selected>1/8" = 1'-0"</option><option value="13.5">3/16" = 1'-0"</option><option value="18">1/4" = 1'-0"</option><option value="cal">Calibrated (2 clicks)</option><option value="revit" disabled>From Revit</option>
+                        </select></div>
+                      <span class="note" id="sd-projstatus" style="margin:0"></span>
+                    </div>
+                  </div>
+                  <div id="sd-toolbar" class="sm-toolbar"></div>
+                  <div class="grp">
+                    <p class="grp-label">Navigation &amp; view tools</p>
+                    <div class="row" style="gap:5px;align-items:center;flex-wrap:wrap;">
+                      <button class="pv-btn" onclick="sdBoard.go(-1)" title="Previous sheet">&larr;</button>
+                      <button class="pv-btn" onclick="sdBoard.go(1)" title="Next sheet">&rarr;</button>
+                      <span id="sd-pageinfo" class="note" style="margin:0"></span>
+                      <div class="pv-field">Sheet # <input id="sd-sheetnum" type="text" style="width:80px;" onchange="sdSetSheetNumber(this.value)"></div>
+                      <div class="sep"></div>
+                      <button class="pv-btn" onclick="sdBoard.zoomBy(1/1.25)">&minus;</button>
+                      <button class="pv-btn" onclick="sdBoard.zoomBy(1.25)">+</button>
+                      <button class="pv-btn" onclick="sdBoard.fit()">Fit</button>
+                      <button class="pv-btn" id="sd-wallsbtn" onclick="sdToggleWalls()" title="Hide everything on the sheet except the walls (heavy lines, or the Revit walls when the snow model is loaded)">Walls only</button>
+                      <label id="sd-wallwt-wrap" class="pv-field" style="display:none;cursor:pointer;" title="Lines at least this heavy count as walls">Wt &ge; <input id="sd-wallwt" type="range" min="0" max="3" step="0.05" value="1" style="width:90px;min-height:0;" oninput="sdDrawWalls()"></label>
+                      <label class="pv-field" style="cursor:pointer;" title="Snap to line ends, corners and intersections (hold Alt to turn off). Lines are orthogonal unless you hold Shift."><input type="checkbox" id="sd-snap" checked style="width:16px;height:16px;min-height:0;margin:0;flex:none"> Snap + ortho</label>
+                      <button class="pv-btn" onclick="sdToggleSide()" id="sd-sidebtn">Hide list</button>
+                    </div>
+                  </div>
                 </div>
               </div>
               <div style="height:16px;line-height:16px;margin-top:2px;overflow:hidden;">
@@ -3178,7 +3127,7 @@
     const dockEl3 = document.getElementById('nav-se-dock'); if(dockEl3) dockEl3.style.display = name==='semarkup' ? 'block' : 'none';
     const moreBtn = document.getElementById('mobileMoreBtn');
     if(moreBtn){
-      const inMoreSheet = ['glulam','spancalc','joist','footing','spans','site','loadpath','code','sheetindex','rebar','tutorial','notes'].includes(name);
+      const inMoreSheet = ['glulam','spancalc','joist','footing','spans','site','loadpath','code','sheetindex','rebar','notes'].includes(name);
       moreBtn.classList.toggle('active', inMoreSheet);
     }
     closeMobileMoreSheet();
@@ -3263,6 +3212,32 @@
   }
   async function tfrShareFolder(handle){ try{ await tfrShareIdb('readwrite', st=> st.put(handle, 'root')); }catch(e){} }
 
+  // Single "Connect SE Review folder" control on the Home tab - connects
+  // once and pushes the same handle into Detail Catalog, Snow Drift, and
+  // the SE Markup iframe, instead of connecting separately on each tab.
+  async function tfrConnectSharedFolder(pick){
+    const statusEl = document.getElementById('home-folderstatus');
+    const btnEl = document.getElementById('home-folderbtn');
+    try{
+      if(!window.showDirectoryPicker){ if(statusEl) statusEl.textContent = 'Use Chrome or Edge to connect a shared folder.'; return; }
+      let handle;
+      if(pick){ handle = await window.showDirectoryPicker({id:'se-review', mode:'readwrite'}); await tfrShareFolder(handle); }
+      else handle = await tfrSharedFolderHandle();
+      if(!handle){ if(statusEl) statusEl.textContent = 'Not connected to a folder yet.'; return; }
+      let perm = await handle.queryPermission({mode:'readwrite'});
+      if(perm!=='granted' && pick) perm = await handle.requestPermission({mode:'readwrite'});
+      if(perm!=='granted'){ if(statusEl) statusEl.textContent = 'Permission needs to be re-confirmed - click Connect again.'; return; }
+      if(statusEl) statusEl.textContent = `Connected to "${handle.name}" - live in Detail Catalog, Snow Drift, and SE Markup.`;
+      if(btnEl) btnEl.textContent = 'Reconnect SE Review folder…';
+      try{ if(typeof sdConnectFolder==='function'){ sdRoot = handle; await sdConnectFolder(false); } }catch(e){}
+      try{ await dcTryConnectSharedFolder(); }catch(e){}
+      try{
+        const frame = document.getElementById('se-review-frame');
+        if(frame && frame.contentWindow && frame.contentWindow.seConnectSharedFolder) await frame.contentWindow.seConnectSharedFolder(handle);
+      }catch(e){}
+    }catch(e){ if(e && e.name!=='AbortError' && statusEl) statusEl.textContent = 'Could not open the folder: ' + (e.message||e); }
+  }
+
   // ---- HOME ----
   const HOME_ICONS = {
     detailcatalog: '<rect x="4" y="4" width="7" height="7"/><rect x="13" y="4" width="7" height="7"/><rect x="4" y="13" width="7" height="7"/><rect x="13" y="13" width="7" height="7"/>',
@@ -3279,15 +3254,14 @@
     code: '<path d="M4 4h16v16H4z"/><line x1="8" y1="9" x2="16" y2="9"/><line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="12" y2="17"/>',
     sheetindex: '<path d="M4 4h16v16H4z"/><line x1="4" y1="9" x2="20" y2="9"/>',
     rebar: '<path d="M5 5v10a4 4 0 0 0 4 4h10"/>',
-    semarkup: '<path d="M4 20l4-1 11-11-3-3L5 16z"/>',
-    tutorial: '<path d="M4 19V5a2 2 0 0 1 2-2h11l3 3v13a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2z"/><line x1="8" y1="8" x2="14" y2="8"/><line x1="8" y1="12" x2="14" y2="12"/>'
+    semarkup: '<path d="M4 20l4-1 11-11-3-3L5 16z"/>'
   };
   function homeStatus(panel){
     try{
       if(panel==='detailcatalog'){
         const total = (typeof dcUserEntries!=='undefined'?dcUserEntries.length:0) + (typeof dcLibraryEntries!=='undefined'?dcLibraryEntries.length:0);
         const q = (typeof dcQueue!=='undefined')?dcQueue.length:0;
-        return total ? `${total} detail${total===1?'':'s'} in the catalog${q?`, ${q} queued to place`:''}` : 'No details synced yet — Link catalog folder or Add detail.';
+        return total ? `${total} detail${total===1?'':'s'} in the catalog${q?`, ${q} queued to place`:''}` : 'No details synced yet — connect the SE Review folder from Home, or Add detail.';
       }
       if(panel==='snowdrift'){
         return (typeof sdRoot!=='undefined' && sdRoot) ? `Connected to folder "${sdRoot.name}"` : 'Not connected to a project folder yet.';
@@ -3324,7 +3298,6 @@
     {panel:'code', title:'Code Reference', desc:'IBC/IRC/NDS lookup tables and clauses.'},
     {panel:'sheetindex', title:'Sheet Index', desc:'Tracks sheet numbers/titles and flags changes between syncs.'},
     {panel:'rebar', title:'Rebar Shapes', desc:'Standard rebar bend shapes, exportable to Revit.'},
-    {panel:'tutorial', title:'Tutorial', desc:'How to use this file, tab by tab.'},
     {panel:'notes', title:'Notes', desc:'Every caveat and assumption from every calculator, collected in one place.'}
   ];
   const HOME_RELATIONS = [
@@ -3353,6 +3326,7 @@
     const l = document.getElementById('home-links');
     if(l) l.innerHTML = HOME_RELATIONS.map(([k,v])=>`<div class="home-link-row"><b>${k}</b><span>${v}</span></div>`).join('');
     tfrRefreshBadges();
+    tfrConnectSharedFolder(false).catch(()=>{});
   }
   // Jump to the Notes tab and scroll/flash a specific note block. Used by the
   // small "See Notes -> X" links that replaced the long inline caveat
@@ -4596,6 +4570,25 @@
       dcRenderPullQueue();
     }
   }
+  // Same as dcChooseExportFolder above, but never opens the picker - just
+  // picks up whatever folder was connected from the Home tab's single
+  // "Connect SE Review folder" control (see tfrConnectSharedFolder).
+  async function dcTryConnectSharedFolder(){
+    const statusEl = document.getElementById('dc-export-status');
+    const handle = await dcGetExportDirHandle(false);
+    if(handle && statusEl){
+      await dcTryLoadFromHandle(handle);
+      await dcTryLoadLibraryFromHandle(handle);
+      await dcTryLoadPullFromHandle(handle); await dcLoadRequests(handle);
+      await dcTryLoadExcludedFromHandle(handle);
+      await dcTryLoadOpenProjectsFromHandle(handle);
+      dcRebuildData();
+      statusEl.textContent = `Linked to "${handle.name}" — reads ${DC_LIBRARY_FILENAME} for the library, saves your own entries and Generic flags to ${DC_EXPORT_FILENAME}, and sends placement requests via ${DC_PULL_FILENAME}, all synced wherever that folder syncs.`;
+      dcPopulateFilters();
+      dcRender();
+      dcRenderPullQueue();
+    }
+  }
   async function dcTryLoadFromHandle(handle){
     try{
       const fileHandle = await handle.getFileHandle(DC_EXPORT_FILENAME, {create:false});
@@ -4702,7 +4695,7 @@
         if(statusEl) statusEl.textContent = `Linked to "${handle.name}" — reads ${DC_LIBRARY_FILENAME} for the library, saves your own entries to ${DC_EXPORT_FILENAME}, and sends placement requests via ${DC_PULL_FILENAME}.`;
         if(typeof dcLinkedOnce!=='undefined') dcLinkedOnce = true;
       } else if(statusEl){
-        statusEl.textContent = `Previously linked to "${handle.name}", but permission needs to be re-confirmed — click "Link catalog folder" to re-grant it.`;
+        statusEl.textContent = `Previously linked to "${handle.name}", but permission needs to be re-confirmed — reconnect the SE Review folder from Home to re-grant it.`;
       }
     }catch(e){ /* nothing linked yet */ }
   }
@@ -12986,7 +12979,7 @@
   }
   async function dcSaveRequests(){
     const handle = await dcGetExportDirHandle(false);
-    if(!handle){ alert('Link the catalog folder first ("Link catalog folder…" at the top of this tab).'); return false; }
+    if(!handle){ alert('Connect the SE Review folder first, from the Home tab.'); return false; }
     const clean = dcRequests.map(r=>{ const c = Object.assign({}, r); delete c._url; return c; });
     const w = await (await handle.getFileHandle(DC_REQ_FILENAME, {create:true})).createWritable();
     await w.write(JSON.stringify({requests: clean, savedAt: new Date().toISOString()}, null, 2)); await w.close();
@@ -13115,7 +13108,7 @@
   async function dcSendRedline(){
     const d = DC_DATA.find(x=>x.id===dcRl.id); if(!d) return;
     const handle = await dcGetExportDirHandle(false);
-    if(!handle){ alert('Link the catalog folder first ("Link catalog folder…" at the top of this tab).'); return; }
+    if(!handle){ alert('Connect the SE Review folder first, from the Home tab.'); return; }
     const status = document.getElementById('dc-rl-status');
     status.textContent = 'Saving…';
     const by = document.getElementById('dc-rl-by').value.trim();
@@ -13153,6 +13146,55 @@
     function dock(hostId, elId){ const h = document.getElementById(hostId), e = document.getElementById(elId); if(h && e) h.appendChild(e); }
     dock('nav-sd-dock', 'sd-side-panel');
     dock('nav-pv-dock', 'pv-thumbs');
+  })();
+
+  // Drag handle to resize the nav/tab column. The chosen width is saved to
+  // localStorage and applied as an inline style, which beats every width
+  // rule in the stylesheet (200px default, 400px on the sheet-tool tabs) -
+  // so once the user picks a width it sticks everywhere, on every tab.
+  (function(){
+    const handle = document.getElementById('navResizeHandle');
+    const nav = document.getElementById('mainNav');
+    if(!handle || !nav) return;
+    const MIN = 160, MAX = 640;
+    try{
+      const saved = parseInt(localStorage.getItem('tfr-nav-width') || '', 10);
+      if(saved >= MIN && saved <= MAX) nav.style.width = saved + 'px';
+    }catch(e){}
+    let dragging = false, startX = 0, startW = 0;
+    function clientX(e){ return e.touches ? e.touches[0].clientX : e.clientX; }
+    function onMove(e){
+      if(!dragging) return;
+      const w = Math.max(MIN, Math.min(MAX, startW + (clientX(e) - startX)));
+      nav.style.width = w + 'px';
+      e.preventDefault();
+    }
+    function onUp(){
+      if(!dragging) return;
+      dragging = false;
+      handle.classList.remove('dragging');
+      document.body.style.userSelect = '';
+      try{ localStorage.setItem('tfr-nav-width', String(parseInt(nav.style.width, 10))); }catch(e){}
+      window.removeEventListener('mousemove', onMove);
+      window.removeEventListener('mouseup', onUp);
+      window.removeEventListener('touchmove', onMove);
+      window.removeEventListener('touchend', onUp);
+    }
+    function onDown(e){
+      dragging = true;
+      startX = clientX(e);
+      startW = nav.getBoundingClientRect().width;
+      handle.classList.add('dragging');
+      document.body.style.userSelect = 'none';
+      window.addEventListener('mousemove', onMove);
+      window.addEventListener('mouseup', onUp);
+      window.addEventListener('touchmove', onMove, {passive:false});
+      window.addEventListener('touchend', onUp);
+      e.preventDefault();
+    }
+    handle.addEventListener('mousedown', onDown);
+    handle.addEventListener('touchstart', onDown, {passive:false});
+    handle.addEventListener('dblclick', ()=>{ nav.style.width = ''; try{ localStorage.removeItem('tfr-nav-width'); }catch(e){} });
   })();
 </script>
 </body>
