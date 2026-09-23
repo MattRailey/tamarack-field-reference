@@ -590,138 +590,167 @@
         <h2>Beam sizing</h2>
         <p class="sub">Preliminary uniform-load beam check. Gives a starting section — not a substitute for a stamped calculation. "Member type" below covers Glulam and bundled sawn-lumber headers/beams (e.g. (3) 2x8) using the full diagram, overhangs, point loads, and reactions above — the LVL/I-Joist Calc tab is still there for a quick single-span LVL or I-joist check.</p>
 
-        <div class="card">
-          <h3 style="margin-top:0;font-size:.95rem;">Beam &amp; supports</h3>
-          <p class="note" style="margin-top:0;">Click the beam to add a support, drag a support to move it, double-click a support to remove it (2 minimum). Click a support's label to cycle Post/Wall/Beam (bearing on a beam or girder below). Set an overhang below for a beam that cantilevers past its end support.</p>
-          <div class="beam-diagram-wrap">
-            <svg id="g-beam-svg" viewBox="0 0 900 300" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid meet"></svg>
+        <div class="sm-layout" id="g-layout" style="align-items:flex-start;">
+          <div class="card sm-side" id="g-side-panel" style="width:300px;">
+            <div class="grp">
+              <p class="grp-label">Load case &amp; member</p>
+              <div class="row" style="flex-direction:column;align-items:stretch;gap:5px;margin-bottom:0;">
+                <div class="pv-field" style="justify-content:space-between;">Preset
+                  <select id="g-preset" onchange="applyPreset()" style="flex:1;max-width:190px;">
+                    <option value="">— manual entry —</option>
+                    <option value="10,40">Residential floor (DL 10 / LL 40)</option>
+                    <option value="15,50">Light commercial floor (DL 15 / LL 50)</option>
+                    <option value="10,60">Deck (DL 10 / LL 60)</option>
+                    <option value="15,25">Roof — low snow (DL 15 / LL 25)</option>
+                    <option value="15,45">Roof — moderate snow (DL 15 / LL 45)</option>
+                    <option value="15,70">Roof — heavy mountain snow (DL 15 / LL 70)</option>
+                  </select>
+                </div>
+                <div class="pv-field" style="justify-content:space-between;">Member type
+                  <select id="g-member-type" onchange="onMemberTypeChange()" style="flex:1;max-width:190px;">
+                    <option value="glulam" selected>Glulam (fixed width, solve depth)</option>
+                    <option value="sawn">Sawn lumber, bundled plies — e.g. (3) 2x8</option>
+                    <option value="wf">Steel — Wide Flange (W-shape)</option>
+                    <option value="hss">Steel — HSS tube (square/rect.)</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+
+            <div class="grp">
+              <p class="grp-label">Section &amp; material</p>
+              <div class="row" style="flex-direction:column;align-items:stretch;gap:5px;margin-bottom:0;">
+                <div class="pv-field hide" id="g-steel-grade-wrap" style="justify-content:space-between;">Steel Fy (ksi)
+                  <select id="g-steel-fy" onchange="onBeamMaterialChange()" style="flex:1;max-width:190px;">
+                    <option value="50">50 — A992 (W-shapes)</option>
+                    <option value="46">46 — A500 Gr. B (HSS)</option>
+                    <option value="custom">— custom Fy —</option>
+                  </select>
+                </div>
+                <div class="pv-field hide" id="g-steel-fy-custom-wrap" style="justify-content:space-between;">Custom Fy (ksi)<input id="g-steel-fy-custom" type="number" inputmode="decimal" value="50" step="1" oninput="updateBeamAnalysis()" style="width:80px;"></div>
+                <div class="pv-field" id="g-width-wrap" style="justify-content:space-between;">Beam width
+                  <select id="g-width" onchange="onBeamMaterialChange()" style="flex:1;max-width:190px;">
+                    <option value="3.125">3-1/8" (Western/DF)</option>
+                    <option value="5.125">5-1/8" (Western/DF)</option>
+                    <option value="5.5" selected>5-1/2" (SP — default)</option>
+                    <option value="6.75">6-3/4" (Western/DF)</option>
+                    <option value="7.5">7-1/2" (SP)</option>
+                    <option value="8.75">8-3/4" (Western/DF)</option>
+                    <option value="9.5">9-1/2" (SP)</option>
+                    <option value="custom">— custom width —</option>
+                  </select>
+                </div>
+                <div class="pv-field hide" id="g-width-custom-wrap" style="justify-content:space-between;">Custom width (in)<input id="g-width-custom" type="number" inputmode="decimal" value="5.5" step="0.125" oninput="updateBeamAnalysis()" style="width:80px;"></div>
+                <div class="pv-field hide" id="g-sawn-grade-wrap" style="justify-content:space-between;">Grade (DF-L)
+                  <select id="g-sawn-grade" onchange="updateBeamAnalysis()" style="flex:1;max-width:190px;">
+                    <option value="ss">Select Structural</option>
+                    <option value="1" selected>No. 1</option>
+                    <option value="2">No. 2</option>
+                  </select>
+                </div>
+                <div class="pv-field hide" id="g-sawn-plies-wrap" style="justify-content:space-between;">Number of plies
+                  <select id="g-sawn-plies" onchange="updateBeamAnalysis()" style="flex:1;max-width:190px;">
+                    <option value="1">(1) single ply</option>
+                    <option value="2">(2) plies</option>
+                    <option value="3" selected>(3) plies</option>
+                    <option value="4">(4) plies</option>
+                  </select>
+                </div>
+                <div class="pv-field" id="g-fb-wrap" style="justify-content:space-between;">Fb (psi)
+                  <select id="g-fb" onchange="onBeamMaterialChange()" style="flex:1;max-width:190px;">
+                    <option value="1800">24F-V1 — 1800</option>
+                    <option value="2000">24F-V3 — 2000</option>
+                    <option value="2400" selected>24F-V4 — 2400</option>
+                    <option value="2600">24F-V8 — 2600</option>
+                    <option value="custom">— custom Fb —</option>
+                  </select>
+                </div>
+                <div class="pv-field hide" id="g-species-wrap" style="justify-content:space-between;">Species/grade
+                  <select id="g-species" onchange="onSpeciesChange()" style="flex:1;max-width:190px;">
+                    <option value="">— manual entry —</option>
+                  </select>
+                </div>
+                <div class="pv-field hide" id="g-fb-custom-wrap" style="justify-content:space-between;">Custom Fb (psi)<input id="g-fb-custom" type="number" inputmode="decimal" value="2400" step="50" oninput="updateBeamAnalysis()" style="width:80px;"></div>
+                <div class="pv-field" id="g-e-wrap" style="justify-content:space-between;">E (x10^6 psi)
+                  <select id="g-e" onchange="onBeamMaterialChange()" style="flex:1;max-width:190px;">
+                    <option value="1.7">1.7</option><option value="1.8" selected>1.8</option><option value="1.9">1.9</option>
+                    <option value="custom">— custom E —</option>
+                  </select>
+                </div>
+                <div class="pv-field hide" id="g-e-custom-wrap" style="justify-content:space-between;">Custom E<input id="g-e-custom" type="number" inputmode="decimal" value="1.8" step=".05" oninput="updateBeamAnalysis()" style="width:80px;"></div>
+                <div class="pv-field" style="justify-content:space-between;">Deflection limit
+                  <select id="g-defl" onchange="updateBeamAnalysis()" style="flex:1;max-width:190px;">
+                    <option value="240">L/240 (total)</option>
+                    <option value="360" selected>L/360 (live)</option>
+                    <option value="180">L/180 (roof, no ceiling)</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+
+            <div class="grp">
+              <p class="grp-label">Loads</p>
+              <div class="row" style="flex-direction:column;align-items:stretch;gap:5px;margin-bottom:0;">
+                <div class="pv-field" style="justify-content:space-between;" title="From the diagram, or type directly (comma-separated)">Bay span(s) (ft)<input id="g-span" type="text" inputmode="decimal" value="20" oninput="onBeamSpanTextChange()" style="width:100px;"></div>
+                <div class="pv-field" style="justify-content:space-between;">Trib. dist. (ft)<input id="g-trib" type="number" inputmode="decimal" value="12" step="0.5" oninput="updateBeamAnalysis()" style="width:80px;"></div>
+                <div class="pv-field" style="justify-content:space-between;">Dead load (psf)<input id="g-dl" type="number" inputmode="decimal" value="15" step="1" oninput="updateBeamAnalysis()" style="width:80px;"></div>
+                <div class="pv-field" style="justify-content:space-between;">Live/snow (psf)<input id="g-ll" type="number" inputmode="decimal" value="35" step="1" oninput="updateBeamAnalysis()" style="width:80px;"></div>
+                <label class="pv-field" style="cursor:pointer;"><input type="checkbox" id="g-trib-apply" checked onchange="updateBeamAnalysis()" style="width:16px;height:16px;min-height:0;margin:0;flex:none;"> Apply trib. load to this beam</label>
+              </div>
+            </div>
+
+            <div class="grp">
+              <p class="grp-label">Supports &amp; overhangs</p>
+              <p class="note" style="margin:0 0 6px;">Click the beam to add a support, drag to move it, double-click to remove (2 min). Click a label to cycle Post/Wall/Beam.</p>
+              <div class="row" style="flex-direction:column;align-items:stretch;gap:5px;margin-bottom:0;">
+                <div class="pv-field" style="justify-content:space-between;">Supports<input id="g-support-count" type="number" inputmode="numeric" value="2" step="1" min="2" onchange="onSupportCountChange()" style="width:60px;"></div>
+                <div class="pv-field" style="justify-content:space-between;" title="Controlling total length">Total length (ft)<input id="g-total-length" type="number" inputmode="decimal" step="0.5" min="0.5" onchange="onTotalLengthChange()" style="width:80px;"></div>
+                <label class="pv-field" style="cursor:pointer;"><input type="checkbox" id="g-lock-total" onchange="onLockToggle()" style="width:16px;height:16px;min-height:0;margin:0;flex:none;"> Lock total length while adjusting supports</label>
+                <div class="pv-field" style="justify-content:space-between;" title="Cantilever past the first support">Start overhang (ft)<input id="g-oh-start" type="number" inputmode="decimal" value="0" step="0.5" min="0" oninput="onBeamOverhangChange()" style="width:80px;"></div>
+                <div class="pv-field" style="justify-content:space-between;" title="Cantilever past the last support">End overhang (ft)<input id="g-oh-end" type="number" inputmode="decimal" value="0" step="0.5" min="0" oninput="onBeamOverhangChange()" style="width:80px;"></div>
+              </div>
+              <div class="note" id="g-span-readout" style="margin-top:6px;"></div>
+              <p class="note" style="margin-top:2px;">Click any dimension number in the diagram to type an exact value.</p>
+            </div>
+
+            <div class="grp">
+              <p class="grp-label">Point loads (optional)</p>
+              <div class="pv-field" style="justify-content:space-between;">Count
+                <select id="g-pl-count" onchange="onPointLoadCountChange()" style="flex:1;max-width:190px;">
+                  <option value="0">None — uniform only</option>
+                  <option value="1">1 point load</option>
+                  <option value="2">2 point loads</option>
+                  <option value="3">3 point loads</option>
+                  <option value="4">4 point loads</option>
+                </select>
+              </div>
+              <div id="g-pl-rows"></div>
+              <p class="note" id="g-pl-note" style="margin-top:4px;display:none;">Location is measured from the left end of the beam (including any start overhang). A point load only affects the bay/overhang it falls in.</p>
+            </div>
+
+            <button class="run" onclick="updateBeamAnalysis()" style="margin-top:8px;">Recalculate</button>
+            <p class="note" style="margin-top:6px;">Everything above updates live as you type, drag, or edit a dimension — this button is just a manual refresh.</p>
           </div>
 
-          <div class="note" style="margin:10px 0 2px;font-weight:600;">Shear, V (lb)</div>
-          <div class="beam-diagram-wrap">
-            <svg id="g-shear-svg" viewBox="0 0 900 140" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid meet"></svg>
-          </div>
-          <div class="note" style="margin:8px 0 2px;font-weight:600;">Moment, M (ft-lb)</div>
-          <div class="beam-diagram-wrap">
-            <svg id="g-moment-svg" viewBox="0 0 900 140" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid meet"></svg>
-          </div>
-          <p class="note" style="margin-top:2px;">Analyzed as one continuous beam over all supports, so negative moment (below the line) shows over interior supports and at overhangs. Solid line = dead + live on every span; dashed lines = the max/min envelope with live load patterned span-by-span (dead load always on, point loads always on). Reactions below are the max over those patterns.</p>
-
-          <div class="grid" style="margin-top:10px;">
-            <div><label>Total number of supports</label><input id="g-support-count" type="number" inputmode="numeric" value="2" step="1" min="2" onchange="onSupportCountChange()"></div>
-            <div><label>Total beam length (ft) &mdash; controlling</label><input id="g-total-length" type="number" inputmode="decimal" step="0.5" min="0.5" onchange="onTotalLengthChange()"></div>
-            <div style="align-self:end;"><label style="display:flex;align-items:center;gap:6px;margin-bottom:8px;"><input type="checkbox" id="g-lock-total" onchange="onLockToggle()" style="width:auto;margin:0;"> Lock total length while adjusting supports</label></div>
-            <div><label>Start overhang (ft) &mdash; cantilever past the first support</label><input id="g-oh-start" type="number" inputmode="decimal" value="0" step="0.5" min="0" oninput="onBeamOverhangChange()"></div>
-            <div><label>End overhang (ft) &mdash; cantilever past the last support</label><input id="g-oh-end" type="number" inputmode="decimal" value="0" step="0.5" min="0" oninput="onBeamOverhangChange()"></div>
-          </div>
-          <div class="note" id="g-span-readout" style="margin-top:2px;"></div>
-          <p class="note" style="margin-top:2px;">Click any dimension number in the diagram to type an exact value for that bay or overhang. Setting total beam length scales the bay spans proportionally to hit that overall length (overhangs stay as entered).</p>
-        </div>
-
-        <div class="card">
-          <h3 style="margin-top:0;font-size:.95rem;">Point loads (optional)</h3>
-          <div class="grid">
-            <div><label>Number of point loads</label>
-              <select id="g-pl-count" onchange="onPointLoadCountChange()">
-                <option value="0">None &mdash; uniform load only</option>
-                <option value="1">1 point load</option>
-                <option value="2">2 point loads</option>
-                <option value="3">3 point loads</option>
-                <option value="4">4 point loads</option>
-              </select>
+          <div class="sd-viewercol">
+            <div class="card">
+              <div class="beam-diagram-wrap">
+                <svg id="g-beam-svg" viewBox="0 0 900 300" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid meet"></svg>
+              </div>
+              <div class="note" style="margin:10px 0 2px;font-weight:600;">Shear, V (lb)</div>
+              <div class="beam-diagram-wrap">
+                <svg id="g-shear-svg" viewBox="0 0 900 140" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid meet"></svg>
+              </div>
+              <div class="note" style="margin:8px 0 2px;font-weight:600;">Moment, M (ft-lb)</div>
+              <div class="beam-diagram-wrap">
+                <svg id="g-moment-svg" viewBox="0 0 900 140" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid meet"></svg>
+              </div>
+              <p class="note" style="margin-top:2px;">Solid line = dead + live on every span; dashed lines = the max/min envelope with live load patterned span-by-span (dead load always on, point loads always on). Negative moment (below the line) shows over interior supports and at overhangs. Reactions below are the max over those patterns.</p>
+              <div class="result" id="g-result"></div>
+              <div id="g-source" style="font-family:var(--sans); font-size:.76rem; color:var(--steel); margin-top:10px;"></div>
+              <button class="run secondary" onclick="printGlulamSheet()" style="margin-top:10px;">Print / Save as PDF for building dept.</button>
             </div>
           </div>
-          <div id="g-pl-rows"></div>
-          <p class="note" id="g-pl-note" style="margin-top:2px;display:none;">Location is measured from the left end of the beam (including any start overhang), matching the diagram above. Each bay/overhang is still checked as its own simple span or cantilever — a point load only affects the bay or overhang it physically falls in.</p>
-        </div>
-
-        <div class="card">
-          <div class="grid">
-            <div><label>Typical load case</label>
-              <select id="g-preset" onchange="applyPreset()">
-                <option value="">— manual entry —</option>
-                <option value="10,40">Residential floor (DL 10 / LL 40)</option>
-                <option value="15,50">Light commercial floor (DL 15 / LL 50)</option>
-                <option value="10,60">Deck (DL 10 / LL 60)</option>
-                <option value="15,25">Roof — low snow (DL 15 / LL 25)</option>
-                <option value="15,45">Roof — moderate snow (DL 15 / LL 45)</option>
-                <option value="15,70">Roof — heavy mountain snow (DL 15 / LL 70)</option>
-              </select>
-            </div>
-            <div><label>Member type</label>
-              <select id="g-member-type" onchange="onBeamMaterialChange()">
-                <option value="glulam" selected>Glulam (fixed width, solve depth)</option>
-                <option value="sawn">Sawn lumber, bundled plies — e.g. (3) 2x8</option>
-              </select>
-            </div>
-            <div id="g-width-wrap"><label>Beam width</label>
-              <select id="g-width" onchange="onBeamMaterialChange()">
-                <option value="3.125">3-1/8" (Western/DF series)</option>
-                <option value="5.125">5-1/8" (Western/DF series)</option>
-                <option value="5.5" selected>5-1/2" (Southern Pine series — Tamarack default)</option>
-                <option value="6.75">6-3/4" (Western/DF series)</option>
-                <option value="7.5">7-1/2" (Southern Pine series)</option>
-                <option value="8.75">8-3/4" (Western/DF series)</option>
-                <option value="9.5">9-1/2" (Southern Pine series)</option>
-                <option value="custom">— custom timber width —</option>
-              </select>
-            </div>
-            <div class="hide" id="g-width-custom-wrap"><label>Custom width (in)</label><input id="g-width-custom" type="number" inputmode="decimal" value="5.5" step="0.125" oninput="updateBeamAnalysis()"></div>
-            <div class="hide" id="g-sawn-grade-wrap"><label>Grade (DF-L)</label>
-              <select id="g-sawn-grade" onchange="updateBeamAnalysis()">
-                <option value="ss">Select Structural</option>
-                <option value="1" selected>No. 1</option>
-                <option value="2">No. 2</option>
-              </select>
-            </div>
-            <div class="hide" id="g-sawn-plies-wrap"><label>Number of plies</label>
-              <select id="g-sawn-plies" onchange="updateBeamAnalysis()">
-                <option value="1">(1) single ply</option>
-                <option value="2">(2) plies</option>
-                <option value="3" selected>(3) plies</option>
-                <option value="4">(4) plies</option>
-              </select>
-            </div>
-            <div><label>Bay span(s) (ft) &mdash; from the diagram above, or type directly (comma-separated)</label><input id="g-span" type="text" inputmode="decimal" value="20" oninput="onBeamSpanTextChange()"></div>
-            <div><label>Spacing / tributary distance (ft)</label><input id="g-trib" type="number" inputmode="decimal" value="12" step="0.5" oninput="updateBeamAnalysis()"></div>
-            <div><label>Dead load (psf)</label><input id="g-dl" type="number" inputmode="decimal" value="15" step="1" oninput="updateBeamAnalysis()"></div>
-            <div><label>Live load / snow (psf)</label><input id="g-ll" type="number" inputmode="decimal" value="35" step="1" oninput="updateBeamAnalysis()"></div>
-            <div style="align-self:end;"><label class="check" style="display:flex;align-items:center;gap:6px;margin-bottom:8px;"><input type="checkbox" id="g-trib-apply" checked onchange="updateBeamAnalysis()" style="width:auto;margin:0;"> Apply tributary load above to this beam</label></div>
-            <div id="g-fb-wrap"><label>Stress grade (Fb, psi)</label>
-              <select id="g-fb" onchange="onBeamMaterialChange()">
-                <option value="1800">24F-V1 DF/DF — Fb 1800</option>
-                <option value="2000">24F-V3 DF/DF — Fb 2000</option>
-                <option value="2400" selected>24F-V4 DF/DF — Fb 2400</option>
-                <option value="2600">24F-V8 DF/DF — Fb 2600</option>
-                <option value="custom">— custom Fb (sawn timber, PSL, LVL, etc.) —</option>
-              </select>
-            </div>
-            <div class="hide" id="g-species-wrap"><label>Species/grade &mdash; optional, fills in Fb &amp; E below</label>
-              <select id="g-species" onchange="onSpeciesChange()">
-                <option value="">— manual entry —</option>
-              </select>
-            </div>
-            <div class="hide" id="g-fb-custom-wrap"><label>Custom Fb (psi)</label><input id="g-fb-custom" type="number" inputmode="decimal" value="2400" step="50" oninput="updateBeamAnalysis()"></div>
-            <div id="g-e-wrap"><label>E (x10^6 psi)</label>
-              <select id="g-e" onchange="onBeamMaterialChange()">
-                <option value="1.7">1.7</option><option value="1.8" selected>1.8</option><option value="1.9">1.9</option>
-                <option value="custom">— custom E —</option>
-              </select>
-            </div>
-            <div class="hide" id="g-e-custom-wrap"><label>Custom E (x10^6 psi)</label><input id="g-e-custom" type="number" inputmode="decimal" value="1.8" step=".05" oninput="updateBeamAnalysis()"></div>
-            <div><label>Deflection limit</label>
-              <select id="g-defl" onchange="updateBeamAnalysis()">
-                <option value="240">L/240 (total)</option>
-                <option value="360" selected>L/360 (live)</option>
-                <option value="180">L/180 (roof, no ceiling)</option>
-              </select>
-            </div>
-          </div>
-          <button class="run" onclick="updateBeamAnalysis()">Recalculate</button>
-          <p class="note" style="margin-top:6px;">Everything above updates live as you type, drag, or edit a dimension — this button is just a manual refresh if you ever want one.</p>
-          <div class="result" id="g-result"></div>
-          <div id="g-source" style="font-family:var(--sans); font-size:.76rem; color:var(--steel); margin-top:10px;"></div>
-          <button class="run secondary" onclick="printGlulamSheet()" style="margin-top:10px;">Print / Save as PDF for building dept.</button>
         </div>
         <p class="flag-link">&#9432; <a href="#" onclick="goToNote('glulam');return false;">See Notes &rarr; Beam Sizing</a> for point-load handling, width/species defaults, and reaction caveats.</p>
       </section>
@@ -1126,7 +1155,7 @@
                       <option value="4.5">1/16" = 1'-0"</option><option value="6.75">3/32" = 1'-0"</option><option value="9" selected>1/8" = 1'-0"</option><option value="13.5">3/16" = 1'-0"</option><option value="18">1/4" = 1'-0"</option><option value="27">3/8" = 1'-0"</option><option value="36">1/2" = 1'-0"</option><option value="cal">Calibrated (2 clicks)</option>
                     </select>
                   </div>
-                  <label class="pv-field" style="cursor:pointer;" title="Snap the calibrate/measure clicks to line ends, corners and intersections drawn on the sheet (hold Alt to turn off)"><input type="checkbox" id="pv-snap" checked style="width:16px;height:16px;min-height:0;margin:0;flex:none"> Snap</label>
+                  <label class="pv-field" style="cursor:pointer;" title="Snaps calibrate/measure clicks to line ends, corners and intersections drawn on the sheet, and defaults each new leg to horizontal/vertical from the last point (hold Shift for a diagonal, hold Alt to turn off snapping entirely)"><input type="checkbox" id="pv-snap" checked style="width:16px;height:16px;min-height:0;margin:0;flex:none"> Snap + ortho</label>
                   <span class="note" id="pv-measstatus" style="margin:0;"></span>
                   <div class="sep"></div>
                   <div class="pv-field">
@@ -2988,6 +3017,7 @@
                       <button class="pv-btn" id="sd-wallsbtn" onclick="sdToggleWalls()" title="Hide everything on the sheet except the walls (heavy lines, or the Revit walls when the snow model is loaded)">Walls only</button>
                       <label id="sd-wallwt-wrap" class="pv-field" style="display:none;cursor:pointer;" title="Lines at least this heavy count as walls">Wt &ge; <input id="sd-wallwt" type="range" min="0" max="3" step="0.05" value="1" style="width:90px;min-height:0;" oninput="sdDrawWalls()"></label>
                       <label class="pv-field" style="cursor:pointer;" title="Snap to line ends, corners and intersections (hold Alt to turn off). Lines are orthogonal unless you hold Shift."><input type="checkbox" id="sd-snap" checked style="width:16px;height:16px;min-height:0;margin:0;flex:none"> Snap + ortho</label>
+                      <div class="pv-field" id="sd-viewsel-wrap" style="display:none;" title="Heights, snapping and the section use only this view (outlined in green) until you switch">Plan view <select id="sd-viewsel" onchange="sdSetView(this.value)"></select></div>
                       <button class="pv-btn" onclick="sdToggleSide()" id="sd-sidebtn">Hide list</button>
                     </div>
                   </div>
@@ -4176,7 +4206,7 @@
     rect.addEventListener('pointerup', ()=>{ dragging = false; });
     rect.addEventListener('pointercancel', ()=>{ dragging = false; });
   }
-  function dcConfirmPlace(){
+  async function dcConfirmPlace(){
     const d = DC_DATA.find(x=>x.id===dcPlacingId);
     if(!d) return;
     const project = document.getElementById('dc-place-project').value.trim();
@@ -4196,11 +4226,15 @@
     };
     dcPullEntries.push(entry);
     dcRememberSheet(d.id, project, sheetNumber);
-    dcPersistPull();
+    const wrote = await dcPersistPull();
     dcRenderPullQueue();
     dcRender();
     dcClosePlace();
-    if(typeof showLoadToast === 'function') showLoadToast('Queued — run "Import Queued Details" in that project to place it.');
+    if(typeof showLoadToast === 'function'){
+      showLoadToast(wrote
+        ? 'Queued — run "Import Queued Details" in that project to place it.'
+        : 'Saved in this browser only — NOT written to the shared folder (not connected, or write permission needs reconnecting on the Home tab). Revit won\'t see this request until that\'s fixed.');
+    }
   }
   // ---- Shopping cart checkout (bulk "Place on sheet" for everything in the cart, each item to its own assigned sheet) ----
   function dcOpenCartCheckout(){
@@ -4220,7 +4254,7 @@
   function dcCloseCartCheckout(){
     document.getElementById('dc-cart-backdrop').classList.remove('open');
   }
-  function dcConfirmCartCheckout(){
+  async function dcConfirmCartCheckout(){
     if(!dcQueue.length) return;
     const project = dcCartProject;
     if(!project){ alert('Set the project in the cart panel before sending to Revit.'); return; }
@@ -4257,14 +4291,18 @@
         dcRememberSheet(q.id, project, sheetNumber);
       });
     });
-    dcPersistPull();
+    const wrote = await dcPersistPull();
     dcRenderPullQueue();
     const sentIds = new Set(sendable.map(q=>q.id));
     dcQueue = dcQueue.filter(q=>!sentIds.has(q.id));
     dcSaveQueue();
     dcRender();
     dcCloseCartCheckout();
-    if(typeof showLoadToast === 'function') showLoadToast(sendable.length + ' item(s) sent — run "Import Queued Details" in ' + project + ' to place them.');
+    if(typeof showLoadToast === 'function'){
+      showLoadToast(wrote
+        ? sendable.length + ' item(s) sent — run "Import Queued Details" in ' + project + ' to place them.'
+        : sendable.length + ' item(s) saved in this browser only — NOT written to the shared folder (not connected, or write permission needs reconnecting on the Home tab). Revit won\'t see these until that\'s fixed.');
+    }
   }
   function dcRemovePull(id){
     dcPullEntries = dcPullEntries.filter(x=>x.id!==id);
@@ -4282,17 +4320,25 @@
       `<span class="dc-queue-item" title="${String(p.view||'').replace(/"/g,'&quot;')}">${p.name} &rarr; ${p.project} ${p.sheetNumber}<button onclick="dcRemovePull('${p.id}')" aria-label="Remove">&times;</button></span>`
     ).join('');
   }
+  // Returns true only once detail-catalog-pull.json has actually been
+  // written to the linked folder - callers use this to tell the user
+  // whether "Import Queued Details" in Revit will actually find anything,
+  // instead of always saying "Queued" even when no folder is connected (or
+  // write permission lapsed) and nothing but this browser's own localStorage
+  // ever got the request.
   async function dcPersistPull(){
     localStorage.setItem('dcPullQueue', JSON.stringify(dcPullEntries));
     const handle = await dcGetExportDirHandle(false);
-    if(!handle) return;
+    if(!handle) return false;
     try{
       const fileHandle = await handle.getFileHandle(DC_PULL_FILENAME, {create:true});
       const writable = await fileHandle.createWritable();
       await writable.write(JSON.stringify({pulls: dcPullEntries, savedAt: new Date().toISOString()}, null, 2));
       await writable.close();
+      return true;
     }catch(ex){
       console.warn('Detail Catalog: could not write pull-request file', ex);
+      return false;
     }
   }
   async function dcTryLoadPullFromHandle(handle){
@@ -4998,7 +5044,9 @@
       {label:'Resulting uniform load, w', value:`${Math.round(c.w).toLocaleString()} plf`},
       {label:'Section provided', value:c.size}
     ] : null;
-    generatePrintSheet({panelId:'glulam', title:(document.getElementById('g-member-type') && document.getElementById('g-member-type').value==='sawn') ? 'Beam Sizing — Bundled Sawn Lumber' : 'Beam Sizing — Glulam', diagramIds:['g-beam-svg','g-shear-svg','g-moment-svg'], resultId:'g-result', calc:c, loadsRows});
+    const pgTypeVal = document.getElementById('g-member-type') ? document.getElementById('g-member-type').value : 'glulam';
+    const pgTitle = pgTypeVal==='sawn' ? 'Beam Sizing — Bundled Sawn Lumber' : pgTypeVal==='wf' ? 'Beam Sizing — Steel Wide Flange' : pgTypeVal==='hss' ? 'Beam Sizing — Steel HSS' : 'Beam Sizing — Glulam';
+    generatePrintSheet({panelId:'glulam', title:pgTitle, diagramIds:['g-beam-svg','g-shear-svg','g-moment-svg'], resultId:'g-result', calc:c, loadsRows});
   }
   function printSpanCalcSheet(){
     const c = lastSpanCalc;
@@ -5333,19 +5381,37 @@
     input.addEventListener('blur', commit);
   }
 
+  // Fired only when the Member type dropdown itself changes, so a sensible
+  // default Fy gets picked for whichever steel type was just selected
+  // (without stomping on a custom Fy the user already typed in). Everything
+  // else routes through onBeamMaterialChange().
+  function onMemberTypeChange(){
+    const memberTypeEl = document.getElementById('g-member-type');
+    const type = memberTypeEl ? memberTypeEl.value : 'glulam';
+    const fyEl = document.getElementById('g-steel-fy');
+    if(fyEl && fyEl.value!=='custom'){
+      if(type==='wf') fyEl.value = '50';
+      else if(type==='hss') fyEl.value = '46';
+    }
+    onBeamMaterialChange();
+  }
   function onBeamMaterialChange(){
     const memberTypeEl = document.getElementById('g-member-type');
-    const isSawn = memberTypeEl && memberTypeEl.value==='sawn';
-    document.getElementById('g-width-wrap').classList.toggle('hide', isSawn);
-    document.getElementById('g-width-custom-wrap').classList.toggle('hide', isSawn || document.getElementById('g-width').value!=='custom');
+    const type = memberTypeEl ? memberTypeEl.value : 'glulam';
+    const isSawn = type==='sawn';
+    const isSteel = type==='wf' || type==='hss';
+    document.getElementById('g-width-wrap').classList.toggle('hide', isSawn || isSteel);
+    document.getElementById('g-width-custom-wrap').classList.toggle('hide', isSawn || isSteel || document.getElementById('g-width').value!=='custom');
     document.getElementById('g-sawn-grade-wrap').classList.toggle('hide', !isSawn);
     document.getElementById('g-sawn-plies-wrap').classList.toggle('hide', !isSawn);
-    document.getElementById('g-fb-wrap').classList.toggle('hide', isSawn);
-    document.getElementById('g-e-wrap').classList.toggle('hide', isSawn);
-    const fbCustom = !isSawn && document.getElementById('g-fb').value==='custom';
+    document.getElementById('g-fb-wrap').classList.toggle('hide', isSawn || isSteel);
+    document.getElementById('g-e-wrap').classList.toggle('hide', isSawn || isSteel);
+    const fbCustom = !isSawn && !isSteel && document.getElementById('g-fb').value==='custom';
     document.getElementById('g-fb-custom-wrap').classList.toggle('hide', !fbCustom);
     document.getElementById('g-species-wrap').classList.toggle('hide', !fbCustom);
-    document.getElementById('g-e-custom-wrap').classList.toggle('hide', isSawn || document.getElementById('g-e').value!=='custom');
+    document.getElementById('g-e-custom-wrap').classList.toggle('hide', isSawn || isSteel || document.getElementById('g-e').value!=='custom');
+    document.getElementById('g-steel-grade-wrap').classList.toggle('hide', !isSteel);
+    document.getElementById('g-steel-fy-custom-wrap').classList.toggle('hide', !isSteel || document.getElementById('g-steel-fy').value!=='custom');
     if(typeof updateBeamAnalysis==='function') updateBeamAnalysis();
   }
 
@@ -6007,6 +6073,60 @@
     }, {once:false});
   }
 
+  // Representative AISC W-shape (wide flange, ASTM A992) and HSS square-tube
+  // (ASTM A500) section properties for a quick preliminary steel beam check.
+  // Sx/Ix are typical published values; Sx is used directly (elastic section
+  // modulus) with a 0.60*Fy allowable bending stress (the conservative,
+  // long-standing ASD approach) rather than a plastic Zx/Omega check, since
+  // that needs no assumption about compactness/lateral bracing. This is a
+  // preliminary check only — confirm the final size, grade, and bracing
+  // against the current AISC Steel Construction Manual (or a stamped calc)
+  // before it goes on a drawing.
+  const WF_SHAPES = [
+    {key:'W8x10',  wt:10, d:7.89,  Sx:7.81,  Ix:30.8},
+    {key:'W10x12', wt:12, d:9.87,  Sx:10.9,  Ix:53.8},
+    {key:'W8x13',  wt:13, d:7.99,  Sx:9.91,  Ix:39.6},
+    {key:'W12x14', wt:14, d:11.9,  Sx:14.9,  Ix:88.6},
+    {key:'W8x15',  wt:15, d:8.11,  Sx:11.8,  Ix:48.0},
+    {key:'W10x15', wt:15, d:9.99,  Sx:13.8,  Ix:68.9},
+    {key:'W12x16', wt:16, d:11.99, Sx:17.1,  Ix:103},
+    {key:'W10x17', wt:17, d:10.1,  Sx:16.2,  Ix:81.9},
+    {key:'W8x18',  wt:18, d:8.14,  Sx:15.2,  Ix:61.9},
+    {key:'W10x19', wt:19, d:10.2,  Sx:18.8,  Ix:96.3},
+    {key:'W12x19', wt:19, d:12.2,  Sx:21.3,  Ix:130},
+    {key:'W8x21',  wt:21, d:8.28,  Sx:18.2,  Ix:75.3},
+    {key:'W10x22', wt:22, d:10.2,  Sx:23.2,  Ix:118},
+    {key:'W12x22', wt:22, d:12.3,  Sx:25.4,  Ix:156},
+    {key:'W14x22', wt:22, d:13.7,  Sx:29.0,  Ix:199},
+    {key:'W8x24',  wt:24, d:7.93,  Sx:20.9,  Ix:82.7},
+    {key:'W10x26', wt:26, d:10.3,  Sx:27.9,  Ix:144},
+    {key:'W12x26', wt:26, d:12.2,  Sx:33.4,  Ix:204},
+    {key:'W14x26', wt:26, d:13.9,  Sx:35.3,  Ix:245},
+    {key:'W16x26', wt:26, d:15.7,  Sx:38.4,  Ix:301},
+    {key:'W10x30', wt:30, d:10.5,  Sx:32.4,  Ix:170},
+    {key:'W12x30', wt:30, d:12.3,  Sx:38.6,  Ix:238},
+    {key:'W14x30', wt:30, d:13.8,  Sx:42.0,  Ix:291},
+    {key:'W16x31', wt:31, d:15.9,  Sx:47.2,  Ix:375},
+    {key:'W14x34', wt:34, d:14.0,  Sx:48.6,  Ix:340},
+    {key:'W12x35', wt:35, d:12.5,  Sx:45.6,  Ix:285},
+    {key:'W18x35', wt:35, d:17.7,  Sx:57.6,  Ix:510},
+    {key:'W16x36', wt:36, d:15.9,  Sx:56.5,  Ix:448},
+    {key:'W18x40', wt:40, d:17.9,  Sx:68.4,  Ix:612}
+  ].sort((a,b)=> a.wt-b.wt);
+  const HSS_SHAPES = [
+    {key:'HSS3x3x3/16', wt:6.87,  d:3, Sx:1.86,  Ix:2.78},
+    {key:'HSS4x4x3/16', wt:8.81,  d:4, Sx:3.65,  Ix:7.29},
+    {key:'HSS5x5x3/16', wt:11.1,  d:5, Sx:5.96,  Ix:14.9},
+    {key:'HSS4x4x1/4',  wt:11.4,  d:4, Sx:4.34,  Ix:8.68},
+    {key:'HSS6x6x3/16', wt:13.5,  d:6, Sx:8.80,  Ix:26.4},
+    {key:'HSS5x5x1/4',  wt:14.5,  d:5, Sx:7.44,  Ix:18.6},
+    {key:'HSS6x6x1/4',  wt:17.8,  d:6, Sx:11.1,  Ix:33.4},
+    {key:'HSS8x8x1/4',  wt:24.7,  d:8, Sx:19.9,  Ix:79.5},
+    {key:'HSS6x6x5/16', wt:21.9,  d:6, Sx:13.2,  Ix:39.5},
+    {key:'HSS6x6x3/8',  wt:25.8,  d:6, Sx:14.9,  Ix:44.8},
+    {key:'HSS8x8x5/16', wt:30.5,  d:8, Sx:24.1,  Ix:96.3},
+    {key:'HSS8x8x3/8',  wt:36.2,  d:8, Sx:28.0,  Ix:112}
+  ].sort((a,b)=> a.wt-b.wt);
   const widths = [3.125, 5.125, 5.5, 6.75, 7.5, 8.75, 9.5];
   function depthsForWidth(b){
     const sizes = [];
@@ -6031,7 +6151,8 @@
     const memberTypeEl = document.getElementById('g-member-type');
     const memberType = memberTypeEl ? memberTypeEl.value : 'glulam';
     const isSawn = memberType==='sawn';
-    let width, fb, E, sawnPlies;
+    const isWF = memberType==='wf', isHSS = memberType==='hss', isSteel = isWF || isHSS;
+    let width, fb, E, sawnPlies, steelFy;
     if(isSawn){
       sawnPlies = parseInt(document.getElementById('g-sawn-plies').value) || 1;
       const gradeKey = document.getElementById('g-sawn-grade').value;
@@ -6044,6 +6165,16 @@
       fb = grade.Fb;
       E = grade.E;
       width = 1.5*sawnPlies; // for display only until a size is picked
+    } else if(isSteel){
+      // fb here is just a placeholder constant for the same Sreq bookkeeping
+      // trick used above (it cancels out exactly when Mreq is recovered
+      // below as Sreq*fb/12) — the real steel bending check further down
+      // uses Fy and each catalog shape's own Sx, not this value at all.
+      const fySel = document.getElementById('g-steel-fy').value;
+      steelFy = (fySel==='custom' ? parseFloat(document.getElementById('g-steel-fy-custom').value) : parseFloat(fySel));
+      fb = 1000;
+      E = 29e6; // steel, all grades
+      width = 0;
     } else {
       const widthSel = document.getElementById('g-width').value;
       width = widthSel==='custom' ? parseFloat(document.getElementById('g-width-custom').value) : parseFloat(widthSel);
@@ -6163,7 +6294,60 @@
     const reactions = computeReactions();
     const reactionNote = reactions ? `<div style="margin-top:8px;">Support reactions — ${reactions.map(r=>`${r.type==='wall'?'Wall':r.type==='beam'?'Beam':'Post'} ${r.idx+1}: <b>${Math.round(r.R).toLocaleString()} lb</b>${r.uplift ? ` <span style="color:var(--rust);">(uplift ${Math.round(r.Rmin).toLocaleString()} lb under patterned live load &mdash; check hold-down)</span>` : ''} ${sendBtn(`sendGlulamReactionToFooting(${r.idx})`, 'Send to Footing')}`).join('<br>')} <span class="note">(continuous beam, max over live-load patterns)</span></div>` : '';
 
-    if(isSawn){
+    // Formats a design/allowable pair as a %-of-capacity "stress" readout,
+    // color-flagged once it's using up most of what's available, shared by
+    // every member type below so glulam, sawn, and steel all show it.
+    function utilLine(bendPct, deflPct){
+      const fmt = p => {
+        const c = p>=100 ? 'var(--rust)' : (p>=90 ? '#b8860b' : 'var(--ok)');
+        return `<b style="color:${c};">${p.toFixed(0)}%</b>`;
+      };
+      return `<div style="margin-top:6px;">Stressed at: bending ${fmt(bendPct)} of allowable &nbsp;&middot;&nbsp; deflection ${fmt(deflPct)} of allowable</div>`;
+    }
+
+    if(isSteel){
+      // Steel (Wide Flange or HSS) — pick the lightest catalog shape that
+      // clears both bending and deflection. Bending uses an allowable stress
+      // of 0.60*Fy against each shape's elastic Sx (the classic ASD approach)
+      // rather than a plastic Zx/Cb/Lb lateral-torsional-buckling check, so
+      // this is a preliminary size only — confirm bracing/compactness and the
+      // final shape against the current AISC Manual or a stamped calc.
+      const Mreq = Sreq * fb / 12; // recover the raw required moment (fb cancels out - see note above)
+      const MreqInLb = Mreq * 12;
+      const FbAllow = 0.60 * steelFy * 1000; // psi
+      const catalog = isWF ? WF_SHAPES : HSS_SHAPES;
+      let fit = null;
+      for(const sz of catalog){
+        const Mallow = FbAllow * sz.Sx; // in-lb
+        if(Mallow >= MreqInLb && sz.Ix >= Ireq){ fit = {...sz, Mallow}; break; }
+      }
+      const typeLabel = isWF ? 'Wide Flange' : 'HSS';
+      if(fit){
+        box.classList.remove('warn');
+        const MallowFt = fit.Mallow/12;
+        const bendPct = Mreq/MallowFt*100, deflPct = Ireq/fit.Ix*100;
+        box.innerHTML = `<div class="headline">Suggested: ${fit.key} (${fit.wt} plf, ${typeLabel})</div>
+          Fy = ${steelFy} ksi &nbsp; w = ${w.toFixed(0)} plf${loadBreakdown}${bayNote}${plNote}${contNote}<br>
+          Moment required = ${Mreq.toFixed(0)} ft-lb -> allowable ${MallowFt.toFixed(0)} ft-lb (0.60Fy x Sx ${fit.Sx} in3)<br>
+          I required (defl) = ${Ireq.toFixed(0)} in4 -> provided ${fit.Ix.toFixed(0)} in4<br>
+          Governs: ${bendPct > deflPct ? 'bending' : 'deflection'}${utilLine(bendPct, deflPct)}${reactionNote}
+          <p class="note" style="margin-top:8px;">Preliminary sizing only (0.60Fy elastic bending check, no lateral-torsional-buckling/compactness check) — confirm against the current AISC Steel Construction Manual or a stamped calc before use.</p>`;
+        lastGlulamCalc = {
+          isSawn:false, size:`${fit.key} — ${typeLabel}, Fy ${steelFy} ksi`,
+          w, dl, ll, trib, tribApply, govern: bendPct > deflPct ? 'Bending' : 'Deflection',
+          controls: [
+            {label:'Bending Moment (ft-lb)', design:Mreq, allow:MallowFt, pct:bendPct},
+            {label:'Deflection, I (in4)', design:Ireq, allow:fit.Ix, pct:deflPct, defl:`L/${defl}`}
+          ],
+          reactions
+        };
+      } else {
+        box.classList.add('warn');
+        box.innerHTML = `<div class="headline">No ${typeLabel} in this catalog works</div>
+          Even the heaviest ${typeLabel} section checked here doesn't clear the required moment/deflection for this span.${bayNote} Try a deeper/heavier size from a full AISC table, a higher Fy, or switch member type.${reactionNote}`;
+        lastGlulamCalc = null;
+      }
+    } else if(isSawn){
       // Bundled sawn lumber — pick the smallest catalog size (2x6..2x14) at
       // the chosen ply count that clears both bending (with that size's own
       // NDS size factor CF applied — no repetitive-member Cr, since a bundled
@@ -6181,17 +6365,18 @@
       if(fit){
         box.classList.remove('warn');
         const dFrac = (fit.d % 1 === 0.5) ? (Math.floor(fit.d)+'-1/2') : fit.d;
+        const bendPct = Mreq/fit.Mallow*100, deflPct = Ireq/fit.I*100;
         box.innerHTML = `<div class="headline">Suggested: (${sawnPlies}) ${fit.key} — ${fit.b}" x ${dFrac}" bundled</div>
           Grade: ${JOIST_GRADE_LABEL[gradeKey]||gradeKey} DF-L &nbsp; w = ${w.toFixed(0)} plf${loadBreakdown}${bayNote}${plNote}${contNote}<br>
           Moment required = ${Mreq.toFixed(0)} ft-lb -> allowable ${fit.Mallow.toFixed(0)} ft-lb<br>
           I required (defl) = ${Ireq.toFixed(0)} in4 -> provided ${fit.I.toFixed(0)} in4<br>
-          Governs: ${fit.Mallow/Mreq < fit.I/Ireq ? 'bending' : 'deflection'}${reactionNote}`;
+          Governs: ${bendPct > deflPct ? 'bending' : 'deflection'}${utilLine(bendPct, deflPct)}${reactionNote}`;
         lastGlulamCalc = {
           isSawn:true, size:`(${sawnPlies}) ${fit.key} — ${fit.b}" x ${dFrac}" bundled, ${JOIST_GRADE_LABEL[gradeKey]||gradeKey} DF-L`,
-          w, dl, ll, trib, tribApply, govern: fit.Mallow/Mreq < fit.I/Ireq ? 'Bending' : 'Deflection',
+          w, dl, ll, trib, tribApply, govern: bendPct > deflPct ? 'Bending' : 'Deflection',
           controls: [
-            {label:'Bending Moment (ft-lb)', design:Mreq, allow:fit.Mallow, pct:Mreq/fit.Mallow*100},
-            {label:'Deflection, I (in4)', design:Ireq, allow:fit.I, pct:Ireq/fit.I*100, defl:`L/${defl}`}
+            {label:'Bending Moment (ft-lb)', design:Mreq, allow:fit.Mallow, pct:bendPct},
+            {label:'Deflection, I (in4)', design:Ireq, allow:fit.I, pct:deflPct, defl:`L/${defl}`}
           ],
           reactions
         };
@@ -6210,17 +6395,18 @@
       if(fit){
         box.classList.remove('warn');
         const dFrac = (fit.d % 1 === 0.5) ? (Math.floor(fit.d)+'-1/2') : fit.d;
+        const bendPct = Sreq/fit.Sx*100, deflPct = Ireq/fit.I*100;
         box.innerHTML = `<div class="headline">Suggested: ${wFrac}" x ${dFrac}"</div>
           w = ${w.toFixed(0)} plf${loadBreakdown}${bayNote}${plNote}${contNote}<br>
           Sx required = ${Sreq.toFixed(1)} in3 -> provided ${fit.Sx.toFixed(1)} in3<br>
           I required (defl) = ${Ireq.toFixed(0)} in4 -> provided ${fit.I.toFixed(0)} in4<br>
-          Governs: ${fit.Sx/Sreq < fit.I/Ireq ? 'bending' : 'deflection'}${reactionNote}`;
+          Governs: ${bendPct > deflPct ? 'bending' : 'deflection'}${utilLine(bendPct, deflPct)}${reactionNote}`;
         lastGlulamCalc = {
           isSawn:false, size:`${wFrac}" x ${dFrac}" glulam`,
-          w, dl, ll, trib, tribApply, govern: fit.Sx/Sreq < fit.I/Ireq ? 'Bending' : 'Deflection',
+          w, dl, ll, trib, tribApply, govern: bendPct > deflPct ? 'Bending' : 'Deflection',
           controls: [
-            {label:'Bending, Sx (in3)', design:Sreq, allow:fit.Sx, pct:Sreq/fit.Sx*100},
-            {label:'Deflection, I (in4)', design:Ireq, allow:fit.I, pct:Ireq/fit.I*100, defl:`L/${defl}`}
+            {label:'Bending, Sx (in3)', design:Sreq, allow:fit.Sx, pct:bendPct},
+            {label:'Deflection, I (in4)', design:Ireq, allow:fit.I, pct:deflPct, defl:`L/${defl}`}
           ],
           reactions
         };
@@ -9032,7 +9218,7 @@
     } else {
       el.innerHTML = `<span><span class="swatch" style="background:#C0392B"></span>Old set (left)</span>
         <span><span class="swatch" style="background:#2461B3"></span>New set (right)</span>
-        <span><span class="swatch" style="background:rgba(255,196,0,0.6)"></span>Amber highlight = differs from the other page</span>`;
+        <span><span class="swatch" style="background:rgba(255,196,0,0.35)"></span>Amber highlight = differs from the other page</span>`;
     }
   }
   // Solid amber block over each CLUSTER of changed pixels, stamped onto a COPY
@@ -9089,9 +9275,12 @@
         else{ if(gx<b.minX)b.minX=gx; if(gx>b.maxX)b.maxX=gx; if(gy<b.minY)b.minY=gy; if(gy>b.maxY)b.maxY=gy; }
       }
     }
+    // Paint every box fully opaque here (alpha handled once, at composite time
+    // in stampMask) so overlapping/adjacent padded boxes never stack into a
+    // darker patch where two clusters' padding touches.
     const mask = document.createElement('canvas'); mask.width = w; mask.height = h;
     const mctx = mask.getContext('2d');
-    mctx.fillStyle = 'rgba(255,196,0,0.88)';
+    mctx.fillStyle = 'rgb(255,196,0)';
     const pad = cell;
     boxes.forEach(b=>{
       const x0 = Math.max(0, b.minX*cell - pad), y0 = Math.max(0, b.minY*cell - pad);
@@ -9104,7 +9293,9 @@
     const c = document.createElement('canvas'); c.width = canvas.width; c.height = canvas.height;
     const cx = c.getContext('2d');
     cx.drawImage(canvas, 0, 0);
+    cx.globalAlpha = 0.35;
     cx.drawImage(mask, 0, 0, canvas.width, canvas.height);
+    cx.globalAlpha = 1;
     c.dataset.dpi = canvas.dataset.dpi;
     return c;
   }
@@ -9481,11 +9672,25 @@
     });
     pvSnapGrid = {segs, grid};
   }
-  function pvSnap(p, ev){
+  // from: the previous point in the current measure/calibrate click chain
+  // (or null for the first click) - when given, the click is forced
+  // horizontal or vertical from that point (whichever axis it's closer to),
+  // same "orthogonal by default, hold Shift for a diagonal" convention as
+  // Snow Drift's wall/measure snapping, unless Alt is held (turns off ALL
+  // snapping, ortho included) or Shift is held (turns off ortho only, so an
+  // actual diagonal dimension can still be picked freely).
+  function pvSnap(p, ev, from){
     pvSnapMark = null;
     const cb = document.getElementById('pv-snap');
     const on = cb ? (cb.checked && !(ev && ev.altKey)) : false;
-    if(!on || !pvSnapGrid || !pvSnapGrid.segs.length) return {x:p.x, y:p.y};
+    let q = {x:p.x, y:p.y};
+    const ortho = on && from && !(ev && ev.shiftKey);
+    if(ortho){
+      const axis = Math.abs(p.x-from.x) >= Math.abs(p.y-from.y) ? 'h' : 'v';
+      if(axis==='h') q.y = from.y; else q.x = from.x;
+    }
+    if(!on || !pvSnapGrid || !pvSnapGrid.segs.length) return q;
+    p = q; // snap-to-geometry searches around the (already ortho-constrained) point
     const tol = 9*pvBoard.ptPerPx();
     const cx = Math.floor(p.x/PV_CELL), cy = Math.floor(p.y/PV_CELL), seen = new Set(), near = [];
     for(let i=cx-1;i<=cx+1;i++) for(let j=cy-1;j<=cy+1;j++) (pvSnapGrid.grid.get(i+','+j)||[]).forEach(k=>{ if(!seen.has(k)){ seen.add(k); near.push(pvSnapGrid.segs[k]); } });
@@ -9601,6 +9806,14 @@
     pvDraw(); pvSaveState();
   }
 
+  // Last placed point of the in-progress calibrate/length/poly-length/area
+  // click chain, as {x,y} - the "from" point pvSnap constrains the NEXT
+  // click orthogonal to, or null on the first click of a new chain.
+  function pvLastPt(){
+    if(!pvPoly || !pvPoly.pts || !pvPoly.pts.length) return null;
+    const last = pvPoly.pts[pvPoly.pts.length-1];
+    return {x:last[0], y:last[1]};
+  }
   function pvPointer(type, p, ev){
     if(!pvBoard.pageW) return;
     const n = pvBoard.pageNum;
@@ -9609,7 +9822,7 @@
 
     if(pvTool==='calibrate'){
       if(type==='down'){
-        const q = pvSnap(p, ev);
+        const q = pvSnap(p, ev, pvLastPt());
         if(!pvPoly){ pvPoly = {kind:'calibrate', pts:[[q.x,q.y]]}; pvDraw(); return; }
         pvPoly.pts.push([q.x,q.y]); const pts = pvPoly.pts; pvPoly = null; pvSnapMark = null; pvDraw();
         const dist = Math.hypot(pts[1][0]-pts[0][0], pts[1][1]-pts[0][1]);
@@ -9620,23 +9833,23 @@
         });
         return;
       }
-      if(type==='move'){ const q = pvSnap(p, ev); if(pvPoly) pvPoly.live = [q.x,q.y]; pvDraw(); }
+      if(type==='move'){ const q = pvSnap(p, ev, pvLastPt()); if(pvPoly) pvPoly.live = [q.x,q.y]; pvDraw(); }
       return;
     }
     if(pvTool==='polylength' || pvTool==='area'){
-      if(type==='down'){ const q = pvSnap(p, ev); if(!pvPoly) pvPoly = {kind:pvTool, pts:[]}; pvPoly.pts.push([q.x,q.y]); pvDraw(); return; }
-      if(type==='move'){ const q = pvSnap(p, ev); if(pvPoly) pvPoly.live = [q.x,q.y]; pvDraw(); return; }
+      if(type==='down'){ const q = pvSnap(p, ev, pvLastPt()); if(!pvPoly) pvPoly = {kind:pvTool, pts:[]}; pvPoly.pts.push([q.x,q.y]); pvDraw(); return; }
+      if(type==='move'){ const q = pvSnap(p, ev, pvLastPt()); if(pvPoly) pvPoly.live = [q.x,q.y]; pvDraw(); return; }
       if(type==='dbl'){ pvSnapMark = null; pvFinishPoly(); return; }
       return;
     }
     if(pvTool==='length'){
       if(type==='down'){
-        const q = pvSnap(p, ev);
+        const q = pvSnap(p, ev, pvLastPt());
         if(!pvPoly){ pvPoly = {kind:'length', pts:[[q.x,q.y]]}; pvDraw(); return; }
         pvPoly.pts.push([q.x,q.y]); pvSnapMark = null; pvFinishPoly();
         return;
       }
-      if(type==='move'){ const q = pvSnap(p, ev); if(pvPoly) pvPoly.live = [q.x,q.y]; pvDraw(); }
+      if(type==='move'){ const q = pvSnap(p, ev, pvLastPt()); if(pvPoly) pvPoly.live = [q.x,q.y]; pvDraw(); }
       return;
     }
     if(pvSnapMark){ pvSnapMark = null; }
@@ -12118,14 +12331,24 @@
   function sdRenderModelCard(){
     const el = document.getElementById('sd-model-card'); if(!el) return;
     const m = sdModel;
+    sdRenderViewSel();
     if(!m){ el.innerHTML = `<span class="note">For wall heights, snapping to Revit walls and the section pop-up, run <b>Export for Snow Drift</b> in Revit and open its files here together with the PDF.</span>`; return; }
     const on = !!sdModelOnPage();
     sdModelGeo();
     if(on && sdGeoCache && sdGeoCache.bad){ el.innerHTML = `<strong>Revit model</strong><br><span style="color:#c8281e">This export doesn't line up with the sheet (made with the first version of the Revit button). Run <b>Export for Snow Drift</b> again, then pick the project again.</span>`; return; }
     el.innerHTML = `<strong>Revit model</strong> <span class="note">${smEsc(m.project||'')} &middot; ${smEsc(m.sheetNumber)}${on?'':' &mdash; <b>not this sheet</b>'}</span><br>` +
-      (m.viewports.length > 1 ? `<label style="display:block;margin:6px 0 2px;font-weight:600">Plan view to use</label><select style="width:100%" onchange="sdSetView(this.value)">${m.viewports.map((v,i)=>`<option value="${i}"${i===sdViewSel(m)?' selected':''}>${smEsc(v.view)} (1:${v.scale})</option>`).join('')}</select><span class="note">Heights, snapping and the section use only this view (outlined in green) until you switch.</span><br>` : '') +
       m.viewports.map(v=>`${smEsc(v.view)} (1:${v.scale}): ${v.walls.length} walls, ${v.surfaces.length} roof/floor, ${v.boxes.length} units`).join('<br>') +
       (sdIsos.length ? `<div class="sd-iso">${sdIsos.map((u,i)=>`<figure style="margin:0"><img src="${u.url}" alt="Isometric ${smEsc(u.name)}" onclick="sdShowIso(${i})"><figcaption class="note" style="margin:0;text-align:center">${smEsc(u.name)}</figcaption></figure>`).join('')}</div>` : '');
+  }
+  // "Plan view to use" selector lives in the Navigation & view tools toolbar,
+  // not the model card, so it's reachable alongside the other view controls.
+  function sdRenderViewSel(){
+    const wrap = document.getElementById('sd-viewsel-wrap'), sel = document.getElementById('sd-viewsel');
+    if(!wrap || !sel) return;
+    const m = sdModel;
+    if(!m || m.viewports.length <= 1){ wrap.style.display = 'none'; sel.innerHTML = ''; return; }
+    wrap.style.display = '';
+    sel.innerHTML = m.viewports.map((v,i)=>`<option value="${i}"${i===sdViewSel(m)?' selected':''}>${smEsc(v.view)} (1:${v.scale})</option>`).join('');
   }
   function sdShowIso(i){
     const u = sdIsos[i]; if(!u) return;
