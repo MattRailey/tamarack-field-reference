@@ -3624,7 +3624,7 @@
         <!-- 4 DELIVER -->
         <div class="pm-step" data-step="deliver" hidden>
           <section class="pm-area " ><div class="pm-area-h"><span class="pm-area-n">A</span><h3>Before you issue</h3><span class="pm-area-sub">what is still open &mdash; each item links to where to fix it</span></div><div class="pm-area-b"><div id="pm-ready"></div></div></section>
-          <section class="pm-area " ><div class="pm-area-h"><span class="pm-area-n">B</span><h3>Calc package</h3><span class="pm-area-sub">preliminary calcs for the EOR &mdash; print to PDF</span></div><div class="pm-area-b"><div id="pm-pkgset"></div><div class="pm-pkgtools" id="pm-pkgtools"><button class="pm-btn small" data-pz="out" title="Zoom out">－</button><span class="z" id="pm-pkgz">100%</span><button class="pm-btn small" data-pz="in" title="Zoom in">＋</button><button class="pm-btn small" data-pz="width">Fit width</button><button class="pm-btn small" data-pz="page">Fit page</button><button class="pm-btn small" data-pz="100">100%</button><span class="note" style="margin:0">wheel to zoom at the cursor &middot; hold the wheel (or Space) and drag to pan &middot; double-click the wheel to fit the width</span></div><div class="pm-pkgbox"><iframe id="pm-pkgframe" class="pm-pkgframe" title="Calc package preview"></iframe></div></div></section>
+          <section class="pm-area " ><div class="pm-area-h"><span class="pm-area-n">B</span><h3>Calc package</h3><span class="pm-area-sub">preliminary calcs for the EOR &mdash; print to PDF</span></div><div class="pm-area-b"><div id="pm-pkgset"></div><div class="pm-pkgtools" id="pm-pkgtools"><button class="pm-btn small" data-pz="out" title="Zoom out">－</button><span class="z" id="pm-pkgz">100%</span><button class="pm-btn small" data-pz="in" title="Zoom in">＋</button><button class="pm-btn small" data-pz="width">Fit width</button><button class="pm-btn small" data-pz="page">Fit page</button><button class="pm-btn small" data-pz="100">100%</button><span class="note" style="margin:0">wheel scrolls &middot; Ctrl+wheel zooms &middot; hold the wheel (or Space) and drag to pan &middot; double-click the wheel to fit the width</span></div><div class="pm-pkgbox"><iframe id="pm-pkgframe" class="pm-pkgframe" title="Calc package preview"></iframe></div></div></section>
           <section class="pm-area " ><div class="pm-area-h"><span class="pm-area-n">C</span><h3>Revit</h3><span class="pm-area-sub">placement file for the Place PEMB Foundations button (QA tab &rarr; PEMB panel)</span></div><div class="pm-area-b"><div id="pm-revit"></div></div></section>
           <details class="pm-more pm-area-d"><summary>Method check against ENERCALC (QA)</summary><div id="pm-valid"></div></details>
         </div>
@@ -15968,8 +15968,12 @@ active foundation plan view:
     plate layout, copied to every column that shares it)
   * draws the hairpins as detail groups
   * sets Mark / Comments, and tags the footings when a foundation tag is loaded
-Everything created is stamped Comments = "PEMB-AUTO:<column>", so re-running the
-button first removes the previous run and then rebuilds it.
+Everything created is stamped Comments = "PEMB-AUTO:<column>". Re-running the button offers
+"Update in place": the existing footings, plinths, grade beams, walls, tags and base plates are
+KEPT (same element ids) and only changed - new type, new position, new elevation - where the
+design changed since the last placement. Dimensions, spot elevations, tags and other annotation
+hosted on them stay attached. New elements are added; elements no longer in the design are
+listed and selected, never deleted.
 
 Coordinates in the JSON are feet from the intersection of the steel lines of the
 two origin grids (default grid 1 / grid A). The script finds those grids in the
@@ -16498,8 +16502,8 @@ if old:
     placed_file = os.path.join(job_dir, 'placed.json')
     msg = '{} elements from an earlier placement are in this model.'.format(len(old))
     if os.path.isfile(placed_file):
-        msg += ' Placement is locked after the first run - Check model reports differences for you to correct by hand.'
-    opts_ = ['Check model against the design', 'Re-place everything (delete and rebuild)', 'Remove everything this button placed']
+        msg += ' Update in place changes only what changed in the design since the last placement and keeps every element (and the annotation on it).'
+    opts_ = ['Update in place (keeps my dimensions, tags and callouts)', 'Check model against the design', 'Re-place everything (delete and rebuild)', 'Remove everything this button placed']
     if not os.path.isfile(placed_file):
         msg += ' No baseline (placed.json) was saved last time.'
         opts_.insert(0, 'Save the current model as the baseline (placed.json)')
@@ -16517,6 +16521,8 @@ if old:
         script.exit()
     if pick.startswith('Check'):
         mode = 'check'
+    elif pick.startswith('Update'):
+        mode = 'update'
     elif not forms.alert('Delete all {} PEMB elements and rebuild them from the current placement file? Any hand edits to them are lost.'.format(len(old)), yes=True, no=True):
         script.exit()
 
@@ -16670,8 +16676,92 @@ for _d in sorted(set(float(b_.get('dia', 0.75)) for b_ in data.get('baseplates',
             warnings.append('Could not build the nut detail component for {}" rods ({}) - nuts drawn as lines.'.format(_d, ex))
             NUT_RFA[_d] = None
 
-with revit.Transaction('Place PEMB foundations', doc=doc):
+# ------------------------------------------------------------------ update in place
+UPDATE = (mode == 'update')
+EX = {}          # key -> existing element (FTG/col, PL/col, GB/id, TAG/col, PTAG/col, SLAB, base-plate groups by col)
+EXW = []         # existing stemwalls
+EXHP = []        # existing hairpin drawings (redrawn every time)
+PREV = {}        # design at the last placement (placed.json): hand edits to items whose design did not change are left alone
+CHG = []         # (element id, what changed)
+NEWS = []        # element ids created in update mode
+ORPH = []        # (key, element id) in the model but no longer in the design
+if UPDATE:
     for i in old:
+        e_ = doc.GetElement(i)
+        if e_ is None:
+            continue
+        k_ = key_of(e_)
+        cp_ = e_.get_Parameter(DB.BuiltInParameter.ALL_MODEL_INSTANCE_COMMENTS)
+        c_ = (cp_.AsString() if cp_ else '') or ''
+        if isinstance(e_, DB.Wall):
+            EXW.append(e_)
+        elif k_ and k_.startswith('HP/'):
+            EXHP.append(e_.Id)
+        elif c_.startswith(TAG + ':SLAB'):
+            EX['SLAB'] = e_
+        elif k_:
+            EX[k_] = e_
+    try:
+        with open(os.path.join(job_dir, 'placed.json'), 'r') as f_:
+            PREV = json.load(f_).get('design', {}) or {}
+    except Exception:
+        PREV = {}
+PREV_F = dict((x['col'], x) for x in PREV.get('footings', []))
+PREV_P = dict((x['col'], x) for x in PREV.get('plinths', []))
+PREV_G = dict((x['id'], x) for x in PREV.get('gradeBeams', []))
+PREV_W = ((PREV.get('walls') or {}).get('segments')) or []
+EX_IDS = set(eid(e_.Id) for e_ in EX.values())
+
+
+def dchanged(prev, new, keys, tol=1e-4):
+    """True when the design changed since the last placement (or there is no record of it)."""
+    if prev is None:
+        return True
+    for k in keys:
+        a, b = prev.get(k), new.get(k)
+        if isinstance(a, (int, float)) or isinstance(b, (int, float)):
+            try:
+                if abs(float(a or 0.0) - float(b or 0.0)) > tol:
+                    return True
+            except Exception:
+                return True
+        elif a != b:
+            return True
+    return False
+
+
+def move_to(el, target):
+    """Move a point-based element so its location point lands on target (plan only)."""
+    try:
+        cur = el.Location.Point
+        d = DB.XYZ(target.X - cur.X, target.Y - cur.Y, 0)
+        if d.GetLength() > 1e-4:
+            DB.ElementTransformUtils.MoveElement(doc, el.Id, d)
+            return True
+    except Exception:
+        pass
+    return False
+
+
+def retype(el, sym):
+    try:
+        if sym is not None and el.GetTypeId() != sym.Id:
+            el.ChangeTypeId(sym.Id)
+            return True
+    except Exception as ex:
+        warnings.append('Could not change the type of element {}: {}'.format(eid(el.Id), ex))
+    return False
+
+
+def tname(el):
+    try:
+        return DB.Element.Name.GetValue(doc.GetElement(el.GetTypeId()))
+    except Exception:
+        return '?'
+
+
+with revit.Transaction('Update PEMB foundations' if UPDATE else 'Place PEMB foundations', doc=doc):
+    for i in (EXHP if UPDATE else old):
         try:
             doc.Delete(i)
         except Exception:
@@ -16788,7 +16878,30 @@ with revit.Transaction('Place PEMB foundations', doc=doc):
             continue
         fdrop = float(f.get('drop', 0.0) or 0.0)      # lowered footing (loading dock / step in grade)
         pt = W(f['cx'], f['cy'], flevel.Elevation + tof - fdrop)
+        ex_ = EX.get('FTG/' + f['col']) if UPDATE else None
+        if ex_ is not None:
+            pf = PREV_F.get(f['col'])
+            what = []
+            t0 = tname(ex_)
+            if dchanged(pf, f, ('mark', 'B', 'L', 'T')) and retype(ex_, sym):
+                what.append('type {} -> {}'.format(t0, DB.Element.Name.GetValue(sym)))
+            if dchanged(pf, f, ('cx', 'cy'), 0.005) and move_to(ex_, pt):
+                what.append('moved')
+            if dchanged(pf, f, ('drop',), 0.005):
+                cur_ = pval(ex_, DB.BuiltInParameter.FLOOR_HEIGHTABOVELEVEL_PARAM)
+                if cur_ is None:
+                    cur_ = pval(ex_, DB.BuiltInParameter.INSTANCE_ELEVATION_PARAM)
+                if cur_ is None or abs(cur_ - (tof - fdrop)) > 0.005:
+                    set_param(ex_, [DB.BuiltInParameter.FLOOR_HEIGHTABOVELEVEL_PARAM, DB.BuiltInParameter.INSTANCE_ELEVATION_PARAM, 'Height Offset From Level'], tof - fdrop)
+                    what.append('elevation, drop {:.2f} ft'.format(float(fdrop)))
+            set_param(ex_, [DB.BuiltInParameter.ALL_MODEL_MARK], f['mark'] + '@' + f['col'])
+            if what:
+                CHG.append((ex_.Id, 'Footing {}: {}'.format(f['col'], ', '.join(what))))
+            FTG_INST[f['col']] = ex_
+            continue
         inst = doc.Create.NewFamilyInstance(pt, sym, flevel, DB.Structure.StructuralType.Footing)
+        if UPDATE:
+            NEWS.append(inst.Id)
         set_param(inst, [DB.BuiltInParameter.FLOOR_HEIGHTABOVELEVEL_PARAM, DB.BuiltInParameter.INSTANCE_ELEVATION_PARAM, 'Height Offset From Level'], tof - fdrop)
         set_param(inst, [DB.BuiltInParameter.ALL_MODEL_MARK], f['mark'] + '@' + f['col'])
         set_param(inst, [DB.BuiltInParameter.ALL_MODEL_INSTANCE_COMMENTS], TAG + ':FTG/' + f['col'])
@@ -16817,7 +16930,28 @@ with revit.Transaction('Place PEMB foundations', doc=doc):
             continue
         pdrop = float(p.get('drop', 0.0) or 0.0)      # plinth grows down to a lowered footing
         pt = W(p['cx'], p['cy'], level.Elevation + tof - pdrop)
+        ex_ = EX.get('PL/' + p['col']) if UPDATE else None
+        if ex_ is not None:
+            pp_ = PREV_P.get(p['col'])
+            what = []
+            t0 = tname(ex_)
+            if dchanged(pp_, p, ('mark', 'bx', 'by')) and retype(ex_, sym):
+                what.append('type {} -> {}'.format(t0, DB.Element.Name.GetValue(sym)))
+            if dchanged(pp_, p, ('cx', 'cy'), 0.005) and move_to(ex_, pt):
+                what.append('moved')
+            if dchanged(pp_, p, ('drop',), 0.005):
+                cur_ = pval(ex_, DB.BuiltInParameter.FAMILY_BASE_LEVEL_OFFSET_PARAM)
+                if cur_ is None or abs(cur_ - (tof - pdrop)) > 0.005:
+                    set_param(ex_, [DB.BuiltInParameter.FAMILY_BASE_LEVEL_OFFSET_PARAM], tof - pdrop)
+                    what.append('bottom, drop {:.2f} ft'.format(float(pdrop)))
+            set_param(ex_, [DB.BuiltInParameter.ALL_MODEL_MARK], p['mark'] + '@' + p['col'])
+            if what:
+                CHG.append((ex_.Id, 'Plinth {}: {}'.format(p['col'], ', '.join(what))))
+            PL_INST[p['col']] = ex_
+            continue
         inst = doc.Create.NewFamilyInstance(pt, sym, level, DB.Structure.StructuralType.Column)
+        if UPDATE:
+            NEWS.append(inst.Id)
         set_param(inst, [DB.BuiltInParameter.FAMILY_BASE_LEVEL_PARAM], level.Id)
         set_param(inst, [DB.BuiltInParameter.FAMILY_BASE_LEVEL_OFFSET_PARAM], tof - pdrop)
         set_param(inst, [DB.BuiltInParameter.FAMILY_TOP_LEVEL_PARAM], level.Id)
@@ -16840,14 +16974,47 @@ with revit.Transaction('Place PEMB foundations', doc=doc):
                 doc.Regenerate()
                 ext2 = plan_extents(inst)
                 TYPE_WARN.append('Plinth family "{}" runs b / h the other way - swapped them on every plinth type so the long side matches the design ({}).'.format(
-                    S.get('plinthFamily'), 'now {:.2f} x {:.2f} ft'.format(ext2[0], ext2[1]) if ext2 else 'check'))
+                    S.get('plinthFamily'), 'now {:.2f} x {:.2f} ft'.format(float(ext2[0]), float(ext2[1])) if ext2 else 'check'))
+
+    if UPDATE:
+        doc.Regenerate()
+        if ft_probe is None:
+            for f in data.get('footings', []):
+                fi_ = FTG_INST.get(f['col'])
+                if fi_ is None or abs(float(f['B']) - float(f['L'])) <= 0.05:
+                    continue
+                ext = plan_extents(fi_)
+                ft_probe = False
+                if ext and abs(ext[0] - float(f['L'])) < abs(ext[0] - float(f['B'])):
+                    ft_probe = True
+                    for sym_ in ftypes.values():
+                        w_, l_ = get_double(sym_, 'Width'), get_double(sym_, 'Length')
+                        set_param(sym_, 'Width', l_)
+                        set_param(sym_, 'Length', w_)
+                    doc.Regenerate()
+                break
+        if pl_probe is None:
+            for p in data.get('plinths', []):
+                pi_ = PL_INST.get(p['col'])
+                if pi_ is None or abs(float(p['bx']) - float(p['by'])) <= 0.05:
+                    continue
+                ext = plan_extents(pi_)
+                pl_probe = False
+                if ext and abs(ext[0] - float(p['by'])) < abs(ext[0] - float(p['bx'])):
+                    pl_probe = True
+                    for sym_ in ptypes.values():
+                        b_, h_ = get_double(sym_, 'b'), get_double(sym_, 'h')
+                        set_param(sym_, 'b', h_)
+                        set_param(sym_, 'h', b_)
+                    doc.Regenerate()
+                break
 
     # -------------------------------------------------- tags: footing tag first, then the plinth (column) tag placed
     # exactly on top of it - both read the elements, so they update when a type changes (office convention)
     if tagsym is not None:
         for col_, fi in FTG_INST.items():
             at = TAG_AT.get(col_)
-            if at is None:
+            if at is None or (UPDATE and ('TAG/' + col_) in EX):
                 continue
             head = W(at[0], at[1])
             try:
@@ -16856,7 +17023,7 @@ with revit.Transaction('Place PEMB foundations', doc=doc):
                 set_param(tg, [DB.BuiltInParameter.ALL_MODEL_INSTANCE_COMMENTS], TAG + ':TAG/' + col_)
                 counts['tags'] += 1
                 pi = PL_INST.get(col_)
-                if ptagsym is not None and pi is not None:
+                if ptagsym is not None and pi is not None and not (UPDATE and ('PTAG/' + col_) in EX):
                     tp = DB.IndependentTag.Create(doc, ptagsym.Id, view.Id, DB.Reference(pi), False, DB.TagOrientation.Horizontal, head)
                     tp.TagHeadPosition = head
                     set_param(tp, [DB.BuiltInParameter.ALL_MODEL_INSTANCE_COMMENTS], TAG + ':PTAG/' + col_)
@@ -16878,7 +17045,28 @@ with revit.Transaction('Place PEMB foundations', doc=doc):
             continue
         z = level.Elevation + float(gb.get('top', 0.0))
         ln = DB.Line.CreateBound(W(gb['p0'][0], gb['p0'][1], z), W(gb['p1'][0], gb['p1'][1], z))
+        ex_ = EX.get('GB/' + gb['id']) if UPDATE else None
+        if ex_ is not None:
+            pg_ = PREV_G.get(gb['id'])
+            what = []
+            t0 = tname(ex_)
+            if dchanged(pg_, gb, ('typeName', 'b', 'h')) and retype(ex_, sym):
+                what.append('type {} -> {}'.format(t0, gb['typeName']))
+            if dchanged(pg_, gb, ('p0', 'p1', 'top')):
+                try:
+                    ex_.Location.Curve = ln
+                    set_param(ex_, [DB.BuiltInParameter.STRUCTURAL_BEAM_END0_ELEVATION], float(gb.get('top', 0.0)))
+                    set_param(ex_, [DB.BuiltInParameter.STRUCTURAL_BEAM_END1_ELEVATION], float(gb.get('top', 0.0)))
+                    what.append('moved')
+                except Exception as ex:
+                    warnings.append('Grade beam {} not moved: {}'.format(gb['id'], ex))
+            set_param(ex_, [DB.BuiltInParameter.ALL_MODEL_INSTANCE_COMMENTS], TAG + ':GB/' + gb['id'] + ' ' + gb.get('reinf', ''))
+            if what:
+                CHG.append((ex_.Id, 'Grade beam {}: {}'.format(gb['id'], ', '.join(what))))
+            continue
         inst = doc.Create.NewFamilyInstance(ln, sym, level, DB.Structure.StructuralType.Beam)
+        if UPDATE:
+            NEWS.append(inst.Id)
         set_param(inst, [DB.BuiltInParameter.STRUCTURAL_BEAM_END0_ELEVATION], float(gb.get('top', 0.0)))
         set_param(inst, [DB.BuiltInParameter.STRUCTURAL_BEAM_END1_ELEVATION], float(gb.get('top', 0.0)))
         set_param(inst, [DB.BuiltInParameter.ALL_MODEL_MARK], gb['id'])
@@ -16910,7 +17098,7 @@ with revit.Transaction('Place PEMB foundations', doc=doc):
                         pass
                     cs = DB.CompoundStructure.CreateSingleLayerCompoundStructure(DB.MaterialFunctionAssignment.Structure, stemW, mat)
                     wtype.SetCompoundStructure(cs)
-                    TYPE_WARN.append('Created wall type "{}" ({:.0f}" thick).'.format(wl.get('type'), stemW * 12))
+                    TYPE_WARN.append('Created wall type "{}" ({:.0f}" thick).'.format(wl.get('type'), float(stemW) * 12))
                 except Exception as ex:
                     warnings.append('Could not create wall type "{}": {}'.format(wl.get('type'), ex))
         ftype = None
@@ -16932,6 +17120,7 @@ with revit.Transaction('Place PEMB foundations', doc=doc):
             warnings.append('Wall type "{}" not found - stemwall skipped.'.format(wl.get('type')))
         else:
             ftg_cache = {}
+            USED_W = set()
 
             def seg_ftg_type(sg):
                 # per-segment wall footing size (runs / zones sized individually in the browser)
@@ -16961,14 +17150,100 @@ with revit.Transaction('Place PEMB foundations', doc=doc):
             if not segs:
                 pts = wl['centerline']
                 segs = [{'a': pts[i], 'b': pts[(i + 1) % len(pts)], 'drop': 0.0} for i in range(len(pts))]
+            WF_OF = {}
+            if UPDATE:
+                for wf_ in DB.FilteredElementCollector(doc).OfClass(DB.WallFoundation):
+                    try:
+                        WF_OF[eid(wf_.WallId)] = wf_
+                    except Exception:
+                        pass
+
+            def _ends(w_):
+                c_ = w_.Location.Curve
+                return Winv(c_.GetEndPoint(0)), Winv(c_.GetEndPoint(1))
+
+            def _same(p0, p1, q0, q1, tol=0.25):
+                d = lambda u, v: math.hypot(u[0] - v[0], u[1] - v[1])
+                return (d(p0, q0) < tol and d(p1, q1) < tol) or (d(p0, q1) < tol and d(p1, q0) < tol)
+
+            def _overlaps(p0, p1, q0, q1):
+                L_ = math.hypot(p1[0] - p0[0], p1[1] - p0[1]) or 1.0
+                tx, ty = (p1[0] - p0[0]) / L_, (p1[1] - p0[1]) / L_
+                off = lambda q: abs((q[0] - p0[0]) * ty - (q[1] - p0[1]) * tx)
+                if off(q0) > 0.2 or off(q1) > 0.2:
+                    return False
+                s0 = (q0[0] - p0[0]) * tx + (q0[1] - p0[1]) * ty
+                s1 = (q1[0] - p0[0]) * tx + (q1[1] - p0[1]) * ty
+                return min(max(s0, s1), L_) - max(min(s0, s1), 0.0) > 0.5
+
+            def _match(p0, p1, q0, q1):
+                # the same wall run: collinear and overlapping over most of both lengths (Revit trims / extends
+                # wall ends at the corner joins, so the end points themselves differ by up to a wall thickness)
+                L_ = math.hypot(p1[0] - p0[0], p1[1] - p0[1]) or 1.0
+                Lq = math.hypot(q1[0] - q0[0], q1[1] - q0[1]) or 1.0
+                tx, ty = (p1[0] - p0[0]) / L_, (p1[1] - p0[1]) / L_
+                off = lambda q: abs((q[0] - p0[0]) * ty - (q[1] - p0[1]) * tx)
+                if off(q0) > 0.2 or off(q1) > 0.2:
+                    return False
+                s0 = (q0[0] - p0[0]) * tx + (q0[1] - p0[1]) * ty
+                s1 = (q1[0] - p0[0]) * tx + (q1[1] - p0[1]) * ty
+                ov = min(max(s0, s1), L_) - max(min(s0, s1), 0.0)
+                return ov > 0.8 * min(L_, Lq) and abs(L_ - Lq) < max(1.5, 0.1 * L_)
+
             for sg in segs:
                 a = sg['a']
                 b = sg['b']
                 wdrop = float(sg.get('drop', 0.0) or 0.0)   # lowered wall zone: base drops, top stays
                 ln = DB.Line.CreateBound(W(a[0], a[1], level.Elevation), W(b[0], b[1], level.Elevation))
+                if UPDATE and EXW:
+                    hit = None
+                    for w_ in EXW:
+                        try:
+                            q0, q1 = _ends(w_)
+                        except Exception:
+                            continue
+                        if eid(w_.Id) not in USED_W and _match(a, b, q0, q1):
+                            hit = w_
+                            break
+                    if hit is not None:
+                        USED_W.add(eid(hit.Id))
+                        prev_sg = None
+                        for q in PREV_W:
+                            if _same(a, b, q['a'], q['b']):
+                                prev_sg = q
+                                break
+                        what = []
+                        if dchanged(prev_sg, sg, ('drop', 'foundationType', 'ftgW', 'ftgT'), 0.005):
+                            if abs((pval(hit, DB.BuiltInParameter.WALL_BASE_OFFSET) or 0.0) + wdrop) > 0.005:
+                                set_param(hit, [DB.BuiltInParameter.WALL_BASE_OFFSET], -wdrop)
+                                set_param(hit, [DB.BuiltInParameter.WALL_USER_HEIGHT_PARAM], float(wl.get('top', 2.0)) + wdrop)
+                                what.append('base, drop {:.2f} ft'.format(float(wdrop)))
+                            sft = seg_ftg_type(sg)
+                            wf_ = WF_OF.get(eid(hit.Id))
+                            if sft is not None and wf_ is not None:
+                                t0 = tname(wf_)
+                                if retype(wf_, sft):
+                                    what.append('wall footing {} -> {}'.format(t0, DB.Element.Name.GetValue(sft)))
+                        if what:
+                            CHG.append((hit.Id, 'Stemwall ({:.1f}, {:.1f}) - ({:.1f}, {:.1f}): {}'.format(float(a[0]), float(a[1]), float(b[0]), float(b[1]), ', '.join(what))))
+                        continue
+                    clash = False
+                    for w_ in EXW:
+                        try:
+                            q0, q1 = _ends(w_)
+                        except Exception:
+                            continue
+                        if _overlaps(a, b, q0, q1):
+                            clash = True
+                            break
+                    if clash:
+                        warnings.append('Stemwall ({:.1f}, {:.1f}) - ({:.1f}, {:.1f}): the wall runs / lowered zones changed here. The existing wall was left as is - split or edit it by hand.'.format(float(a[0]), float(a[1]), float(b[0]), float(b[1])))
+                        continue
                 w = DB.Wall.Create(doc, ln, wtype.Id, level.Id, float(wl.get('top', 2.0)) + wdrop, -wdrop, False, True)
                 set_param(w, [DB.BuiltInParameter.ALL_MODEL_INSTANCE_COMMENTS], TAG + ':WALL')
                 counts['walls'] += 1
+                if UPDATE:
+                    NEWS.append(w.Id)
                 sft = seg_ftg_type(sg)
                 if sft is not None:
                     try:
@@ -16981,7 +17256,9 @@ with revit.Transaction('Place PEMB foundations', doc=doc):
 
     # -------------------------------------------------- slab on grade (optional)
     sl = data.get('slab') or {}
-    if sl.get('create') and len(sl.get('outline') or []) >= 3:
+    if UPDATE and 'SLAB' in EX:
+        set_param(EX['SLAB'], [DB.BuiltInParameter.ALL_MODEL_INSTANCE_COMMENTS], TAG + ':SLAB ' + (sl.get('reinf') or ''))
+    elif sl.get('create') and len(sl.get('outline') or []) >= 3:
         try:
             tname = sl.get('typeName') or 'PEMB SOG'
             thk = float(sl.get('thickness') or 0.5)
@@ -17002,7 +17279,7 @@ with revit.Transaction('Place PEMB foundations', doc=doc):
                     except Exception:
                         pass
                     fltype.SetCompoundStructure(DB.CompoundStructure.CreateSingleLayerCompoundStructure(DB.MaterialFunctionAssignment.Structure, thk, mat))
-                    TYPE_WARN.append('Created floor type "{}" ({:.0f}" concrete).'.format(tname, thk * 12))
+                    TYPE_WARN.append('Created floor type "{}" ({:.0f}" concrete).'.format(tname, float(thk) * 12))
             if fltype is None:
                 warnings.append('No floor type to build the slab from - slab skipped.')
             else:
@@ -17205,6 +17482,8 @@ with revit.Transaction('Place PEMB foundations', doc=doc):
         counts['hairpins'] += 1
 
     for bp in data.get('baseplates', []):
+        if UPDATE and bp.get('col', '') in EX:
+            continue
         pl = bp['plate']
         bolts = bp['bolts']
         cx = sum(b[0] for b in bolts) / len(bolts)
@@ -17261,7 +17540,31 @@ with revit.Transaction('Place PEMB foundations', doc=doc):
         set_param(g, [DB.BuiltInParameter.ALL_MODEL_INSTANCE_COMMENTS], TAG + ':' + bp.get('col', '') + (' JAMB' if bp.get('jamb') else ''))
         counts['door-jamb plates' if bp.get('jamb') else 'plates'] += 1
 
-out.print_md('## PEMB foundations placed')
+if UPDATE:
+    want = set(['FTG/' + f['col'] for f in data.get('footings', [])] + ['PL/' + p['col'] for p in data.get('plinths', [])] +
+               ['GB/' + g['id'] for g in data.get('gradeBeams', [])])
+    for k_, e_ in sorted(EX.items()):
+        if (k_.startswith('FTG/') or k_.startswith('PL/') or k_.startswith('GB/')) and k_ not in want:
+            ORPH.append((k_, e_.Id))
+    out.print_md('## PEMB foundations updated in place - {}'.format(job))
+    out.print_md('Every existing element was kept (same element ids), so dimensions, spot elevations, tags and callouts on them stay attached. '
+                 'Only items whose design changed since the last placement were touched; hand edits to unchanged items were left alone. '
+                 'Undo (Ctrl+Z) reverses the whole update in one step.')
+    out.print_md('**{} changed** - **{} added** - **{} no longer in the design** (left in place, not deleted).'.format(len(CHG), len(NEWS), len(ORPH)))
+    for i_, t_ in CHG:
+        out.print_md('- {} {}'.format(out.linkify(i_), t_))
+    if NEWS:
+        out.print_md('Added: {}'.format(out.linkify(NEWS)))
+    for k_, i_ in ORPH:
+        out.print_md(':warning: {} {} is no longer in the design - delete it (and its annotation) by hand if that is right.'.format(out.linkify(i_), k_))
+    try:
+        sel = List[DB.ElementId]([i_ for i_, t_ in CHG] + NEWS + [i_ for k_, i_ in ORPH])
+        if sel.Count:
+            uidoc.Selection.SetElementIds(sel)
+            out.print_md('Everything changed, added or orphaned is **selected** in Revit - check the dimensions and callouts on those first.')
+    except Exception:
+        pass
+out.print_md('## PEMB foundations placed' if not UPDATE else '### Totals (new elements only)')
 out.print_md('Origin: grid **{}** / **{}** · rotation {:.2f}° · level **{}** (footings on **{}**) · T.O. footing offset {:.2f} ft'.format(
     S.get('originGridX'), S.get('originGridY'), math.degrees(angle), level.Name, flevel.Name, tof))
 for k, v in sorted(counts.items()):
@@ -21885,7 +22188,9 @@ PM.PKG_VIEWER=`<style id="pmv-z">@media screen{html{background:#e8eaee}}</style>
   function fitW(){ var pg=page(), w=(pg.getBoundingClientRect().width/z)||816; apply((innerWidth-28)/(w+24),0,0); }
   function fitP(){ var pg=page(), r=pg.getBoundingClientRect(), w=r.width/z||816, h=r.height/z||1056; apply(Math.min((innerWidth-28)/(w+24),(innerHeight-20)/(h+20)),0,0); }
   window.PMV={zoom:function(f){ apply(z*f); }, set:function(v){ apply(v); }, fitW:fitW, fitP:fitP};
-  addEventListener('wheel',function(e){ e.preventDefault(); var dy=e.deltaMode===1?e.deltaY*33:(e.deltaMode===2?e.deltaY*400:e.deltaY); apply(z*Math.exp(-dy*0.0015),e.clientX,e.clientY); },{passive:false});
+  // the wheel scrolls the pages (zoom with the toolbar / Fit width / Fit page); Ctrl+wheel still zooms at the cursor
+  addEventListener('wheel',function(e){ if(!e.ctrlKey) return;
+    e.preventDefault(); var dy=e.deltaMode===1?e.deltaY*33:(e.deltaMode===2?e.deltaY*400:e.deltaY); apply(z*Math.exp(-dy*0.0015),e.clientX,e.clientY); },{passive:false});
   addEventListener('keydown',function(e){ if(e.code==='Space'){ sp=true; document.documentElement.style.cursor='grab'; e.preventDefault(); } });
   addEventListener('keyup',function(e){ if(e.code==='Space'){ sp=false; document.documentElement.style.cursor=''; } });
   addEventListener('mousedown',function(e){ if(e.button===1) e.preventDefault(); });
@@ -21898,7 +22203,8 @@ PM.PKG_VIEWER=`<style id="pmv-z">@media screen{html{background:#e8eaee}}</style>
 })();<\/script>`;
 PM.previewPackage=function(){ const f=$('pm-pkgframe'); if(!f||!PM.R) return; const h=PM.packageHtml(); f.srcdoc=h.includes('</body>')?h.replace('</body>',PM.PKG_VIEWER+'</body>'):h+PM.PKG_VIEWER;
   const tb=$('pm-pkgtools'); if(tb&&!tb._h){ tb._h=1; tb.querySelectorAll('[data-pz]').forEach(b=>b.onclick=()=>{ const v=f.contentWindow&&f.contentWindow.PMV; if(!v) return; const k=b.dataset.pz;
-    if(k==='in') v.zoom(1.25); else if(k==='out') v.zoom(1/1.25); else if(k==='width') v.fitW(); else if(k==='page') v.fitP(); else v.set(1); }); } };
+    if(k==='in') v.zoom(1.25); else if(k==='out') v.zoom(1/1.25); else if(k==='width') v.fitW(); else if(k==='page') v.fitP(); else v.set(1); });
+  } };
 PM.printPackage=function(){ const w=window.open('','_blank'); if(!w){ alert('Allow pop-ups for this page to open the printable package, or use Download HTML.'); return; } w.document.open(); w.document.write(PM.packageHtml()); w.document.close(); setTimeout(()=>{ try{ w.focus(); w.print(); }catch(e){} },600); };
 PM.downloadPackage=function(){ PM.download((PM.P.project.number||'PEMB')+'_foundation_calcs.html', PM.packageHtml(),'text/html'); };
 
@@ -21922,7 +22228,8 @@ PM.revitJson=function(){
       plate:{x0:ft(pg.x0),y0:ft(pg.y0),x1:ft(pg.x1),y1:ft(pg.y1)},bolts:E.boltsGlobal(c).map(b=>[ft(b.x),ft(b.y)]),dia:+(c.dia||det.dia||0.75),proj:+(det.proj||2),embed:+(x.pl.hef||12),
       text:`(${(c.bolts||[]).length}) ${E.fracDia(+(c.dia||det.dia||0.75))} DIA ${P.criteria.abGrade} x ${x.pl.hef||12}" EMBED${x.pl.washer?' W/ '+x.pl.washer+'" SQ PL WASHER':''}${c.lug?' + '+c.lug.w+'" x '+c.lug.h+'" SHEAR LUG':''}`,lug:c.lug||null,
       column:(()=>{ const cs=E.columnShape(P,c); return {pts:cs.pts.map(p=>p.map(v=>+v.toFixed(5))),d:cs.d,bf:cs.bf}; })()});
-    if(P.options.lateral==='hairpin'){ const leg=+P.options.hairpinLeg||7; let nx=0,ny=0; if(c.face==='S')ny=1; if(c.face==='N')ny=-1; if(c.face==='W')nx=1; if(c.face==='E')nx=-1;
+    // hairpin only where one is designed (not at grade-beam tie columns)
+    if(P.options.lateral!=='none' && x.d.restrainPerp && !x.d.tie){ const leg=+P.options.hairpinLeg||7; let nx=0,ny=0; if(c.face==='S')ny=1; if(c.face==='N')ny=-1; if(c.face==='W')nx=1; if(c.face==='E')nx=-1;
       if(nx||ny){ let pts; if(c.kind==='corner'){ const dx=c.x<P.pemb.length/2?1:-1, dy=c.y<P.pemb.width/2?1:-1, ox=(dx>0?pr.x1:pr.x0)/12, oy=(dy>0?pr.y1:pr.y0)/12, a=Math.atan2(dy,dx), sp=0.36;
           pts=[[ox+leg*Math.cos(a+sp),oy+leg*Math.sin(a+sp)],[ox,oy],[ox+leg*Math.cos(a-sp),oy+leg*Math.sin(a-sp)]]; }
         else { const ox=(nx?(nx>0?pr.x1:pr.x0):pr.cx)/12, oy=(ny?(ny>0?pr.y1:pr.y0):pr.cy)/12, k=Math.SQRT1_2*leg; pts=nx?[[ox+nx*k,oy+k],[ox,oy],[ox+nx*k,oy-k]]:[[ox+k,oy+ny*k],[ox,oy],[ox-k,oy+ny*k]]; }
@@ -21938,14 +22245,18 @@ PM.revitJson=function(){
     out.gradeBeams.push({id:t.id,role:t.role,p0:a,p1:b,b:(+t.b||12)/12,h:(+t.h||12)/12,reinf:`(${t.n}) #${t.bar} LONG`,
       typeName:PM.typeName(rv.beamTypeName||'{b} X {h} GRADE BEAM',{b:E.frac(+t.b||12),h:E.frac(+t.h||12)}),top:+rv.beamTop||0}); });
   const per=P.perimeter; const sw=(+per.stemW||8)/24;
-  out.walls={create:!!rv.createWalls, type:rv.wallType, foundationType:rv.wallFtgType, top:+rv.wallTop||0, stemW:(+per.stemW||8)/12,
+  // the typical wall-footing type name carries its size ("... 16" x 8""): rename it to the current size so a deeper or
+  // wider footing gets its own Revit type instead of silently reusing the old one
+  const ftgName=(w,h)=>{ const base=rv.wallFtgType||'PEMB Wall Footing', sz=E.fracIn(w)+' x '+E.fracIn(h); const re=/\d[\d\s\/]*"\s*[xX]\s*\d[\d\s\/]*"/; return re.test(base)?base.replace(re,sz):base+' '+sz; };
+  const typFtg=ftgName(+per.ftgW||16,+per.ftgT||8);
+  out.walls={create:!!rv.createWalls, type:rv.wallType, foundationType:typFtg, top:+rv.wallTop||0, stemW:(+per.stemW||8)/12,
     centerline:(()=>{ let o=E.outline(P); let A=0; o.forEach((p,i)=>{ const q=o[(i+1)%o.length]; A+=p[0]*q[1]-q[0]*p[1]; }); if(A>0) o=o.slice().reverse(); return E.offsetPoly(o,sw).map(p=>p.map(v=>+v.toFixed(5))); })(),
     segments:(()=>{ const poly=E.outline(P); let A=0; poly.forEach((p,i)=>{ const q=poly[(i+1)%poly.length]; A+=p[0]*q[1]-q[0]*p[1]; }); const k=A>0?1:-1;
       return E.perimSegments(P).map(g=>{ const dx=g.p1[0]-g.p0[0], dy=g.p1[1]-g.p0[1], L=Math.hypot(dx,dy)||1, nx=-dy/L*k*sw, ny=dx/L*k*sw;
         const typ=Math.abs(g.fw*12-(+per.ftgW||16))<1e-6&&Math.abs(g.fh*12-(+per.ftgT||8))<1e-6;
         return {a:[+(g.p0[0]+nx).toFixed(5),+(g.p0[1]+ny).toFixed(5)],b:[+(g.p1[0]+nx).toFixed(5),+(g.p1[1]+ny).toFixed(5)],drop:+(g.drop+(g.dH||0)).toFixed(5),
           stemH:+((g.sh0+g.drop)).toFixed(5),ftgW:+g.fw.toFixed(5),ftgT:+g.fh.toFixed(5),
-          foundationType:typ?rv.wallFtgType:(()=>{ const base=rv.wallFtgType||'PEMB Wall Footing', sz=E.fracIn(g.fw*12)+' x '+E.fracIn(g.fh*12); return /\d[\d\s\/]*"\s*[xX]\s*\d[\d\s\/]*"/.test(base)?base.replace(/\d[\d\s\/]*"\s*[xX]\s*\d[\d\s\/]*"/,sz):base+' '+sz; })()}; }); })(),
+          foundationType:typ?typFtg:ftgName(g.fw*12,g.fh*12)}; }); })(),
     note:'Wall segments on the centreline, stemW/2 inside the steel line (face of concrete = steel line). Base at the footing level minus drop (drop includes any extra stem height on that run), top = level + top. Each wall gets its wall footing; foundationType per segment (created at ftgW x ftgT if missing).'};
   // slab on grade: inside face of the stemwall (or the steel line when no walls are made), top at T.O. concrete
   out.slab={create:rv.createSlab!==false, typeName:PM.typeName(rv.slabType||'PEMB SOG {t}"',{t:E.frac(+P.criteria.slab||6).replace(/"$/,'')}), thickness:(+P.criteria.slab||6)/12,
