@@ -823,6 +823,9 @@
   #pemb .pm-inchk .pm-ck.on{ border-color:var(--blueprint); background:rgba(47,124,246,.07); box-shadow:inset 0 -3px 0 var(--blueprint); }
   #pemb .pm-inchk{ margin-bottom:14px; }
   #pemb .pm-planwrap .pm-tag:hover{ filter:none; }
+
+#pemb .pm-hl{background:#fff3bf!important;box-shadow:inset 0 0 0 2px #e0a800;border-radius:4px}
+#pemb tr.pm-hl td{background:#fff3bf!important}
   /* ---- end PEMB Foundations tab ---- */
 </style>
 </head>
@@ -16290,7 +16293,7 @@ def previous():
     ids = []
     for bic in (DB.BuiltInCategory.OST_StructuralFoundation, DB.BuiltInCategory.OST_StructuralColumns,
                 DB.BuiltInCategory.OST_StructuralFraming, DB.BuiltInCategory.OST_Walls,
-                DB.BuiltInCategory.OST_IOSDetailGroups, DB.BuiltInCategory.OST_Lines,
+                DB.BuiltInCategory.OST_IOSDetailGroups, DB.BuiltInCategory.OST_Lines, DB.BuiltInCategory.OST_DetailComponents,
                 DB.BuiltInCategory.OST_StructuralFoundationTags, DB.BuiltInCategory.OST_Floors):
         for e in DB.FilteredElementCollector(doc).OfCategory(bic).WhereElementIsNotElementType():
             p = e.get_Parameter(DB.BuiltInParameter.ALL_MODEL_INSTANCE_COMMENTS)
@@ -16344,7 +16347,13 @@ def plan_extents(e):
                         pts.append(c.GetEndPoint(1))
                 elif isinstance(o, DB.GeometryInstance):
                     walk(o.GetInstanceGeometry())
-        walk(e.get_Geometry(opt))
+        g0 = None
+        if isinstance(e, DB.FamilyInstance):
+            try:   # geometry before joins / cuts (a wall cutting the plinth would make it look smaller)
+                g0 = e.GetOriginalGeometry(opt).GetTransformed(e.GetTransform())
+            except Exception:
+                g0 = None
+        walk(g0 if g0 is not None else e.get_Geometry(opt))
     except Exception:
         pass
     if not pts:
@@ -16420,12 +16429,60 @@ def measure():
 
 old = previous()
 mode = 'place'
+
+
+def remove_all(reason):
+    """Delete every element this button placed (PEMB-AUTO in Comments), the unused BP-/hairpin group types,
+    and set placed.json aside so the next run is a fresh placement."""
+    ids = previous()
+    n = 0
+    with revit.Transaction('Remove PEMB foundations', doc=doc):
+        for i in ids:
+            try:
+                if doc.GetElement(i) is not None:
+                    doc.Delete(i)
+                    n += 1
+            except Exception:
+                pass
+        for gt in list(DB.FilteredElementCollector(doc).OfClass(DB.GroupType).ToElements()):
+            try:
+                nm = DB.Element.Name.GetValue(gt)
+                if (nm.startswith(S.get('groupPrefix', 'BP-')) or nm.upper().startswith('HAIRPIN')) and gt.Groups.Size == 0:
+                    doc.Delete(gt.Id)
+            except Exception:
+                pass
+    stamp = datetime.datetime.now().strftime('%Y%m%d-%H%M%S')
+    for fn in ('placed.json', 'model-check.json'):
+        fp = os.path.join(job_dir, fn)
+        if os.path.isfile(fp):
+            try:
+                os.rename(fp, os.path.join(job_dir, fn.replace('.json', '-removed-' + stamp + '.json')))
+            except Exception:
+                pass
+    write_json(os.path.join(job_dir, 'removed.json'), {'schema': 'tamarack.pemb.removed.v1', 'job': job, 'removedAt': datetime.datetime.now().isoformat(),
+                                                        'rvt': doc.Title, 'elements': n, 'reason': reason})
+    out.print_md('## PEMB foundations removed')
+    out.print_md('Deleted **{}** elements stamped {} ({}). placed.json was set aside - the next run places everything fresh.'.format(n, TAG, reason))
+
+
+# the Field Reference asked for a clean slate (Deliver > Revit link > Remove from Revit)
+req = os.path.join(job_dir, 'remove-request.json')
+if os.path.isfile(req):
+    if forms.alert('The Field Reference asked to remove everything this button placed for {} ({} elements in this model). Remove them now?'.format(job, len(old)),
+                   yes=True, no=True):
+        remove_all('requested from the Field Reference')
+        try:
+            os.rename(req, os.path.join(job_dir, 'remove-request-done-' + datetime.datetime.now().strftime('%Y%m%d-%H%M%S') + '.json'))
+        except Exception:
+            pass
+        script.exit()
+
 if old:
     placed_file = os.path.join(job_dir, 'placed.json')
     msg = '{} elements from an earlier placement are in this model.'.format(len(old))
     if os.path.isfile(placed_file):
         msg += ' Placement is locked after the first run - Check model reports differences for you to correct by hand.'
-    opts_ = ['Check model against the design', 'Re-place everything (delete and rebuild)']
+    opts_ = ['Check model against the design', 'Re-place everything (delete and rebuild)', 'Remove everything this button placed']
     if not os.path.isfile(placed_file):
         msg += ' No baseline (placed.json) was saved last time.'
         opts_.insert(0, 'Save the current model as the baseline (placed.json)')
@@ -16436,6 +16493,10 @@ if old:
         write_json(placed_file, {'schema': 'tamarack.pemb.placed.v1', 'job': job, 'placedAt': datetime.datetime.now().isoformat(),
                                  'rvt': doc.Title, 'design': data, 'model': measure()})
         out.print_md('Saved **PEMB\\{}\\placed.json** from the elements already in the model - this is the baseline for Check model.'.format(job))
+        script.exit()
+    if pick.startswith('Remove'):
+        if forms.alert('Delete all {} PEMB elements this button placed? (Your own elements are not touched.)'.format(len(old)), yes=True, no=True):
+            remove_all('picked in Revit')
         script.exit()
     if pick.startswith('Check'):
         mode = 'check'
@@ -16556,6 +16617,14 @@ def build_nut_rfa(dia):
 
 
 def nut_symbol(dia, rfa=None):
+    # the office's own nut symbol first (Crook: "#FE_Bolts-Nut Top", types named 5/8" / 3/4" ...)
+    fr = {0.5: '1/2"', 0.625: '5/8"', 0.75: '3/4"', 0.875: '7/8"', 1.0: '1"', 1.125: '1 1/8"', 1.25: '1 1/4"', 1.5: '1 1/2"'}.get(round(float(dia), 3))
+    for sy in DB.FilteredElementCollector(doc).OfCategory(DB.BuiltInCategory.OST_DetailComponents).OfClass(DB.FamilySymbol):
+        try:
+            if sy.Family and sy.Family.Name == S.get('nutFamily', '#FE_Bolts-Nut Top') and DB.Element.Name.GetValue(sy) == fr:
+                return sy
+        except Exception:
+            pass
     nm = nut_fam_name(dia)
     for sy in DB.FilteredElementCollector(doc).OfCategory(DB.BuiltInCategory.OST_DetailComponents).OfClass(DB.FamilySymbol):
         if sy.Family and sy.Family.Name == nm:
@@ -16591,7 +16660,7 @@ with revit.Transaction('Place PEMB foundations', doc=doc):
         except Exception:
             pass
     # unused group types from a previous run
-    for gt in DB.FilteredElementCollector(doc).OfClass(DB.GroupType):
+    for gt in list(DB.FilteredElementCollector(doc).OfClass(DB.GroupType).ToElements()):   # list first: deleting while iterating breaks the collector
         nm = DB.Element.Name.GetValue(gt)
         if (nm.startswith(S.get('groupPrefix', 'BP-')) or nm.startswith(S.get('hairpinGroup', 'HAIRPIN'))) and gt.Groups.Size == 0:
             try:
@@ -16632,7 +16701,7 @@ with revit.Transaction('Place PEMB foundations', doc=doc):
     ptypes = {}
     for t in data.get('plinthTypes', []):
         sym = get_or_dup_type(DB.BuiltInCategory.OST_StructuralColumns, S.get('plinthFamily', 'Concrete-Rectangular-Column'),
-                              t.get('typeName') or ('PEMB-PLINTH-' + t['mark']), {'b': t['by'], 'h': t['bx']})   # Concrete-Rectangular-Column: h runs along plan X, b along plan Y
+                              t.get('typeName') or ('PEMB-PLINTH-' + t['mark']), {'b': t['bx'], 'h': t['by']})   # Concrete-Rectangular-Column: b runs along plan X, h along plan Y (confirmed on the Crook model); checked again after placing
         if sym is None:
             warnings.append('Plinth family "{}" is not loaded - plinths skipped.'.format(S.get('plinthFamily')))
             break
@@ -16872,6 +16941,48 @@ with revit.Transaction('Place PEMB foundations', doc=doc):
     elif not sl.get('create'):
         TYPE_WARN.append('Created no slab - "Create the slab on grade" is off in the tab.')
 
+    # -------------------------------------------------- join cleanup: plinths cut the stemwall and the slab,
+    # column footings cut the wall footing (so the plinth shows whole in plan, like the hand-drafted sheets)
+    def _bb_hit(a, b, pad=0.01):
+        ba, bb_ = a.get_BoundingBox(None), b.get_BoundingBox(None)
+        if ba is None or bb_ is None:
+            return False
+        return (ba.Min.X - pad <= bb_.Max.X and bb_.Min.X - pad <= ba.Max.X and ba.Min.Y - pad <= bb_.Max.Y and bb_.Min.Y - pad <= ba.Max.Y
+                and ba.Min.Z - pad <= bb_.Max.Z and bb_.Min.Z - pad <= ba.Max.Z)
+
+    def _cut(cutter, other):
+        try:
+            if not DB.JoinGeometryUtils.AreElementsJoined(doc, cutter, other):
+                DB.JoinGeometryUtils.JoinGeometry(doc, cutter, other)
+            if not DB.JoinGeometryUtils.IsCuttingElementInJoin(doc, cutter, other):
+                DB.JoinGeometryUtils.SwitchJoinOrder(doc, cutter, other)
+            return 1
+        except Exception:
+            return 0
+
+    try:
+        doc.Regenerate()
+        mine = lambda bic: [e for e in DB.FilteredElementCollector(doc).OfCategory(bic).WhereElementIsNotElementType()
+                            if (e.get_Parameter(DB.BuiltInParameter.ALL_MODEL_INSTANCE_COMMENTS) and (e.get_Parameter(DB.BuiltInParameter.ALL_MODEL_INSTANCE_COMMENTS).AsString() or '').startswith(TAG))]
+        pls = mine(DB.BuiltInCategory.OST_StructuralColumns)
+        fts = [e for e in mine(DB.BuiltInCategory.OST_StructuralFoundation) if isinstance(e, DB.FamilyInstance)]
+        wls = mine(DB.BuiltInCategory.OST_Walls)
+        wfs = [e for e in DB.FilteredElementCollector(doc).OfClass(DB.WallFoundation)]
+        sls = mine(DB.BuiltInCategory.OST_Floors)
+        nj = 0
+        for pl_ in pls:
+            for o_ in wls + sls:
+                if _bb_hit(pl_, o_):
+                    nj += _cut(pl_, o_)
+        for f_ in fts:
+            for o_ in wfs:
+                if _bb_hit(f_, o_):
+                    nj += _cut(f_, o_)
+        if nj:
+            counts['joins (plinth / footing cuts wall)'] = nj
+    except Exception as ex:
+        warnings.append('Join cleanup skipped: {}'.format(ex))
+
     # -------------------------------------------------- detail groups (plates, hairpins)
     def detail_line(a, b):
         return doc.Create.NewDetailCurve(view, DB.Line.CreateBound(a, b))
@@ -16915,19 +17026,128 @@ with revit.Transaction('Place PEMB foundations', doc=doc):
         set_param(g, [DB.BuiltInParameter.ALL_MODEL_INSTANCE_COMMENTS], TAG)
         return g
 
+    # ---- masking regions (hairpin bar, base plate, column) - the API cannot make a true masking region, so this
+    # is a filled region type with an opaque solid white fill ("PEMB Mask"): it hides what is under it the same way
+    def mask_type():
+        nm = S.get('maskType', 'PEMB Mask')
+        frts = list(DB.FilteredElementCollector(doc).OfClass(DB.FilledRegionType))
+        for t_ in frts:
+            if DB.Element.Name.GetValue(t_) == nm:
+                return t_
+        if not frts:
+            return None
+        t_ = frts[0].Duplicate(nm)
+        solid = None
+        for fp in DB.FilteredElementCollector(doc).OfClass(DB.FillPatternElement):
+            try:
+                if fp.GetFillPattern().IsSolidFill:
+                    solid = fp
+                    break
+            except Exception:
+                pass
+        try:
+            if solid is not None:
+                t_.ForegroundPatternId = solid.Id
+            t_.ForegroundPatternColor = DB.Color(255, 255, 255)
+            t_.BackgroundPatternId = DB.ElementId.InvalidElementId
+        except Exception:
+            pass
+        for attr in ('IsMasking',):
+            try:
+                setattr(t_, attr, True)
+            except Exception:
+                pass
+        TYPE_WARN.append('Created filled region type "{}" (opaque white - works like a masking region).'.format(nm))
+        return t_
+
+    def line_style(name):
+        try:
+            cat = doc.Settings.Categories.get_Item(DB.BuiltInCategory.OST_Lines)
+            for sc in cat.SubCategories:
+                if sc.Name == name:
+                    gs = sc.GetGraphicsStyle(DB.GraphicsStyleType.Projection)
+                    if gs is not None:
+                        return gs.Id
+        except Exception:
+            pass
+        return None
+
+    MASK = mask_type()
+    LS_HP = line_style(S.get('hairpinLineStyle', 'Thin Lines'))
+    LS_PL = line_style(S.get('plateLineStyle', 'Medium Lines'))
+
+    def seg_curve(g_):
+        a_, b_ = W(*g_['a']), W(*g_['b'])
+        if g_['t'] == 'A':
+            return DB.Arc.Create(a_, b_, W(*g_['m']))
+        return DB.Line.CreateBound(a_, b_)
+
+    def region(curves, ls=None):
+        if MASK is None:
+            return None
+        loop = DB.CurveLoop()
+        for c_ in curves:
+            if c_.Length > 1e-5:
+                loop.Append(c_)
+        loops = List[DB.CurveLoop]()
+        loops.Add(loop)
+        fr = DB.FilledRegion.Create(doc, MASK.Id, view.Id, loops)
+        if ls is not None:
+            try:
+                if DB.FilledRegion.IsValidLineStyleIdForFilledRegion(doc, ls):
+                    fr.SetLineStyleId(ls)
+            except Exception:
+                pass
+        return fr
+
+    def poly_curves(pts):
+        P_ = [W(*q) for q in pts]
+        return [DB.Line.CreateBound(P_[i], P_[(i + 1) % len(P_)]) for i in range(len(P_)) if P_[i].DistanceTo(P_[(i + 1) % len(P_)]) > 1e-5]
+
+    # hairpins first so the plate, column and nuts draw on top of them
+    for hp in data.get('hairpins', []):
+        made = False
+        if hp.get('outline') and MASK is not None:
+            try:
+                fr = region([seg_curve(g_) for g_ in hp['outline']], LS_HP)
+                set_param(fr, [DB.BuiltInParameter.ALL_MODEL_INSTANCE_COMMENTS], TAG + ':HP/' + hp.get('col', '') + ' #{} HAIRPIN'.format(hp.get('bar', 5)))
+                made = True
+            except Exception as ex:
+                warnings.append('Hairpin at {} drawn as lines ({}).'.format(hp.get('col'), ex))
+        if not made:
+            pts = hp['pts']
+            for i in range(len(pts) - 1):
+                dl = detail_line(W(*pts[i]), W(*pts[i + 1]))
+                set_param(dl, [DB.BuiltInParameter.ALL_MODEL_INSTANCE_COMMENTS], TAG + ':HP/' + hp.get('col', ''))
+        counts['hairpins'] += 1
+
     for bp in data.get('baseplates', []):
         pl = bp['plate']
         bolts = bp['bolts']
         cx = sum(b[0] for b in bolts) / len(bolts)
         cy = sum(b[1] for b in bolts) / len(bolts)
-        local = [[pl['x0'] - cx, pl['y0'] - cy, pl['x1'] - cx, pl['y1'] - cy]] + [[b[0] - cx, b[1] - cy, bp['dia']] for b in bolts]
+        colpts = (bp.get('column') or {}).get('pts') or []
+        local = [[pl['x0'] - cx, pl['y0'] - cy, pl['x1'] - cx, pl['y1'] - cy]] + [[b[0] - cx, b[1] - cy, bp['dia']] for b in bolts] + [[q[0] - cx, q[1] - cy] for q in colpts]
         sig = 'BP|' + signature(local)
 
-        def build(pl=pl, bolts=bolts, dia=bp['dia']):
+        def build(pl=pl, bolts=bolts, dia=bp['dia'], colpts=colpts):
             els = []
-            c = [W(pl['x0'], pl['y0']), W(pl['x1'], pl['y0']), W(pl['x1'], pl['y1']), W(pl['x0'], pl['y1'])]
-            for i in range(4):
-                els.append(detail_line(c[i], c[(i + 1) % 4]))
+            corners = [[pl['x0'], pl['y0']], [pl['x1'], pl['y0']], [pl['x1'], pl['y1']], [pl['x0'], pl['y1']]]
+            fr_ok = False
+            if MASK is not None:
+                try:
+                    els.append(region(poly_curves(corners), LS_PL))           # base plate
+                    if colpts:
+                        els.append(region(poly_curves(colpts), LS_PL))        # column on the plate
+                    fr_ok = True
+                except Exception as ex:
+                    warnings.append('Base plate masking regions failed ({}) - drawn as lines.'.format(ex))
+            if not fr_ok:
+                c = [W(*q) for q in corners]
+                for i in range(4):
+                    els.append(detail_line(c[i], c[(i + 1) % 4]))
+                for i in range(len(colpts)):
+                    els.append(detail_line(W(*colpts[i]), W(*colpts[(i + 1) % len(colpts)])))
             r = max(dia / 24.0, 0.02)
             nsym = nut_cache.get(dia)
             for b in bolts:
@@ -16941,7 +17161,6 @@ with revit.Transaction('Place PEMB foundations', doc=doc):
                 els.append(doc.Create.NewDetailCurve(view, arc))
                 els.append(detail_line(ctr - ux * r * 1.4, ctr + ux * r * 1.4))
                 els.append(detail_line(ctr - uy * r * 1.4, ctr + uy * r * 1.4))
-                # heavy hex nut outline (fallback when the nut detail component is unavailable)
                 R_ = (1.5 * dia + 0.125) / 12.0 / 2.0 / math.cos(math.pi / 6)
                 hx = [ctr + ux * (R_ * math.cos(k * math.pi / 3)) + uy * (R_ * math.sin(k * math.pi / 3)) for k in range(6)]
                 for k in range(6):
@@ -16951,20 +17170,6 @@ with revit.Transaction('Place PEMB foundations', doc=doc):
         set_param(g, [DB.BuiltInParameter.ALL_MODEL_INSTANCE_COMMENTS], TAG + ':' + bp.get('col', '') + (' JAMB' if bp.get('jamb') else ''))
         counts['door-jamb plates' if bp.get('jamb') else 'plates'] += 1
 
-    for hp in data.get('hairpins', []):
-        pts = hp['pts']
-        ox, oy = pts[1]
-        sig = 'HP|' + signature([[p[0] - ox, p[1] - oy] for p in pts])
-
-        def buildh(pts=pts):
-            return [detail_line(W(*pts[0]), W(*pts[1])), detail_line(W(*pts[1]), W(*pts[2]))]
-        place_group(S.get('hairpinGroup', 'HAIRPIN'), sig, W(ox, oy), buildh)
-        counts['hairpins'] += 1
-
-if not (data.get('walls') or {}).get('create'):
-    warnings.append('Stemwall + wall footing not created - "Create stemwall + wall footing" is off in the tab (Deliver > Revit link > settings). Tick it, send the placement again, then Re-place - or model the walls by hand.')
-if not data.get('gradeBeams'):
-    TYPE_WARN.append('Created no grade beams - the design has none (Design > Grade beams).')
 out.print_md('## PEMB foundations placed')
 out.print_md('Origin: grid **{}** / **{}** · rotation {:.2f}° · level **{}** (footings on **{}**) · T.O. footing offset {:.2f} ft'.format(
     S.get('originGridX'), S.get('originGridY'), math.degrees(angle), level.Name, flevel.Name, tof))
@@ -17167,13 +17372,7 @@ E.plinthRect = function(P, col, pl){
   if(faces.includes('E')) x0=F('E')-bx;
   if(faces.includes('S')) y0=F('S');
   if(faces.includes('N')) y0=F('N')-by;
-  // corners: also snap along the other wall when the column is within one plinth of it
-  if(col.kind==='corner'){
-    if(!faces.includes('S') && y-F('S') < by) y0=F('S');
-    if(!faces.includes('N') && F('N')-y < by) y0=F('N')-by;
-    if(!faces.includes('W') && x-F('W') < bx) x0=F('W');
-    if(!faces.includes('E') && F('E')-x < bx) x0=F('E')-bx;
-  }
+  // corners: E.colFaces already adds the second wall when the column is within reach of it
   return {x0,y0,x1:x0+bx,y1:y0+by,cx:x0+bx/2,cy:y0+by/2,bx,by};
 };
 E.boltsGlobal = function(col){ return (col.bolts||[]).map(b=>({x:col.x*12+b[0], y:col.y*12+b[1]})); };
@@ -17951,7 +18150,7 @@ E.flags = function(P, R){
   });
   // where each flag points in the tab (clickable in the flag list and in the calc package)
   F.forEach(f=>{ let m;
-    if((m=f.topic.match(/@ (\S+)$/))) f.go={col:m[1]};
+    if((m=f.topic.match(/@ (\S+)$/))){ const it=(f.msg.match(/^([^:(]+?)(?: ratio| \(|:)/)||[])[1]; f.go={col:m[1],what:f.topic.split(' ')[0],item:it?it.trim():''}; }
     else if((m=f.topic.match(/^Grade-beam tie (\S+)/))) f.go={tie:m[1]};
     else if(/^Design basis/.test(f.topic)) f.go={step:'criteria'};
     else if(/^Reactions/.test(f.topic)) f.go={step:'reactions'};
@@ -17998,6 +18197,65 @@ E.perimQuads = function(P, SEG){
     const o1=s1&&gn?meet(lo,line(nx,dO(gn)),at(lo,g.t1)):at(lo,g.t1), i1=s1&&gn?meet(li,line(nx,dI(gn)),at(li,g.t1)):at(li,g.t1);
     return [o0,o1,i1,i0]; };
   return SEG.map(g=>({wall:quad(g,()=>0,q=>q.sw), ftg:quad(g,q=>-(q.fw-q.sw)/2,q=>q.sw+(q.fw-q.sw)/2)}));
+};
+// ---------------------------------------------------------------- drafting geometry (plan symbols)
+// Hairpin as the SE draws it (Crook 26-011 foundation plan): a #5 bar outline with 3db inside bends that wraps the
+// anchor bolts on the exterior side and runs 45 deg into the slab. Mid-wall: the legs splay both ways (V).
+// At a building corner: the bar also wraps the corner-side end of the bolt group and both legs run parallel,
+// diagonally away from the corner. Returns {center:[[x,y]..], segs:[{t:'L',a,b}|{t:'A',a,b,m,c,r}]} in ft (plan).
+E.hairpinShape = function(P, col, pl){
+  const opt=P.options||{}, bar=+opt.hairpinBar||5, db=(E.REBAR[bar]||E.REBAR[5]).d, ri=3*db, rc=ri+db/2, L=(+opt.hairpinLeg||7)*12;
+  const face=col.face||(col.faces||[])[0]; if(!face) return null;
+  const N={W:[1,0],E:[-1,0],S:[0,1],N:[0,-1]}[face]; if(!N) return null;              // inward normal
+  const T=[-N[1],N[0]];                                                                // along the wall
+  const bs=E.boltsGlobal(col); if(!bs.length) return null;
+  const F=E.faceAt(P,col,face);                                                         // steel line (in)
+  const org=face==='W'||face==='E'?[F,col.y*12]:[col.x*12,F];
+  const loc=p=>[(p[0]-org[0])*T[0]+(p[1]-org[1])*T[1], (p[0]-org[0])*N[0]+(p[1]-org[1])*N[1]];   // [u along wall, v inward]
+  const glob=q=>[(org[0]+T[0]*q[0]+N[0]*q[1])/12, (org[1]+T[1]*q[0]+N[1]*q[1])/12];
+  const B=bs.map(b=>loc([b.x,b.y])), us=B.map(b=>b[0]), vs=B.map(b=>b[1]);
+  const da=+(col.dia||((P.details||{})[col.detail]||{}).dia||0.75), nut=((E.BOLTS[da]||{}).F||1.5*da+0.125)/2/Math.cos(Math.PI/6);
+  const uMin=Math.min(...us), uMax=Math.max(...us), vMin=Math.min(...vs), vMax=Math.max(...vs);
+  const vc=Math.max(1.2+db/2, vMin-nut-1.2-db/2);                                       // bar between the bolts and the face, 1.2" clear of the face
+  // bar-centre-line corners measured from the office's drawings (Crook 26-011 plan, #5): mid-wall V 4.25" past the
+  // outer bolts; at a corner 3.2" past the bolts on the corner side, 3.75" past them on the inside, 2.4" on the far end
+  const eV=4.25, eC=3.2, eIn=3.75, eFar=2.4;
+  // corner side (another outside face along the wall within reach)
+  const faces=E.colFaces(P,col); let sgn=0;
+  faces.forEach(f=>{ if(f===face) return; const m={W:[-1,0],E:[1,0],S:[0,-1],N:[0,1]}[f]; const d=m[0]*T[0]+m[1]*T[1]; if(Math.abs(d)>0.5) sgn=d>0?1:-1; });
+  const s2=Math.SQRT1_2; let V;
+  if(!sgn){ const a=[uMin-eV,vc], b=[uMax+eV,vc];
+    V=[[a[0]-L*s2,a[1]+L*s2],a,b,[b[0]+L*s2,b[1]+L*s2]]; }
+  else { const uc=sgn>0?uMax+eC:uMin-eC, ua=sgn>0?uMin-eFar:uMax+eFar, d=[-sgn*s2,s2];   // legs run away from the corner
+    const v1=[ua,vc], v2=[uc,vc], v3=[uc,vMax+eIn];
+    V=[[v1[0]+d[0]*L,v1[1]+d[1]*L],v1,v2,v3,[v3[0]+d[0]*L,v3[1]+d[1]*L]]; }
+  // fillet every interior vertex (centre-line radius rc), then offset +/- db/2 for the two bar faces
+  const sub=(a,b)=>[a[0]-b[0],a[1]-b[1]], add=(a,b)=>[a[0]+b[0],a[1]+b[1]], mul=(a,k)=>[a[0]*k,a[1]*k], len=a=>Math.hypot(a[0],a[1]), nrm=a=>mul(a,1/(len(a)||1));
+  const pieces=[]; let prev=V[0];
+  for(let i=1;i<V.length-1;i++){ const p=V[i], d0=nrm(sub(p,V[i-1])), d1=nrm(sub(V[i+1],p)), cr=d0[0]*d1[1]-d0[1]*d1[0], th=Math.acos(Math.max(-1,Math.min(1,d0[0]*d1[0]+d0[1]*d1[1])));
+    if(th<1e-6){ continue; } const tl=rc*Math.tan(th/2), t0=sub(p,mul(d0,tl)), t1=add(p,mul(d1,tl)), lf=cr>0?[-d0[1],d0[0]]:[d0[1],-d0[0]], c=add(t0,mul(lf,rc));
+    pieces.push({t:'L',a:prev,b:t0}); pieces.push({t:'A',a:t0,b:t1,c,r:rc,left:cr>0}); prev=t1; }
+  pieces.push({t:'L',a:prev,b:V[V.length-1]});
+  const side=k=>pieces.map(q=>{ if(q.t==='L'){ const d=nrm(sub(q.b,q.a)), n=[-d[1]*k,d[0]*k]; return {t:'L',a:add(q.a,n),b:add(q.b,n)}; }
+    const r=q.r+(q.left?-k:k), f=pt=>add(q.c,mul(nrm(sub(pt,q.c)),r)); const a=f(q.a), b=f(q.b), mid=f(add(mul(add(q.a,q.b),0.5),[0,0]).map((v,i)=>v)); 
+    const m0=nrm(add(nrm(sub(q.a,q.c)),nrm(sub(q.b,q.c)))); return {t:'A',a,b,m:add(q.c,mul(m0,r)),c:q.c,r}; });
+  const o1=side(db/2), o2=side(-db/2).reverse().map(q=>q.t==='L'?{t:'L',a:q.b,b:q.a}:{t:'A',a:q.b,b:q.a,m:q.m,c:q.c,r:q.r});
+  const segs=[...o1,{t:'L',a:o1[o1.length-1].b,b:o2[0].a},...o2,{t:'L',a:o2[o2.length-1].b,b:o1[0].a}];
+  const G=q=>q.t==='L'?{t:'L',a:glob(q.a),b:glob(q.b)}:{t:'A',a:glob(q.a),b:glob(q.b),m:glob(q.m),c:glob(q.c),r:q.r/12};
+  return {bar, db, center:V.map(glob), segs:segs.map(G)};
+};
+// PEMB column at the base plate, drawn the way the SE's sheets show it (Crook): a built-up I on the plate,
+// depth along the plate's long side (plate long side - 1/2"), flange width = plate short side - 3/4",
+// 3/8" flanges, 1/4" web, 1/4" fillets. Detail overrides: details[x].colD / colBf / colTf / colTw (in).
+E.columnShape = function(P, col){
+  const det=(P.details||{})[col.detail]||{}, pg=E.plateGlobal(col), alongX=pg.w>=pg.l;
+  const Lg=Math.max(pg.w,pg.l), Sh=Math.min(pg.w,pg.l);
+  const d=+det.colD||Math.max(4,Lg-0.5), bf=+det.colBf||Math.max(3,Sh-0.75), tf=+det.colTf||0.375, tw=+det.colTw||0.25;
+  // I outline in local (a = along depth, b = along flange), centred on the plate
+  const h=d/2, w=bf/2, t=tw/2;
+  const pts=[[-h,-w],[-h,w],[-h+tf,w],[-h+tf,t],[h-tf,t],[h-tf,w],[h,w],[h,-w],[h-tf,-w],[h-tf,-t],[-h+tf,-t],[-h+tf,-w]];
+  const g=p=>alongX?[(pg.cx+p[0])/12,(pg.cy+p[1])/12]:[(pg.cx+p[1])/12,(pg.cy+p[0])/12];
+  return {d,bf,tf,tw,pts:pts.map(g), plate:[[pg.x0/12,pg.y0/12],[pg.x1/12,pg.y0/12],[pg.x1/12,pg.y1/12],[pg.x0/12,pg.y1/12]]};
 };
 E.designPerimeter = function(P){
   const C=P.criteria, per=P.perimeter||{};
@@ -18219,31 +18477,22 @@ D.plan = function(P, R, o){
       const txt=`GRADE BM TIE ${E().frac(+t.b||12)} x ${E().frac(+t.h||12)} W/ (${t.n}) #${t.bar}`;
       g.push(`<text pointer-events="none" x="${X(mx)}" y="${Y(my)}" font-size="${fs*0.72}" fill="#454d5e" font-style="italic">${esc(txt)}${t.role==='endwall'?' @ EW COLS':''}</text>`); });
   }
-  // ---- hairpins (V into slab)
-  if(Ly.hairpin && (P.options||{}).lateral!=='none' && (P.options||{}).lateral!=='tie') cols.forEach(c=>{ const x=res[c.id]; if(!x) return;
-    const pr=E().plinthRect(P,c,x.pl); const leg=(+(P.options||{}).hairpinLeg||7);
-    let nx=0, ny=0; if(c.face==='S') ny=1; if(c.face==='N') ny=-1; if(c.face==='W') nx=1; if(c.face==='E') nx=-1;
-    if(!nx&&!ny) return;
-    let pts;
-    if(c.kind==='corner'){
-      const fs_=(c.faces||[c.face]); const dx=fs_.includes('W')?1:(fs_.includes('E')?-1:(c.x<Lg/2?1:-1)), dy=fs_.includes('S')?1:(fs_.includes('N')?-1:(c.y<Wd/2?1:-1)), ox=(dx>0?pr.x1:pr.x0)/12, oy=(dy>0?pr.y1:pr.y0)/12;
-      const a=Math.atan2(dy,dx), sp=0.36;
-      pts=[[ox+leg*Math.cos(a+sp),oy+leg*Math.sin(a+sp)],[ox,oy],[ox+leg*Math.cos(a-sp),oy+leg*Math.sin(a-sp)]];
-    } else {
-      const ox=(nx?(nx>0?pr.x1:pr.x0):pr.cx)/12, oy=(ny?(ny>0?pr.y1:pr.y0):pr.cy)/12;
-      const k=Math.SQRT1_2*leg;
-      pts = nx ? [[ox+nx*k, oy+k],[ox,oy],[ox+nx*k, oy-k]] : [[ox+k, oy+ny*k],[ox,oy],[ox-k, oy+ny*k]];
-    }
-    g.push(`<polyline pointer-events="none" points="${pts.map(p=>X(p[0])+','+Y(p[1])).join(' ')}" fill="none" stroke="#3b6fc4" stroke-width="${thin*1.4}"/>`);
-  });
   // ---- plinths
   if(Ly.plinth) cols.forEach(c=>{ const x=res[c.id]; if(!x) return; const pr=E().plinthRect(P,c,x.pl);
     g.push(`<rect x="${Xi(pr.x0)}" y="${Yi(pr.y1)}" width="${pr.bx/12*s}" height="${pr.by/12*s}" fill="${o.print?'#e7eaf0':'#eef1f6'}" stroke="${ink}" stroke-width="${heavy}" data-col="${esc(c.id)}" class="pm-hit"/>`);
+  });
+  // ---- hairpins (V into slab)
+  if(Ly.hairpin && (P.options||{}).lateral!=='none' && (P.options||{}).lateral!=='tie') cols.forEach(c=>{ const x=res[c.id]; if(!x) return;
+    const pr=E().plinthRect(P,c,x.pl); const leg=(+(P.options||{}).hairpinLeg||7);
+    const hs=E().hairpinShape?E().hairpinShape(P,c,x.pl):null; if(!hs) return;
+    const d=hs.segs.map((q,i)=>(i?'':'M'+X(q.a[0])+' '+Y(q.a[1]))+(q.t==='L'?' L'+X(q.b[0])+' '+Y(q.b[1]):` A${q.r*s} ${q.r*s} 0 0 ${((X(q.m[0])-X(q.a[0]))*(Y(q.b[1])-Y(q.a[1]))-(Y(q.m[1])-Y(q.a[1]))*(X(q.b[0])-X(q.a[0])))>0?1:0} ${X(q.b[0])} ${Y(q.b[1])}`)).join('')+' Z';
+    g.push(`<path pointer-events="none" d="${d}" fill="#fff" stroke="${o.print?ink:'#3b6fc4'}" stroke-width="${thin}"/>`);
   });
   // ---- base plates + bolts
   const drawPlate=(c,jamb)=>{
     const pg=E().plateGlobal(c);
     if(Ly.plate) g.push(`<rect pointer-events="none" x="${Xi(pg.x0)}" y="${Yi(pg.y1)}" width="${pg.w/12*s}" height="${pg.l/12*s}" fill="${jamb?'#fff':'#fff'}" stroke="${ink}" stroke-width="${thin}"/>`);
+    if(Ly.plate && !jamb && E().columnShape){ const cs=E().columnShape(P,c); g.push(`<polygon pointer-events="none" points="${cs.pts.map(p=>X(p[0])+','+Y(p[1])).join(' ')}" fill="#fff" stroke="${ink}" stroke-width="${thin}"/>`); }
     if(Ly.bolts){ const det=(P.details||{})[c.detail]||{}; const dia=+(c.dia||det.dia||0.75); const rr=Math.max(1.4, dia/2/12*s*1.6);
       E().boltsGlobal(c).forEach(b=>g.push(`<circle pointer-events="none" cx="${Xi(b.x)}" cy="${Yi(b.y)}" r="${rr}" fill="#fff" stroke="${ink}" stroke-width="${thin}"/><path pointer-events="none" d="M${Xi(b.x)-rr} ${Yi(b.y)}h${2*rr}M${Xi(b.x)} ${Yi(b.y)-rr}v${2*rr}" stroke="${ink}" stroke-width="${thin*0.8}"/>`)); }
   };
@@ -20549,7 +20798,7 @@ PM.hookZoom=function(el){ if(el._pz) return; el._pz=1;
   el.addEventListener('click',e=>{ if(PM._dragged && Date.now()-PM._dragged<250){ e.stopPropagation(); e.preventDefault(); } },true);
 };
 PM.afterMulti=function(){ PM.drawPlan(); PM.renderResults(); if(PM.side==='col') PM.renderInspector(); };
-PM.selectCol=function(cid){ PM.selTie=null; PM.selWall=null; PM.sel=cid; const c=PM.P.columns.find(q=>q.id===cid); if(c&&c.grid) PM.selFrame=c.grid[0];
+PM.selectCol=function(cid){ if(PM._hl&&PM._hl.col!==cid) PM._hl=null; PM.selTie=null; PM.selWall=null; PM.sel=cid; const c=PM.P.columns.find(q=>q.id===cid); if(c&&c.grid) PM.selFrame=c.grid[0];
   PM.drawPlan(); if(PM.side!=='col') PM.setSide('col'); else PM.renderInspector(); PM.renderResults(); if(PM._modal) PM.renderModal(); };
 PM.planPoint=function(svg,ev){ const pt=svg.createSVGPoint(); pt.x=ev.clientX; pt.y=ev.clientY; const p=pt.matrixTransform(svg.getScreenCTM().inverse());
   const xmin=+svg.dataset.xmin, ymax=+svg.dataset.ymax, sc=+svg.dataset.s; return {x:p.x/sc+xmin, y:ymax-p.y/sc}; };
@@ -20640,7 +20889,7 @@ PM.renderInspector=function(){
         <p class="note">Load point e<sub>x</sub> ${f2(d.ex*12,1)}", e<sub>y</sub> ${f2(d.ey*12,1)}" from the footing centre · anchors (${a.n}) ${E.fracDia(a.da)} Ø ${esc(a.grade)}, h<sub>ef</sub> ${a.hef0}"</p></details>
     </div></div>`;
   el.querySelectorAll('[data-nav]').forEach(b=>b.onclick=()=>{ const n=ids[(ix+(+b.dataset.nav)+ids.length)%ids.length]; PM.selectCol(n); });
-  PM.hookBulkBox(el); PM.hookInspTypes(el,id); PM.hookAnc(el,id);
+  PM.hookBulkBox(el); PM.hookInspTypes(el,id); PM.hookAnc(el,id); if(PM._hl) setTimeout(()=>PM.applyHl&&PM.applyHl(),0);
 };
 PM.inspEmptyHtml=function(){ const R=PM.R;
   const worst=Object.values(R.cols).map(x=>({id:x.col.id,x,r:Math.max(x.d.gov.ratio,x.a.gov.ratio,...x.p.items.map(i=>i.ratio))})).sort((p,q)=>q.r-p.r);
@@ -20997,7 +21246,7 @@ PM.renderResults=function(){
       <select id="pm-bk-p"><option value="">set plinth…</option><option value="__auto">Auto (kind default)</option>${P.plinths.map(t=>`<option value="${esc(t.mark)}">${esc(t.mark)} · ${E.fracIn(t.bx)} × ${E.fracIn(t.by)}</option>`).join('')}</select>
       <select id="pm-bk-par"><option value="">load along wall…</option><option value="slab">dowels into slab</option><option value="pad">pad + stemwall only</option></select>`:'<span class="note" style="margin:0">tick columns to change several at once</span>'}</div>
     <div class="table-wrap"><table class="pm-tbl"><tr><th></th><th class="l">Column</th><th class="l">Ftg</th><th class="l">Plinth</th><th>Bearing</th><th>Uplift</th><th>Overturn</th><th>Sliding</th><th>Flexure</th><th>Shear</th><th>Min. As</th><th>Anchors</th><th>Plinth</th><th>${(P.options.lateral==='tie')?'Tie':'Hairpin'}</th></tr>
-    ${Object.values(R.cols).map(x=>`<tr class="pm-click ${PM.sel===x.col.id?'pm-rowsel':''}" data-sel="${esc(x.col.id)}"><td><input type="checkbox" data-bk="${esc(x.col.id)}" ${PM.bulk[x.col.id]?'checked':''}></td><td class="l"><b>${esc(x.col.id)}</b>${x.col.parPath==='slab'?' <span class="note" style="margin:0" title="wall-parallel shear into the slab">▤</span>':''}</td>
+    ${Object.values(R.cols).map(x=>`<tr class="pm-click ${PM.sel===x.col.id?'pm-rowsel':''} ${PM._hl&&PM._hl.col===x.col.id?'pm-hl':''}" data-sel="${esc(x.col.id)}"><td><input type="checkbox" data-bk="${esc(x.col.id)}" ${PM.bulk[x.col.id]?'checked':''}></td><td class="l"><b>${esc(x.col.id)}</b>${x.col.parPath==='slab'?' <span class="note" style="margin:0" title="wall-parallel shear into the slab">▤</span>':''}</td>
       <td class="l">${fSel(x.col,x.ft.mark)}${x.col.footing?'':' <span class="note" style="margin:0" title="kind default">·</span>'}</td><td class="l">${pSel(x.col,x.pl.mark)}</td>
       <td>${chip(pick(x,/bearing/))}</td><td>${chip(pick(x,/Uplift/))}</td><td>${chip(pick(x,/Overturning/))}</td><td>${chip(pick(x,/Sliding/))}</td><td>${chip(pick(x,/Flexure/))}</td><td>${chip(pick(x,/shear|punching/))}</td><td>${chip(pick(x,/Min\. steel/))}</td>
       <td>${chip(x.a.gov.ratio)}</td><td>${chip(Math.max(...x.p.items.map(s=>s.ratio)))}</td><td>${(()=>{ const t=(R.ties||[]).find(q=>(q.from===x.col.id||q.to===x.col.id)&&!q.strut); if(t) return chip(t.gov.ratio); if(P.options.lateral==='tie') return '—'; return x.lat.cases.length?chip(Math.max(...x.lat.cases.map(c=>c.need/c.cap))):'—'; })()}</td></tr>`).join('')}</table></div>
@@ -21219,9 +21468,20 @@ PM.toggleSENote=function(i){ const n=PM.P.seNotes[i]; n.status=n.status==='resol
 PM.delSENote=function(i){ if(!confirm('Delete this note?')) return; PM.P.seNotes.splice(i,1); PM.save('Deleted SE note'); PM.renderSENotes(); PM.header(); };
 PM.notesFromFlags=function(){ const P=PM.P; P.seNotes=P.seNotes||[]; let k=0; ((PM.R||{}).flags||[]).filter(f=>f.sev==='high').forEach(f=>{ if(P.seNotes.some(n=>n.fromFlag===f.topic+'|'+f.msg)) return; P.seNotes.push({id:'SN'+Date.now().toString(36)+k,sev:'high',title:f.topic,text:f.msg,go:f.go,status:'open',fromFlag:f.topic+'|'+f.msg}); k++; }); PM.save('Added '+k+' notes from review flags'); PM.renderSENotes(); PM.header(); };
 // jump to what a review flag is about (from the flag list or from the calc package preview)
+// highlight what an issue link points at: the column's row in the results table, the box in the column panel and the
+// exact check row (stays until another column is picked)
+PM.applyHl=function(){ const h=PM._hl; document.querySelectorAll('#pemb .pm-hl').forEach(e=>e.classList.remove('pm-hl')); if(!h||!PM.sel||PM.sel!==h.col) return;
+  const row=document.querySelector(`#pm-results tr[data-sel="${CSS.escape(h.col)}"]`); if(row) row.classList.add('pm-hl');
+  const insp=$('pm-insp'); if(!insp) return; let target=null;
+  const box={Anchors:'#pm-ancbox',Footing:null,Plinth:null}[h.what];
+  if(h.what==='Anchors'){ target=insp.querySelector('#pm-ancbox'); }
+  const norm=t=>(t||'').toLowerCase().replace(/\s+/g,' ').trim(), want=norm(h.item);
+  if(want){ insp.querySelectorAll('tr').forEach(tr=>{ const td=tr.querySelector('td'); if(!td) return; const t=norm(td.textContent); if(t.startsWith(want)||t.startsWith('plinth: '+want)){ tr.classList.add('pm-hl'); const d=tr.closest('details'); if(d) d.open=true; if(!target) target=tr; } }); }
+  if(!target) target=insp.querySelector('.pm-box.hot')||insp;
+  target.classList.add('pm-hl'); target.scrollIntoView({behavior:'smooth',block:'center'}); if(row) row.scrollIntoView({block:'nearest'}); };
 PM.goto=function(go){ if(!go||!PM.P) return;
   const flash=el=>{ if(!el) return; el.scrollIntoView({behavior:'smooth',block:'nearest'}); el.classList.add('pm-flash'); setTimeout(()=>el.classList.remove('pm-flash'),1800); };
-  if(go.col){ PM.bulk={}; PM.setStep('design'); PM.selectCol(go.col); PM.zoomSel(); setTimeout(()=>flash($('pm-insp')),60); return; }
+  if(go.col){ PM.bulk={}; PM._hl={col:go.col,what:go.what||'',item:go.item||''}; PM.setStep('design'); PM.selectCol(go.col); PM.zoomSel(); setTimeout(()=>{ PM.applyHl(); },80); return; }
   if(go.tie){ PM.selTie=go.tie; PM.side='beams'; PM.setStep('design'); setTimeout(()=>flash($('pm-gb')),60); return; }
   if(go.type){ PM.side='types'; PM.setStep('design'); setTimeout(()=>flash($('pm-types')),60); return; }
   if(go.senotes){ PM.side='issues'; PM.setStep('design'); setTimeout(()=>{ const e=$('pm-senotes'); if(e) e.scrollIntoView({behavior:'smooth'}); flash(e); },60); return; }
@@ -21264,12 +21524,15 @@ PM.revitJson=function(){
     out.plinths.push({col:c.id,mark:x.pl.mark,cx:ft(pr.cx),cy:ft(pr.cy),bx:x.pl.bx/12,by:x.pl.by/12,h:x.pl.h/12,rot:0,drop:+(x.drop||0)});
     out.baseplates.push({col:c.id,detail:c.detail,group:rv.groupPrefix+(c.detail||c.kind)+'-'+(+(c.dia||det.dia)).toString().replace('.','_'),
       plate:{x0:ft(pg.x0),y0:ft(pg.y0),x1:ft(pg.x1),y1:ft(pg.y1)},bolts:E.boltsGlobal(c).map(b=>[ft(b.x),ft(b.y)]),dia:+(c.dia||det.dia||0.75),proj:+(det.proj||2),embed:+(x.pl.hef||12),
-      text:`(${(c.bolts||[]).length}) ${E.fracDia(+(c.dia||det.dia||0.75))} DIA ${P.criteria.abGrade} x ${x.pl.hef||12}" EMBED${x.pl.washer?' W/ '+x.pl.washer+'" SQ PL WASHER':''}${c.lug?' + '+c.lug.w+'" x '+c.lug.h+'" SHEAR LUG':''}`,lug:c.lug||null});
+      text:`(${(c.bolts||[]).length}) ${E.fracDia(+(c.dia||det.dia||0.75))} DIA ${P.criteria.abGrade} x ${x.pl.hef||12}" EMBED${x.pl.washer?' W/ '+x.pl.washer+'" SQ PL WASHER':''}${c.lug?' + '+c.lug.w+'" x '+c.lug.h+'" SHEAR LUG':''}`,lug:c.lug||null,
+      column:(()=>{ const cs=E.columnShape(P,c); return {pts:cs.pts.map(p=>p.map(v=>+v.toFixed(5))),d:cs.d,bf:cs.bf}; })()});
     if(P.options.lateral==='hairpin'){ const leg=+P.options.hairpinLeg||7; let nx=0,ny=0; if(c.face==='S')ny=1; if(c.face==='N')ny=-1; if(c.face==='W')nx=1; if(c.face==='E')nx=-1;
       if(nx||ny){ let pts; if(c.kind==='corner'){ const dx=c.x<P.pemb.length/2?1:-1, dy=c.y<P.pemb.width/2?1:-1, ox=(dx>0?pr.x1:pr.x0)/12, oy=(dy>0?pr.y1:pr.y0)/12, a=Math.atan2(dy,dx), sp=0.36;
           pts=[[ox+leg*Math.cos(a+sp),oy+leg*Math.sin(a+sp)],[ox,oy],[ox+leg*Math.cos(a-sp),oy+leg*Math.sin(a-sp)]]; }
         else { const ox=(nx?(nx>0?pr.x1:pr.x0):pr.cx)/12, oy=(ny?(ny>0?pr.y1:pr.y0):pr.cy)/12, k=Math.SQRT1_2*leg; pts=nx?[[ox+nx*k,oy+k],[ox,oy],[ox+nx*k,oy-k]]:[[ox+k,oy+ny*k],[ox,oy],[ox-k,oy+ny*k]]; }
-        out.hairpins.push({col:c.id,bar:+P.options.hairpinBar||5,pts:pts.map(p=>[+p[0].toFixed(4),+p[1].toFixed(4)])}); } }
+        const hs=E.hairpinShape(P,c,x.pl), r5=v=>+(+v).toFixed(5), q2=p=>p.map(r5);
+        out.hairpins.push({col:c.id,bar:+P.options.hairpinBar||5,pts:(hs?hs.center:pts).map(p=>[+p[0].toFixed(4),+p[1].toFixed(4)]),
+          outline:hs?hs.segs.map(g=>g.t==='L'?{t:'L',a:q2(g.a),b:q2(g.b)}:{t:'A',a:q2(g.a),b:q2(g.b),m:q2(g.m)}):null}); } }
   });
   (P.jambs||[]).forEach(j=>{ const pg=E.plateGlobal(j); const det=(P.details||{})[j.detail]||{};
     const jd=+(j.dia||det.dia||0.625), je=+(P.criteria.jambEmbed||12);
@@ -21320,11 +21583,17 @@ PM.readLinkFile=async function(dir,name){ try{ const f=await (await dir.getFileH
 PM.writeLinkFile=async function(dir,name,obj){ const h=await dir.getFileHandle(name,{create:true}); const w=await h.createWritable(); await w.write(JSON.stringify(obj,null,1)); await w.close(); };
 PM.linkState={};
 PM.loadLink=async function(prompt){ const r=await PM.linkDir(false,prompt); const st={root:r.root?r.root.name:null,err:r.err,none:r.none};
-  if(r.dir){ for(const k of ['placement','placed','model-check','baseline']){ const x=await PM.readLinkFile(r.dir,k+'.json'); if(x) st[k]=x; } }
+  if(r.dir){ for(const k of ['placement','placed','model-check','baseline','remove-request','removed']){ const x=await PM.readLinkFile(r.dir,k+'.json'); if(x) st[k]=x; } }
   PM.linkState=st; return st; };
 PM.sendPlacement=async function(){ const r=await PM.linkDir(true,true); if(!r.dir){ PM.toast(r.err||'No folder'); PM.renderLink(); return; }
   const j=PM.revitJson(); j.job=PM.jobDirName(); j.sentAt=new Date().toISOString();
   await PM.writeLinkFile(r.dir,'placement.json',j); PM.save('Placement sent to the SE Review folder'); await PM.loadLink(); PM.renderLink(); PM.toast('Placement file saved to PEMB/'+PM.jobDirName()); };
+// ask the Revit button to delete everything it placed (it acts on the next click in Revit - the browser cannot reach Revit)
+PM.requestRemove=async function(){ if(!confirm('Remove everything the PEMB button placed in Revit for this job?\n\nThe next time you click the button in Revit it asks to delete them (only elements stamped PEMB-AUTO) and sets the placement baseline aside, so the following run places everything fresh.')) return;
+  const r=await PM.linkDir(true,true); if(!r.dir){ PM.toast(r.err||'No folder'); return; }
+  await PM.writeLinkFile(r.dir,'remove-request.json',{schema:'tamarack.pemb.remove.v1',t:new Date().toISOString(),job:PM.jobDirName()});
+  PM.save('Asked Revit to remove the placed PEMB elements'); await PM.loadLink(); PM.renderLink(); PM.toast('Removal requested — click the PEMB button in Revit'); };
+PM.cancelRemove=async function(){ const r=await PM.linkDir(true,true); if(!r.dir) return; try{ await r.dir.removeEntry('remove-request.json'); }catch(e){} await PM.loadLink(); PM.renderLink(); };
 PM.rebaseline=async function(){ const r=await PM.linkDir(true,true); if(!r.dir) return; const j=PM.revitJson(); j.job=PM.jobDirName();
   await PM.writeLinkFile(r.dir,'baseline.json',{schema:'tamarack.pemb.baseline.v1',t:new Date().toISOString(),design:j,model:(PM.linkState['model-check']||{}).j||null});
   PM.P.revitLink.res={}; PM.save('New Revit baseline'); await PM.loadLink(); PM.renderLink(); PM.toast('Current design and model saved as the new baseline'); };
@@ -21400,12 +21669,16 @@ PM.renderLink=async function(fresh){
             <td class="l" style="white-space:normal;font-size:.72rem;min-width:140px">${esc(c[1])}</td>
             <td class="l" style="white-space:normal;min-width:190px">${it.go&&(it.go.col||it.go.tie||it.go.side)?`<button class="pm-btn small" data-lgo="${i}">Go to</button> `:''}${(it.field==='drop'||(it.kind==='Footing'&&/^[BLT]$/.test(it.field||'')))&&it.cls!=='design'?`<button class="pm-btn small" data-lacc="${i}" title="Change the design to what is in Revit">Use Revit value</button> `:''}${it.resolved?'<span class="note" style="margin:0">resolved</span>':`<button class="pm-btn small" data-lres="${i}" title="Corrected in Revit, or accepted as is">Mark corrected</button>`}</td></tr>`; }).join('')}</table></div>`; })()}
         ${items.length&&!open.length?`<div class="row" style="gap:8px;margin-top:8px"><button class="pm-btn small primary" id="pm-lk-base">Save as new baseline</button><span class="note" style="margin:0">Clears the list: the next check compares against the design and model as they are now.</span></div>`:''}`:''}
-      <p class="note" style="margin:8px 0 0">Tolerances: location ½", sizes ⅛", elevations 1". Nothing here changes the model — corrections are made by hand in Revit.</p>`; }
+      <p class="note" style="margin:8px 0 0">Tolerances: location ½", sizes ⅛", elevations 1". Nothing here changes the model — corrections are made by hand in Revit.</p>
+      <div class="row" style="gap:8px;margin-top:10px;flex-wrap:wrap;align-items:center;border-top:1px solid var(--line,#e3e7ee);padding-top:8px">
+        ${st['remove-request']?`<span class="pm-chip y" style="min-width:0">Removal requested ${esc(dt(st['remove-request'].j&&st['remove-request'].j.t||st['remove-request'].t))}</span><span class="note" style="margin:0">Click the PEMB button in Revit to delete the placed elements.</span><button class="pm-btn small" id="pm-lk-unrm">Cancel request</button>`
+          :`<button class="pm-btn small danger" id="pm-lk-rm" title="Delete everything the button placed (PEMB-AUTO) and start over">Remove from Revit…</button><span class="note" style="margin:0">${st.removed&&st.removed.j?'Last removed '+esc(dt(st.removed.j.removedAt))+' ('+(st.removed.j.elements||0)+' elements). ':''}Start over: the button deletes what it placed the next time you click it.</span>`}
+      </div>`; }
   el.innerHTML=body;
   const on=(id,f)=>{ const b=$(id); if(b) b.onclick=f; };
   on('pm-lk-conn',async()=>{ await tfrConnectSharedFolder(true); PM.renderLink(true); });
   on('pm-lk-perm',async()=>{ await PM.loadLink(true); PM.renderLink(); });
-  on('pm-lk-send',()=>PM.sendPlacement()); on('pm-lk-reload',()=>PM.renderLink(true)); on('pm-lk-base',()=>PM.rebaseline());
+  on('pm-lk-send',()=>PM.sendPlacement()); on('pm-lk-rm',()=>PM.requestRemove()); on('pm-lk-unrm',()=>PM.cancelRemove()); on('pm-lk-reload',()=>PM.renderLink(true)); on('pm-lk-base',()=>PM.rebaseline());
   el.querySelectorAll('[data-lf]').forEach(b=>b.onclick=()=>{ PM._lf=b.dataset.lf; PM.renderLink(); });
   el.querySelectorAll('[data-lgo]').forEach(b=>b.onclick=()=>{ const g=PM._linkItems[+b.dataset.lgo].go; if(g.side){ PM.side=g.side; PM.setStep('design'); } else PM.goto(g); });
   el.querySelectorAll('[data-lres]').forEach(b=>b.onclick=()=>{ const it=PM._linkItems[+b.dataset.lres]; PM.resolveLink(it.key,it.field,it.m||it.msg,it.d||''); });
@@ -21416,7 +21689,7 @@ PM.renderRevit=function(){
   const P=PM.P, rv=P.revit;
   $('pm-revit').innerHTML=`<div class="grp-label">Model it in Revit</div>
     <div class="pm-box"><div class="pm-box-h">Revit link<span class="note" style="margin:0;font-weight:500">place once, then check — differences are corrected by hand</span></div><div class="pm-box-b" id="pm-link"><p class="note">Reading the SE Review folder…</p></div></div>
-    <details class="pm-more"><summary>Revit settings, files and what gets created</summary>
+    <details class="pm-more" id="pm-rv-more" ${PM._rvMore?'open':''} ontoggle="PM._rvMore=this.open"><summary>Revit settings, files and what gets created</summary>
     <p class="note" style="margin-top:0">Two files: <b>placement JSON</b> (this design) and a <b>pyRevit script</b>. Put the script in your Tamarack pyRevit extension as a button, open the foundation plan view, run it and pick the JSON. It finds existing footing, plinth and grade-beam types by their dimensions (so your own type names are kept), places the footings, plinths and grade-beam ties, optionally the stemwall and its wall footing, draws each base plate and its bolts as a <b>detail group</b> (one group type per plate detail, copied to every column), draws the hairpins as a detail group, and sets Mark/Comments. Everything it creates is tagged <code>PEMB-AUTO</code>, so a re-run replaces it cleanly.</p>
     <div class="pm-fields">${field('revit.level','Plinth / grade-beam / wall level')}${field('revit.footingLevel','Footing level (blank = same)')}${field('revit.viewName','Plan view name (blank = active view)')}${field('revit.footingFamily','Isolated footing family')}${field('revit.footingTypeName','Footing type name {B} {L} {T}')}${field('revit.footingTypePrefix','…or prefix + mark')}${field('revit.plinthFamily','Plinth family (structural column)')}${field('revit.plinthTypeName','Plinth type name {bx} {by}')}
       ${field('revit.beamFamily','Grade-beam family (structural framing)')}${field('revit.beamTypeName','Grade-beam type name {b} {h}')}${field('revit.beamTop','T.O. grade beam above level (ft)',{num:1})}
@@ -21430,7 +21703,7 @@ PM.renderRevit=function(){
       <tr><td class="l">Plinths</td><td class="l">${esc(rv.plinthFamily)} — one type per plinth mark, base at T.O. footing, top at T.O. plinth</td><td>${P.columns.length}</td></tr>
       <tr><td class="l">Column base plates + anchor bolts</td><td class="l">Detail groups ${esc(rv.groupPrefix)}&lt;detail&gt; (plate outline + bolts)</td><td>${P.columns.length}</td></tr>
       <tr><td class="l">Door-jamb base plates + anchors</td><td class="l">Detail groups ${esc(rv.groupPrefix)}&lt;detail&gt;-JAMB at every jamb on step 3</td><td>${(P.jambs||[]).length}</td></tr>
-      <tr><td class="l">Hairpins</td><td class="l">Detail lines grouped as ${esc(rv.hairpinGroup)}</td><td>${P.options.lateral==='hairpin'?P.columns.length:0}</td></tr>
+      <tr><td class="l">Hairpins</td><td class="l">Masking region shaped like the bar (#5, 3d<sub>b</sub> bends), behind the base plate, column and nuts</td><td>${P.options.lateral==='hairpin'?P.columns.length:0}</td></tr>
       <tr><td class="l">Grade-beam ties</td><td class="l">${esc(rv.beamFamily)} — ${esc(PM.typeName(rv.beamTypeName,{b:'b',h:'h'}))}, top ${rv.beamTop} ft above ${esc(rv.level)}</td><td>${(P.ties||[]).length}</td></tr>
       <tr><td class="l">Stemwall + wall footing</td><td class="l">${rv.createWalls?esc(rv.wallType)+' + '+esc(rv.wallFtgType):'Not created (use the existing walls)'}</td><td>${rv.createWalls?4:0}</td></tr>
       <tr><td class="l">Grids</td><td class="l">${rv.createGrids?'Created if missing':'Uses existing grids for the origin'}</td><td>${P.grids.x.length+P.grids.y.length}</td></tr></table></div>
