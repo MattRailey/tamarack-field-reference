@@ -16294,7 +16294,7 @@ def previous():
     for bic in (DB.BuiltInCategory.OST_StructuralFoundation, DB.BuiltInCategory.OST_StructuralColumns,
                 DB.BuiltInCategory.OST_StructuralFraming, DB.BuiltInCategory.OST_Walls,
                 DB.BuiltInCategory.OST_IOSDetailGroups, DB.BuiltInCategory.OST_Lines, DB.BuiltInCategory.OST_DetailComponents,
-                DB.BuiltInCategory.OST_StructuralFoundationTags, DB.BuiltInCategory.OST_Floors):
+                DB.BuiltInCategory.OST_StructuralFoundationTags, DB.BuiltInCategory.OST_StructuralColumnTags, DB.BuiltInCategory.OST_Floors):
         for e in DB.FilteredElementCollector(doc).OfCategory(bic).WhereElementIsNotElementType():
             p = e.get_Parameter(DB.BuiltInParameter.ALL_MODEL_INSTANCE_COMMENTS)
             if p and p.AsString() and p.AsString().startswith(TAG):
@@ -16685,6 +16685,21 @@ with revit.Transaction('Place PEMB foundations', doc=doc):
             except Exception:
                 pass
             counts['grids'] += 1
+    # grids made by the API start with a short vertical extent at z = 0 and do not cut the plan views; stretch every
+    # job grid over all levels so it shows in the foundation plan (and every other plan)
+    try:
+        lv_ = [l_.Elevation for l_ in DB.FilteredElementCollector(doc).OfClass(DB.Level)]
+        if lv_:
+            lo_, hi_ = min(lv_) - 10.0, max(lv_) + 10.0
+            names_ = set(g['name'] for g in grids)
+            for gr in DB.FilteredElementCollector(doc).OfClass(DB.Grid):
+                if gr.Name in names_:
+                    try:
+                        gr.SetVerticalExtents(lo_, hi_)
+                    except Exception:
+                        pass
+    except Exception as ex:
+        warnings.append('Grid extents not set: {}'.format(ex))
 
     # -------------------------------------------------- footing & plinth types
     ftypes = {}
@@ -16697,6 +16712,8 @@ with revit.Transaction('Place PEMB foundations', doc=doc):
             break
         set_param(sym, [DB.BuiltInParameter.ALL_MODEL_TYPE_MARK], t['mark'])
         set_param(sym, [DB.BuiltInParameter.ALL_MODEL_TYPE_COMMENTS], t.get('reinf', ''))
+        if t.get('concrete'):
+            set_param(sym, ['CONCRETE PSI'], t['concrete'])
         ftypes[t['mark']] = sym
     ptypes = {}
     for t in data.get('plinthTypes', []):
@@ -16707,12 +16724,40 @@ with revit.Transaction('Place PEMB foundations', doc=doc):
             break
         set_param(sym, [DB.BuiltInParameter.ALL_MODEL_TYPE_MARK], t['mark'])
         set_param(sym, [DB.BuiltInParameter.ALL_MODEL_TYPE_COMMENTS], t.get('vert', '') + ' + ' + t.get('ties', ''))
+        # schedule parameters used on the office's plinth schedule (shared parameters; skipped quietly if absent)
+        set_param(sym, ['Vertical Reinforcement'], t.get('vert', ''))
+        set_param(sym, ['Horizontal Reinforcement'], t.get('ties', ''))
+        if t.get('ab'):
+            set_param(sym, ['Column Anchor Bolt Embedment', 'Column Anchor Bolt', 'Anchor Bolt'], t['ab'])
+        if t.get('abProj'):
+            set_param(sym, ['Column Anchor Bolt Projection', 'AB Projection', 'Anchor Bolt Projection'], t['abProj'])
         ptypes[t['mark']] = sym
 
-    tagsym = None
+    def tag_symbol(bic, spec):
+        """'Family : Type' (either part may be blank) -> the tag type; falls back to the first of that category."""
+        fam, typ = (spec.split(':', 1) + [''])[:2] if spec else ('', '')
+        fam, typ = fam.strip(), typ.strip()
+        syms = list(DB.FilteredElementCollector(doc).OfCategory(bic).OfClass(DB.FamilySymbol))
+        for sy in syms:
+            try:
+                if (not fam or sy.Family.Name == fam) and (not typ or DB.Element.Name.GetValue(sy) == typ):
+                    return sy
+            except Exception:
+                pass
+        if syms:
+            TYPE_WARN.append('Tag "{}" not loaded - used "{} : {}" instead.'.format(spec, syms[0].Family.Name, DB.Element.Name.GetValue(syms[0])))
+            return syms[0]
+        return None
+
+    tagsym = ptagsym = None
     if S.get('tag'):
-        ts = DB.FilteredElementCollector(doc).OfCategory(DB.BuiltInCategory.OST_StructuralFoundationTags).OfClass(DB.FamilySymbol).FirstElement()
-        tagsym = ts
+        tagsym = tag_symbol(DB.BuiltInCategory.OST_StructuralFoundationTags, S.get('footingTag', 'FOUNDATION DETAILING TAG : FOOTING'))
+        ptagsym = tag_symbol(DB.BuiltInCategory.OST_StructuralColumnTags, S.get('plinthTag', 'COLUMN DETAILING TAG : OVERLAY'))
+        for sy_ in (tagsym, ptagsym):
+            if sy_ is not None and not sy_.IsActive:
+                sy_.Activate()
+    TAG_AT = dict((t_['col'], t_['at']) for t_ in data.get('tags', []))
+    FTG_INST = {}
 
     # -------------------------------------------------- footings
     ft_probe = None
@@ -16740,17 +16785,11 @@ with revit.Transaction('Place PEMB foundations', doc=doc):
                     set_param(sym_, 'Length', w_)
                 doc.Regenerate()
                 TYPE_WARN.append('Footing family "{}" runs Width / Length the other way - swapped them on every footing type.'.format(S.get('footingFamily')))
-        if tagsym is not None:
-            try:
-                tg = DB.IndependentTag.Create(doc, tagsym.Id, view.Id, DB.Reference(inst), False,
-                                              DB.TagOrientation.Horizontal, W(f['cx'] + f['B'] / 2 + 1.5, f['cy'] + f['L'] / 2 + 1.5))
-                set_param(tg, [DB.BuiltInParameter.ALL_MODEL_INSTANCE_COMMENTS], TAG + ':TAG/' + f['col'])
-                counts['tags'] += 1
-            except Exception:
-                pass
+        FTG_INST[f['col']] = inst
 
     # -------------------------------------------------- plinths
     pl_probe = None
+    PL_INST = {}
     for p in data.get('plinths', []):
         sym = ptypes.get(p['mark'])
         if sym is None:
@@ -16766,6 +16805,7 @@ with revit.Transaction('Place PEMB foundations', doc=doc):
         set_param(inst, [DB.BuiltInParameter.ALL_MODEL_INSTANCE_COMMENTS], TAG + ':PL/' + p['col'])
         rotate(inst, pt)
         counts['plinths'] += 1
+        PL_INST[p['col']] = inst
         if pl_probe is None and abs(float(p['bx']) - float(p['by'])) > 0.05:
             doc.Regenerate()
             ext = plan_extents(inst)
@@ -16780,6 +16820,28 @@ with revit.Transaction('Place PEMB foundations', doc=doc):
                 ext2 = plan_extents(inst)
                 TYPE_WARN.append('Plinth family "{}" runs b / h the other way - swapped them on every plinth type so the long side matches the design ({}).'.format(
                     S.get('plinthFamily'), 'now {:.2f} x {:.2f} ft'.format(ext2[0], ext2[1]) if ext2 else 'check'))
+
+    # -------------------------------------------------- tags: footing tag first, then the plinth (column) tag placed
+    # exactly on top of it - both read the elements, so they update when a type changes (office convention)
+    if tagsym is not None:
+        for col_, fi in FTG_INST.items():
+            at = TAG_AT.get(col_)
+            if at is None:
+                continue
+            head = W(at[0], at[1])
+            try:
+                tg = DB.IndependentTag.Create(doc, tagsym.Id, view.Id, DB.Reference(fi), False, DB.TagOrientation.Horizontal, head)
+                tg.TagHeadPosition = head
+                set_param(tg, [DB.BuiltInParameter.ALL_MODEL_INSTANCE_COMMENTS], TAG + ':TAG/' + col_)
+                counts['tags'] += 1
+                pi = PL_INST.get(col_)
+                if ptagsym is not None and pi is not None:
+                    tp = DB.IndependentTag.Create(doc, ptagsym.Id, view.Id, DB.Reference(pi), False, DB.TagOrientation.Horizontal, head)
+                    tp.TagHeadPosition = head
+                    set_param(tp, [DB.BuiltInParameter.ALL_MODEL_INSTANCE_COMMENTS], TAG + ':PTAG/' + col_)
+                    counts['plinth tags'] = counts.get('plinth tags', 0) + 1
+            except Exception as ex:
+                warnings.append('Tag at {} not placed: {}'.format(col_, ex))
 
     # -------------------------------------------------- grade-beam ties (structural framing)
     btypes = {}
@@ -17150,6 +17212,7 @@ with revit.Transaction('Place PEMB foundations', doc=doc):
                     els.append(detail_line(W(*colpts[i]), W(*colpts[(i + 1) % len(colpts)])))
             r = max(dia / 24.0, 0.02)
             nsym = nut_cache.get(dia)
+            n_start = len(els)
             for b in bolts:
                 ctr = W(b[0], b[1])
                 if nsym is not None:
@@ -17165,6 +17228,13 @@ with revit.Transaction('Place PEMB foundations', doc=doc):
                 hx = [ctr + ux * (R_ * math.cos(k * math.pi / 3)) + uy * (R_ * math.sin(k * math.pi / 3)) for k in range(6)]
                 for k in range(6):
                     els.append(detail_line(hx[k], hx[(k + 1) % 6]))
+            # bolts / nuts always on top of the plate and column masks (draw order)
+            try:
+                top = List[DB.ElementId]([e_.Id for e_ in els[n_start:]])
+                if top.Count:
+                    DB.DetailElementOrderUtils.BringToFront(doc, view, top)
+            except Exception:
+                pass
             return els
         g = place_group(bp['group'], sig, W(cx, cy), build)
         set_param(g, [DB.BuiltInParameter.ALL_MODEL_INSTANCE_COMMENTS], TAG + ':' + bp.get('col', '') + (' JAMB' if bp.get('jamb') else ''))
@@ -18257,6 +18327,15 @@ E.columnShape = function(P, col){
   const g=p=>alongX?[(pg.cx+p[0])/12,(pg.cy+p[1])/12]:[(pg.cx+p[1])/12,(pg.cy+p[0])/12];
   return {d,bf,tf,tw,pts:pts.map(g), plate:[[pg.x0/12,pg.y0/12],[pg.x1/12,pg.y0/12],[pg.x1/12,pg.y1/12],[pg.x0/12,pg.y1/12]]};
 };
+// where the footing / plinth tag sits (plan, ft): toward the building interior, past the footing edge
+E.tagPoint = function(P, c, x){
+  const Lg=(P.pemb||{}).length||0, Wd=(P.pemb||{}).width||0, pr=E.plinthRect(P,c,x.pl);
+  let nx=0, ny=0; if(c.face==='S') ny=1; if(c.face==='N') ny=-1; if(c.face==='W') nx=1; if(c.face==='E') nx=-1;
+  let tx=pr.cx/12+nx*(x.ft.B/2+1.8)+(ny?3.4:0), ty=pr.cy/12+ny*(x.ft.L/2+1.8)+(nx?-3.4:0);
+  const fs_=E.colFaces(P,c);
+  if(c.kind==='corner'||fs_.length>1){ const sx=fs_.includes('W')?1:(fs_.includes('E')?-1:(c.x<Lg/2?1:-1)), sy=fs_.includes('S')?1:(fs_.includes('N')?-1:(c.y<Wd/2?1:-1)); tx=pr.cx/12+sx*(x.ft.B/2+4.2); ty=pr.cy/12+sy*(x.ft.L/2+0.8); }
+  return [tx,ty];
+};
 E.designPerimeter = function(P){
   const C=P.criteria, per=P.perimeter||{};
   const sw=(+per.stemW||8)/12, sh00=(+per.stemH||20)/12, fw=(+per.ftgW||16)/12, fh=(+per.ftgT||8)/12;
@@ -18500,10 +18579,7 @@ D.plan = function(P, R, o){
   if(Ly.jambs) (P.jambs||[]).forEach(j=>drawPlate(j,true));
   // ---- tags (plinth mark over footing mark), placed toward the building interior
   if(Ly.tags) cols.forEach(c=>{ const x=res[c.id]; if(!x) return; const pr=E().plinthRect(P,c,x.pl);
-    let nx=0, ny=0; if(c.face==='S') ny=1; if(c.face==='N') ny=-1; if(c.face==='W') nx=1; if(c.face==='E') nx=-1;
-    const f=E().footingCenter(P,c,x.pl,x.ft);
-    let tx=pr.cx/12+nx*(x.ft.B/2+1.8)+(ny?3.4:0), ty=pr.cy/12+ny*(x.ft.L/2+1.8)+(nx?-3.4:0);
-    if(c.kind==='corner'){ const fs_=(c.faces||[c.face]); const sx=fs_.includes('W')?1:(fs_.includes('E')?-1:(c.x<Lg/2?1:-1)), sy=fs_.includes('S')?1:(fs_.includes('N')?-1:(c.y<Wd/2?1:-1)); tx=pr.cx/12+sx*(x.ft.B/2+4.2); ty=pr.cy/12+sy*(x.ft.L/2+0.8); }
+    const tp=E().tagPoint(P,c,x), tx=tp[0], ty=tp[1];
     const w=s*2.3, h=s*2.3, cx=X(tx), cy=Y(ty);
     const hex=[[-w/2,0],[-w/4,-h/2],[w/4,-h/2],[w/2,0],[w/4,h/2],[-w/4,h/2]].map(p=>(cx+p[0])+','+(cy+p[1])).join(' ');
     g.push(`<g class="pm-hit pm-tag" data-col="${esc(c.id)}"><polygon points="${hex}" fill="${o.print?'#fff':'none'}" pointer-events="all" stroke="${ink}" stroke-width="${thin}"/><line x1="${cx-w/2}" y1="${cy}" x2="${cx+w/2}" y2="${cy}" stroke="${ink}" stroke-width="${thin*0.8}"/>
@@ -19802,7 +19878,7 @@ PM.defaults = function(){
              {mark:'C',bx:12,by:20,h:24,vert:{n:3,bar:4,shape:'U'},ties:'(3) #3 within top 5", 8" o.c. elsewhere',hef:12}],
     groups:[{kinds:['frame'],footing:'F2',plinth:'A'},{kinds:['endwall'],footing:'F1',plinth:'B'},{kinds:['corner'],footing:'F1',plinth:'C'},{kinds:['interior'],footing:'F2',plinth:'A'}],
     revit:{createWalls:true,level:'T.O. FOOTING',viewName:'',footingFamily:'Footing-Rectangular',footingTypePrefix:'PEMB-',plinthFamily:'Concrete-Rectangular-Column',
-      tofElev:-2.0,plinthTop:0.0,groupPrefix:'BP-',hairpinGroup:'HAIRPIN-#5',originGridX:'1',originGridY:'A',createGrids:false,tag:true,
+      tofElev:-2.0,plinthTop:0.0,groupPrefix:'BP-',hairpinGroup:'HAIRPIN-#5',footingTag:'FOUNDATION DETAILING TAG : FOOTING',plinthTag:'COLUMN DETAILING TAG : OVERLAY',originGridX:'1',originGridY:'A',createGrids:false,tag:true,
       footingLevel:'',footingTypeName:'',plinthTypeName:'',beamFamily:'Concrete-Rectangular Beam',beamTypeName:'{b} X {h} GRADE BEAM',beamTop:1.0,
       wallType:'Exterior - 8" Concrete',wallFtgType:'Bearing Footing - 16" x 8"',wallTop:2.0,createSlab:true,slabType:'PEMB SOG {t}"'},
     pkg:{sections:{cover:1,guide:1,senotes:1,handcalc:1,basis:1,rxn:1,plan:1,combos:1,footings:1,uplift:1,hairpin:1,anchors:1,plinth:1,perim:1,results:1,validation:1}},
@@ -20041,9 +20117,28 @@ PM.fitPlinths=function(P){ if((P.options||{}).autoFitPlinths===false) return [];
     let bx=pl.bx, by=pl.by; us.forEach(c=>{ try{ const r=E.plinthRequired(P,c); bx=Math.max(bx,r.bx); by=Math.max(by,r.by); }catch(e){} });
     if(bx>pl.bx+0.01||by>pl.by+0.01){ out.push(pl.mark+' '+pl.bx+'"×'+pl.by+'" → '+bx+'"×'+by+'"'); pl.bx=bx; pl.by=by; } });
   return out; };
+// footing marks F1, F2... and plinth marks A, B... follow size (smallest first) so Revit schedules sorted by mark
+// read smallest to largest. Unused types go last. Renames every reference (kind defaults, columns, SE notes text).
+PM.sortMarks=function(P){ if((P.options||{}).sortMarks===false) return [];
+  const used=(k,m)=>(P.columns||[]).some(c=>(k==='ft'?E.groupOf(P,c):E.plinthFor(P,c))&&(k==='ft'?E.groupOf(P,c):E.plinthFor(P,c)).mark===m);
+  const redo=(k,arr,key,name)=>{ if(!arr||arr.length<2) return null;
+    const order=arr.map((t,i)=>({t,i,u:used(k,t.mark)?0:1,a:key(t)})).sort((p,q)=>p.u-q.u||p.a[0]-q.a[0]||p.a[1]-q.a[1]||p.a[2]-q.a[2]||p.i-q.i);
+    const map={}; order.forEach((o,j)=>{ map[o.t.mark]=name(j); });
+    if(order.every((o,j)=>o.i===j && o.t.mark===map[o.t.mark])) return null;
+    const fld=k==='ft'?'footing':'plinth';
+    (P.groups||[]).forEach(g=>{ if(g[fld]!=null&&map[g[fld]]) g[fld]=map[g[fld]]; });
+    (P.columns||[]).forEach(c=>{ if(c[fld]!=null&&map[c[fld]]) c[fld]=map[c[fld]]; });
+    const ch=Object.entries(map).filter(([a,b])=>a!==b).map(([a,b])=>a+'→'+b);
+    order.forEach(o=>{ o.t.mark=map[o.t.mark]; }); arr.splice(0,arr.length,...order.map(o=>o.t));
+    return ch.length?ch:null; };
+  const out=[];
+  const f=redo('ft',P.types,t=>[(+t.B||0)*(+t.L||0),+t.T||0,+t.B||0],j=>'F'+(j+1)); if(f) out.push('footings '+f.join(', '));
+  const pl=redo('pl',P.plinths,t=>[(+t.bx||0)*(+t.by||0),+t.h||0,+t.bx||0],j=>j<26?String.fromCharCode(65+j):'P'+(j+1)); if(pl) out.push('plinths '+pl.join(', '));
+  return out; };
 PM.run=function(){
   if(!PM.P || !(PM.P.columns||[]).length){ PM.R=null; PM.header(); return; }
   try{ const g=PM.fitPlinths(PM.P); if(g.length){ PM.save('Plinths grown to fit their base plates / corners: '+g.join(', ')); setTimeout(()=>PM.toast&&PM.toast('Plinth '+g.join(' · ')+' (fits base plate and corner)'),50); } }catch(e){ console.error('[PEMB fit]',e); }
+  try{ const sm=PM.sortMarks(PM.P); if(sm.length){ PM.save('Marks re-ordered by size: '+sm.join('; ')); setTimeout(()=>PM.toast&&PM.toast('Marks follow size now — '+sm.join('; ')),60); } }catch(e){ console.error('[PEMB marks]',e); }
   try{ PM.R=E.run(PM.P); }catch(e){ console.error('[PEMB]',e); PM.R=null; }
   PM.header();
 };
@@ -20663,7 +20758,7 @@ PM.renderCriteria=function(){
       ${field('options.hairpinBar','Hairpin bar',{opts:[[4,'#4'],[5,'#5'],[6,'#6']],num:1})}${field('options.hairpinLeg','Hairpin leg (ft)',{num:1})}${field('options.tieBar','New-tie bar',{opts:[[5,'#5'],[6,'#6'],[7,'#7'],[8,'#8']],num:1})}${field('options.tieN','New-tie bars (no.)',{num:1})}${field('options.tieElongLimit','Tie elongation limit (in)',{num:1})}${field('options.tieTransferN','U-bars around AB at a tie (no.)',{num:1})}${field('options.tieTransferBar','U-bar size',{opts:[[4,'#4'],[5,'#5'],[6,'#6']],num:1})}
       ${field('options.braceAdd','Bracing reactions',{opts:[['H','Add longitudinal H at braced frame columns'],['HV','Add H + V at every braced column'],['none','Already in column reactions']]})}
       ${field('options.ftgPlace','Footing centred on (if no edge projection is set)',{opts:[['column','Base-plate centre'],['plinth','Plinth centre']]})}${field('options.loadAt','Column load applied at',{opts:[['plate','Base-plate centre (actual eccentricity)'],['plinth','Plinth centroid (concentric ENERCALC input)']]})}
-      ${field('options.edgeMin','Min. bolt edge dist. (in)',{num:1})}${field('options.plateClear','Plate-to-plinth edge (in)',{num:1})}${field('options.cornerSnap','Snap plinth to a wall within (in)',{num:1})}${field('options.autoFitPlinths','Grow plinths automatically to fit the base plate / corner',{type:'check'})}${field('options.otFS','Overturning FS (ASD)',{num:1})}${field('options.slFS','Sliding FS (ASD)',{num:1})}
+      ${field('options.edgeMin','Min. bolt edge dist. (in)',{num:1})}${field('options.plateClear','Plate-to-plinth edge (in)',{num:1})}${field('options.cornerSnap','Snap plinth to a wall within (in)',{num:1})}${field('options.sortMarks','Number footing / plinth marks by size (smallest first)',{type:'check'})}${field('options.autoFitPlinths','Grow plinths automatically to fit the base plate / corner',{type:'check'})}${field('options.otFS','Overturning FS (ASD)',{num:1})}${field('options.slFS','Sliding FS (ASD)',{num:1})}
       ${field('options.stemPassiveLen','Stemwall passive length (ft)',{num:1})}${field('options.ksSubgrade','Slab k<sub>s</sub> (N/mm³)',{num:1})}${field('options.frSlab','Slab f<sub>r</sub> (MPa)',{num:1})}${field('options.slabEdgeRed','Slab edge reduction',{num:1})}${field('options.slabWidthFactor','Slab width factor',{num:1})}
       ${field('perimeter.stemW','Stemwall width (in)',{num:1})}${field('perimeter.stemH','Stemwall height (in)',{num:1})}${field('perimeter.ftgW','Cont. ftg width (in)',{num:1})}${field('perimeter.ftgT','Cont. ftg depth (in)',{num:1})}
     </div>
@@ -21516,11 +21611,12 @@ PM.revitJson=function(){
     origin:{note:'Coordinates are feet from the intersection of the steel lines of grid '+rv.originGridX+' and grid '+rv.originGridY+'. +X toward the last numbered grid, +Y toward the last lettered grid.', gridX:rv.originGridX, gridY:rv.originGridY},
     settings:rv, grids:[...P.grids.x.map(g=>({name:g.name,dir:'Y',pos:g.pos})),...P.grids.y.map(g=>({name:g.name,dir:'X',pos:g.pos}))],
     building:{width:P.pemb.width,length:P.pemb.length},
-    footingTypes:P.types.map(t=>({mark:t.mark,B:t.B,L:t.L,T:t.T/12,reinf:PM.ftgReinf(t),typeName:PM.typeName(rv.footingTypeName,{B:E.frac(t.B*12),L:E.frac(t.L*12),T:t.T+'"',mark:t.mark})||((rv.footingTypePrefix||'PEMB-')+t.mark)})),
-    plinthTypes:P.plinths.map(p=>({mark:p.mark,bx:p.bx/12,by:p.by/12,h:p.h/12,vert:`(${p.vert.n}) U-SHAPED #${p.vert.bar}`,ties:p.ties,typeName:PM.typeName(rv.plinthTypeName,{bx:E.frac(p.bx),by:E.frac(p.by),mark:p.mark})||('PEMB-PLINTH-'+p.mark)})),
+    footingTypes:P.types.map(t=>({mark:t.mark,B:t.B,L:t.L,T:t.T/12,reinf:PM.ftgReinf(t),concrete:Math.round((+P.criteria.fcSpec||+P.criteria.fc||3)*1000)+' PSI',typeName:PM.typeName(rv.footingTypeName,{B:E.frac(t.B*12),L:E.frac(t.L*12),T:t.T+'"',mark:t.mark})||((rv.footingTypePrefix||'PEMB-')+t.mark)})),
+    plinthTypes:P.plinths.map(p=>({mark:p.mark,bx:p.bx/12,by:p.by/12,h:p.h/12,vert:`(${p.vert.n}) U-SHAPED #${p.vert.bar}`,ties:p.ties,...PM.abCallout(P,p),typeName:PM.typeName(rv.plinthTypeName,{bx:E.frac(p.bx),by:E.frac(p.by),mark:p.mark})||('PEMB-PLINTH-'+p.mark)})),
     footings:[], plinths:[], baseplates:[], hairpins:[], gradeBeams:[], walls:null, perimeter:null};
   cols.forEach(x=>{ const c=x.col, fc=E.footingCenter(P,c,x.pl,x.ft), pr=E.plinthRect(P,c,x.pl), pg=E.plateGlobal(c); const det=(P.details||{})[c.detail]||{};
     out.footings.push({col:c.id,mark:x.ft.mark,cx:ft(fc.x),cy:ft(fc.y),B:x.ft.B,L:x.ft.L,T:x.ft.T/12,rot:0,drop:+(x.drop||0)});
+    out.tags=out.tags||[]; out.tags.push({col:c.id,at:E.tagPoint(P,c,x).map(v=>+v.toFixed(4))});
     out.plinths.push({col:c.id,mark:x.pl.mark,cx:ft(pr.cx),cy:ft(pr.cy),bx:x.pl.bx/12,by:x.pl.by/12,h:x.pl.h/12,rot:0,drop:+(x.drop||0)});
     out.baseplates.push({col:c.id,detail:c.detail,group:rv.groupPrefix+(c.detail||c.kind)+'-'+(+(c.dia||det.dia)).toString().replace('.','_'),
       plate:{x0:ft(pg.x0),y0:ft(pg.y0),x1:ft(pg.x1),y1:ft(pg.y1)},bolts:E.boltsGlobal(c).map(b=>[ft(b.x),ft(b.y)]),dia:+(c.dia||det.dia||0.75),proj:+(det.proj||2),embed:+(x.pl.hef||12),
@@ -21557,8 +21653,18 @@ PM.revitJson=function(){
     outline:(()=>{ let o=E.outline(P); let A=0; o.forEach((p,i)=>{ const q=o[(i+1)%o.length]; A+=p[0]*q[1]-q[0]*p[1]; }); if(A>0) o=o.slice().reverse(); return (rv.createWalls?E.offsetPoly(o,(+per.stemW||8)/12):o).map(p=>p.map(v=>+v.toFixed(5))); })(),
     note:'Outline = inside face of the stemwall when walls are created, else the steel line. Top = level + top.'};
   out.perimeter={stemW:per.stemW/12,stemH:per.stemH/12,ftgW:per.ftgW/12,ftgT:per.ftgT/12,outline:E.outline(P),note:'Outline = exterior face of concrete (steel line). Wall is inside the outline.'};
+  // two design types of the same size would collapse into one Revit type (and fight over its Type Mark): keep them apart
+  ['footingTypes','plinthTypes'].forEach(k=>{ const n={}; (out[k]||[]).forEach(t=>{ n[t.typeName]=(n[t.typeName]||0)+1; });
+    (out[k]||[]).forEach(t=>{ if(n[t.typeName]>1) t.typeName=t.typeName+' ('+t.mark+')'; }); });
   return out;
 };
+// anchor-bolt callout for a plinth type, the way the schedule reads (Crook: F1554 GRADE 36 3/4" DIA X12" EMBED):
+// rod size / projection from the columns that use it (most common), grade + embedment from the design
+PM.abCallout=function(P,p){ const us=(P.columns||[]).filter(c=>E.plinthFor(P,c)===p); const cnt={};
+  us.forEach(c=>{ const det=(P.details||{})[c.detail]||{}; const k=(+(c.dia||det.dia||0.75))+'|'+(+(det.proj||2)); cnt[k]=(cnt[k]||0)+1; });
+  const top=Object.entries(cnt).sort((a,b)=>b[1]-a[1])[0]; if(!top) return {ab:'',abProj:''}; const [dia,proj]=top[0].split('|').map(Number);
+  const g=String(P.criteria.abGrade||'F1554-36').replace(/^F1554-(\d+)$/,'F1554 GRADE $1');
+  return {ab:`${g} ${E.fracDia(dia).replace('"','')}" DIA X${p.hef||P.criteria.hef||12}" EMBED${p.washer?' W/ '+p.washer+'" SQ PL WASHER':''}`, abProj:E.fracIn(proj), abDia:dia}; };
 PM.typeName=function(tpl,v){ if(!tpl) return ''; return String(tpl).replace(/\{(\w+)\}/g,(m,k)=>v[k]!=null?v[k]:m); };
 // ================================================================= REVIT LINK (place once, then check)
 // Files live in the SE Review folder the Field Reference already connects to (Home tab):
@@ -21693,7 +21799,7 @@ PM.renderRevit=function(){
     <p class="note" style="margin-top:0">Two files: <b>placement JSON</b> (this design) and a <b>pyRevit script</b>. Put the script in your Tamarack pyRevit extension as a button, open the foundation plan view, run it and pick the JSON. It finds existing footing, plinth and grade-beam types by their dimensions (so your own type names are kept), places the footings, plinths and grade-beam ties, optionally the stemwall and its wall footing, draws each base plate and its bolts as a <b>detail group</b> (one group type per plate detail, copied to every column), draws the hairpins as a detail group, and sets Mark/Comments. Everything it creates is tagged <code>PEMB-AUTO</code>, so a re-run replaces it cleanly.</p>
     <div class="pm-fields">${field('revit.level','Plinth / grade-beam / wall level')}${field('revit.footingLevel','Footing level (blank = same)')}${field('revit.viewName','Plan view name (blank = active view)')}${field('revit.footingFamily','Isolated footing family')}${field('revit.footingTypeName','Footing type name {B} {L} {T}')}${field('revit.footingTypePrefix','…or prefix + mark')}${field('revit.plinthFamily','Plinth family (structural column)')}${field('revit.plinthTypeName','Plinth type name {bx} {by}')}
       ${field('revit.beamFamily','Grade-beam family (structural framing)')}${field('revit.beamTypeName','Grade-beam type name {b} {h}')}${field('revit.beamTop','T.O. grade beam above level (ft)',{num:1})}
-      ${field('revit.wallType','Stemwall type')}${field('revit.wallFtgType','Wall foundation type')}${field('revit.wallTop','T.O. wall above level (ft)',{num:1})}${field('revit.createWalls','Create stemwall + wall footing',{type:'check'})}${field('revit.createSlab','Create the slab on grade',{type:'check'})}${field('revit.slabType','Slab floor type ({t} = thickness)')}
+      ${field('revit.wallType','Stemwall type')}${field('revit.wallFtgType','Wall foundation type')}${field('revit.wallTop','T.O. wall above level (ft)',{num:1})}${field('revit.createWalls','Create stemwall + wall footing',{type:'check'})}${field('revit.createSlab','Create the slab on grade',{type:'check'})}${field('revit.footingTag','Footing tag (Family : Type)')}${field('revit.plinthTag','Plinth tag placed on top (Family : Type)')}${field('revit.slabType','Slab floor type ({t} = thickness)')}
       ${field('revit.tofElev','T.O. footing offset from level (ft)',{num:1})}${field('revit.plinthTop','T.O. plinth offset from level (ft)',{num:1})}${field('revit.groupPrefix','Detail group prefix')}${field('revit.originGridX','Origin grid (numbered)')}${field('revit.originGridY','Origin grid (lettered)')}
       ${field('revit.createGrids','Create grids if missing',{type:'check'})}${field('revit.tag','Tag footings (if a foundation tag is loaded)',{type:'check'})}</div>
     <div class="row" style="gap:8px;margin-top:12px"><button class="pm-btn primary" onclick="PM.dlRevitJson()">Download placement JSON</button><button class="pm-btn" onclick="PM.dlPyRevit()">Download pyRevit script</button><button class="pm-btn" onclick="PM.dlCsv()">Download schedules (CSV)</button></div>
