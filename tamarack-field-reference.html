@@ -631,6 +631,32 @@
   #pemb .pm-insp-types .pm-blt{ display:flex; gap:12px; margin-top:6px; align-items:center; flex-wrap:wrap; }
   #pemb .pm-insp-types .pm-blt label{ display:flex; align-items:center; gap:4px; white-space:nowrap; }
   #pemb .pm-insp-types .pm-blt input{ width:64px; min-height:0; padding:4px 6px; margin:0; }
+  #pemb .pm-wb{ margin-top:10px; border-top:1px solid var(--line,#e2e8f0); padding-top:8px; }
+  #pemb .pm-wb-h{ font-weight:700; font-size:.86rem; margin-bottom:4px; }
+  #pemb .pm-wb-st{ display:flex; gap:4px; flex-wrap:wrap; margin-bottom:6px; }
+  #pemb .pm-wb-l{ display:block; font-size:.72rem; font-weight:700; text-transform:uppercase; letter-spacing:.03em; color:var(--muted,#64748b); margin:10px 0 4px; }
+  #pemb .pm-wb-sel{ width:100%; min-height:34px; padding:4px 6px; font-size:.78rem; }
+  #pemb .pm-wb-box{ border:1px solid var(--line,#e2e8f0); border-radius:8px; padding:8px; margin-top:6px; background:var(--bg2,rgba(148,163,184,.06)); }
+  #pemb .pm-seg{ display:inline-flex; border:1px solid var(--line,#cbd5e1); border-radius:7px; overflow:hidden; margin-bottom:6px; flex-wrap:wrap; }
+  #pemb .pm-seg button{ border:0; background:transparent; padding:5px 10px; font-size:.74rem; cursor:pointer; color:inherit; min-height:0; }
+  #pemb .pm-seg button.on{ background:var(--accent,#2563eb); color:#fff; }
+  #pemb .pm-steps-in{ display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
+  #pemb .pm-step-in{ display:inline-flex; align-items:center; gap:4px; font-size:.78rem; }
+  #pemb .pm-step-in span{ color:var(--muted,#64748b); font-weight:700; }
+  #pemb .pm-step-in b{ min-width:48px; text-align:center; }
+  #pemb .pm-step-in .pm-btn{ min-width:26px; padding:2px 6px; }
+  #pemb .pm-sq{ display:inline-flex; gap:4px; align-items:center; margin:0; }
+  #pemb .pm-slab{ display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
+  #pemb .pm-slab label{ display:inline-flex; gap:4px; align-items:center; margin:0; }
+  #pemb .pm-slab input{ width:50px; min-height:0; padding:3px 5px; margin:0; }
+  #pemb .pm-slab select, #pemb .pm-wb select{ min-height:0; padding:3px 5px; }
+  #pemb .pm-bulk{ display:flex; gap:6px; flex-wrap:wrap; align-items:center; padding:6px 8px; border-radius:8px; background:var(--bg2,rgba(37,99,235,.07)); margin:6px 0; font-size:.78rem; }
+  #pemb .pm-bulk select{ min-height:0; padding:3px 5px; font-size:.76rem; }
+  #pemb .pm-tbl select.pm-cellsel{ min-height:0; padding:1px 3px; font-size:.74rem; }
+  #pemb .pm-wb input[type=checkbox], #pemb .pm-tbl input[type=checkbox]{ width:auto; height:auto; min-height:0; margin:0; }
+  #pemb .pm-wb select:not(.pm-wb-sel), #pemb .pm-bulk select, #pemb .pm-tbl select.pm-cellsel{ width:auto; display:inline-block; }
+  #pemb .pm-wb input.w-s, #pemb .pm-slab input{ width:52px; min-height:0; padding:3px 5px; display:inline-block; margin:0; }
+  #pemb .pm-wb .row{ align-items:center; }
   /* ---- end PEMB Foundations tab ---- */
 </style>
 </head>
@@ -15910,9 +15936,28 @@ def get_or_dup_type(bic, family_name, type_name, params):
 
 
 # ------------------------------------------------------------------ load
-path = forms.pick_file(file_ext='json', title='Pick the PEMB foundation placement JSON')
+# remembers the last folder used (the job's CALCS\PEMB Foundation folder)
+import os
+_cfg = None
+_init = ''
+try:
+    _cfg = script.get_config()
+    _init = _cfg.get_option('last_dir', '') or ''
+except Exception:
+    _cfg = None
+try:
+    path = forms.pick_file(file_ext='json', init_dir=_init if (_init and os.path.isdir(_init)) else None,
+                           title='Pick the PEMB foundation placement JSON (<job>_pemb_foundation_revit.json)')
+except TypeError:
+    path = forms.pick_file(file_ext='json', title='Pick the PEMB foundation placement JSON')
 if not path:
     script.exit()
+try:
+    if _cfg is not None:
+        _cfg.last_dir = os.path.dirname(path)
+        script.save_config()
+except Exception:
+    pass
 with open(path, 'r') as f:
     data = json.load(f)
 if data.get('schema') != 'tamarack.pemb.revit.v1':
@@ -16530,6 +16575,19 @@ E.designColumn = function(P, col, ft, pl, opts){
   // ASD capacity of the restraint (fy·As / 2, the SE's hairpin sheet uses SF = 2)
   const lateralCap = tie ? (+C.fy)*E.tieAs(tie)/2 : (lat0==='hairpin' ? (+C.fy)*2*hb.A/2 : 0);
   const perimW = extras.perimRaw||0;
+  // wall-parallel shear path chosen for this column (column panel): slab dowels and/or along-wall grade beams
+  const slabOn = col.parPath==='slab', sl0 = col.slab||{};
+  const wSlab = (+C.slab||6)/12*gc, muSf = +sl0.mu||0.6, dBar = E.REBAR[+sl0.bar||4]||E.REBAR[4];
+  const slabAmax = +opt.slabAreaMax||2500;
+  let slabAreq = 0, slabAreqLab = '';
+  const wStem = ((+per.stemW||8)*(+per.stemH||24) + (+per.ftgW||16)*(+per.ftgT||8))/144*gc;   // k/ft of stemwall + wall footing
+  const grp = {x:stemAx('x')?E.strutGroup(P,col,'x'):null, y:stemAx('y')?E.strutGroup(P,col,'y'):null};
+  const mem = {}; // member footing weights for the strut group
+  ['x','y'].forEach(a=>{ const g=grp[a]; if(!g||g.cols.length<2){ grp[a]=null; return; }
+    g.cols.forEach(m=>{ if(m.id===col.id||mem[m.id]) return; const mf=E.groupOf(P,m), mp=E.plinthFor(P,m); if(!mf||!mp) return;
+      const mT=mf.T/12, mA=mf.B*mf.L, mAp=mp.bx*mp.by/144;
+      mem[m.id]={col:m, ft:mf, W:mA*mT*gc + mAp*(mp.h/12)*gc + Math.max(0,(mA-mAp)*(Db-mT))*gs,
+        pp:ax=>0.5*(+C.passive)*(Db*Db-(Db-mT)*(Db-mT))*(ax==='x'?mf.L:mf.B)}; }); });
   const res={col:col.id, ft, pl, pr, fc0, Wf, Wp, Ws, extras, extraW, ex, ey, arm, asd:[], lrfd:[], stemPP, perp, restrainPerp, restrainPar, lateralCap, tie:tie?tie.id:null};
   const byItem={};
   function keep(item, ratio, applied, cap, combo, extra){
@@ -16576,17 +16634,36 @@ E.designColumn = function(P, col, ft, pl, opts){
       //   ⟂ wall : stemwall passive (SE sheet) + hairpin / tie capacity
       //   ∥ wall : friction under the tributary perimeter footing (integral stemwall)
       ['x','y'].forEach(ax=>{
-        const H=Math.abs(ax==='x'?F.Hx:F.Hy); if(H<1e-6) return;
+        const H=Math.abs(ax==='x'?F.Hx:F.Hy); if(H<1e-6 && !grp[ax]) return;
         const face = ax==='x'? L : B;
         const fr = (+C.mu)*Math.max(0,Ns), pp=passiveF(face);
         const isPerp = perp===ax, isPar = !!perp && perp!==ax;
         const spp = isPerp ? stemPP : 0;
         const lat = isPerp ? lateralCap : 0;
-        const sw  = stemAx(ax) ? (+C.mu)*dF*perimW : 0;
-        const R=fr+pp, R2=R+spp+lat+sw;
-        row['SL'+ax]={H,fr,pp,spp,lat,sw,R,R2,fs:R2/H};
+        let sw  = stemAx(ax) ? (+C.mu)*dF*perimW : 0;
+        // along-wall grade beam(s): the joined pads slide together - summed (signed) shear vs summed resistance
+        let Hg=H, st=null;
+        const g=grp[ax];
+        if(g){ let Hs=(ax==='x'?F.Hx:F.Hy), Rm=0; const parts=[];
+          g.cols.forEach(m=>{ if(m.id===col.id) return; const mm=mem[m.id]; if(!mm) return;
+            const Fs=E.forces(P,m,cb); const Fm=Fs.find(q=>(q.brace||'')===(F.brace||''))||Fs.reduce((a,b)=>(b.P<a.P?b:a),Fs[0]); if(!Fm) return;
+            const Nm=Fm.P+dF*mm.W, frm=(+C.mu)*Math.max(0,Nm), ppm=mm.pp(ax);
+            Hs+=(ax==='x'?Fm.Hx:Fm.Hy); Rm+=frm+ppm; parts.push({id:m.id,H:(ax==='x'?Fm.Hx:Fm.Hy),N:Nm,fr:frm,pp:ppm}); });
+          const swS=(+C.mu)*dF*wStem*g.L;
+          Hg=Math.abs(Hs); sw+=swS;
+          st={ids:g.cols.map(c=>c.id), ties:g.ties.map(t=>t.id), L:g.L, Hsum:Hg, Rm, swS, parts}; }
+        let R=fr+pp, R2=R+spp+lat+sw+(st?st.Rm:0);
+        // slab dowels: the slab resists by friction over the area it engages
+        let slabR=0, Aeng=0;
+        if(slabOn && stemAx(ax) && Hg>1e-6){
+          const need=Math.max(0,(+opt.slFS||1)*Hg-R2)/Math.max((+C.mu)*dF*wSlab,1e-9);
+          if(need>slabAreq){ slabAreq=need; slabAreqLab=lab; }
+          Aeng = +sl0.A>0 ? +sl0.A : Math.min(Math.ceil(need/50-1e-9)*50, slabAmax);
+          slabR=(+C.mu)*dF*wSlab*Aeng; R2+=slabR; }
+        row['SL'+ax]={H:Hg,Hcol:H,fr,pp,spp,lat,sw,slab:slabR,Aeng,strut:st,R,R2,fs:R2/Math.max(Hg,1e-9)};
         const nm = perp ? (isPerp?'Sliding ⟂ wall':'Sliding ∥ wall') : 'Sliding '+(ax==='x'?'X':'Y');
-        keep(nm, (+opt.slFS||1)*H/R2, H, R2, lab, {units:'k', fr, pp, spp, lat, sw, footOnly:R});
+        if(Hg<1e-6) return;
+        keep(nm, (+opt.slFS||1)*Hg/R2, Hg, R2, lab, {units:'k', fr, pp, spp, lat, sw, slab:slabR, Aeng, strut:st, footOnly:R});
       });
       // uplift
       if(F.P<0 && Po<0){
@@ -16653,6 +16730,17 @@ E.designColumn = function(P, col, ft, pl, opts){
       res.lrfd.push(row);
     });
   });
+  if(slabOn){
+    let Hu=0, HuLab='';
+    lrfd.forEach(cb=>E.forces(P,col,cb).forEach(F=>{ const h=Math.hypot(stemAx('x')?F.Hx:0, stemAx('y')?F.Hy:0); if(h>Hu){ Hu=h; HuLab=cb.label+(F.brace?' + bracing('+F.brace+')':''); } }));
+    const per1=0.75*muSf*dBar.A*fy, nAuto=Math.max(2,Math.ceil(Hu/per1-1e-9)), nD=+sl0.n>0?+sl0.n:nAuto;
+    const phiVn=nD*per1;
+    keep('Slab dowels ∥ wall (shear friction)', Hu/phiVn, Hu, phiVn, HuLab, {units:'k', n:nD, bar:+sl0.bar||4, mu:muSf, auto:!(+sl0.n>0)});
+    const Ause=+sl0.A>0?+sl0.A:Math.min(Math.ceil(slabAreq/50-1e-9)*50, slabAmax);
+    if(!(+sl0.A>0)) keep('Slab area engaged ∥ wall', slabAreq/slabAmax, slabAreq, slabAmax, slabAreqLab||'—', {units:'sf'});
+    res.slab={n:nD, nAuto, bar:+sl0.bar||4, mu:muSf, Hu, HuLab, phiVn, Areq:slabAreq, A:Ause, Amax:slabAmax, auto:!(+sl0.A>0), wSlab};
+  }
+  res.struts={x:grp.x?grp.x.cols.map(c=>c.id):null, y:grp.y?grp.y.cols.map(c=>c.id):null};
   keep('Min. steel X', AsMin/AsX, AsMin, AsX, 'ACI 7.6.1.1 / 13.3.3', {units:'in²/ft'});
   keep('Min. steel Y', AsMin/AsY, AsMin, AsY, 'ACI 7.6.1.1 / 13.3.3', {units:'in²/ft'});
   // bar spacing
@@ -16845,7 +16933,20 @@ E.designLateral = function(P, col, dres){
 // P.ties = [{id, role:'frame'|'endwall', from:colId, to:colId | toPt:[x,y] (ft), b, h (in), n, bar,
 //            transferN, transferBar}]  - a column is restrained perpendicular to its wall by a tie
 // that starts or ends at it. Tie bars are designed for the full thrust (slab/footing friction ignored).
-E.tieAt = function(P,col){ return (P.ties||[]).find(t=>t.from===col.id||t.to===col.id)||null; };
+// a grade beam that runs ALONG the wall at a column is a strut for the wall-parallel shear
+// (braced bays); one that runs across the building is a tie for the thrust perpendicular to the wall
+E.tieAxis = function(P,t){ const g=E.tieEnds(P,t); const dx=Math.abs(g.p1[0]-g.p0[0]), dy=Math.abs(g.p1[1]-g.p0[1]); return dx>=dy?'x':'y'; };
+E.tieIsStrut = function(P,t,col){ const perp=E.perpAxis(col); return !!perp && E.tieAxis(P,t)!==perp; };
+E.tieAt = function(P,col){ return (P.ties||[]).find(t=>(t.from===col.id||t.to===col.id) && !E.tieIsStrut(P,t,col))||null; };
+E.strutsAt = function(P,col){ return (P.ties||[]).filter(t=>(t.from===col.id||t.to===col.id) && t.to && E.tieIsStrut(P,t,col)); };
+// columns joined to col by along-wall grade beams running in axis ax (a chain along the wall)
+E.strutGroup = function(P,col,ax){
+  const byId={}; (P.columns||[]).forEach(c=>byId[c.id]=c);
+  const seen={[col.id]:1}, cols=[col], ties=[]; let q=[col];
+  while(q.length){ const c=q.shift();
+    E.strutsAt(P,c).filter(t=>E.tieAxis(P,t)===ax).forEach(t=>{ if(!ties.includes(t)) ties.push(t); const o=byId[t.from===c.id?t.to:t.from]; if(o && !seen[o.id]){ seen[o.id]=1; cols.push(o); q.push(o); } }); }
+  return {cols, ties, L:ties.reduce((a,t)=>a+E.tieEnds(P,t).L,0)};
+};
 E.tieAs = t => (+t.n||2)*(E.REBAR[+t.bar||5]||E.REBAR[5]).A;
 E.tieEnds = function(P,t){
   const c=id=>(P.columns||[]).find(x=>x.id===id);
@@ -16880,7 +16981,8 @@ E.designTies = function(P, R){
     ];
     if(trN) items.push({item:'Transfer bars around anchors ('+trN+') #'+(+(t.transferBar||opt.tieTransferBar)||5)+' U', ratio:Hu/phiTr, applied:Hu, cap:phiTr, units:'k', combo:HuLab});
     const gov=items.reduce((a,b)=>b.ratio>a.ratio?b:a,{ratio:0});
-    return {id:t.id, role:t.role, t, L:g.L, p0:g.p0, p1:g.p1, from:t.from, to:t.to||null, As, bar:+t.bar||5, n:+t.n||2, Hu, HuLab, HuCol, Ha, HaLab,
+    const strut = !!(g.a && E.tieIsStrut(P,t,g.a));
+    return {id:t.id, role:strut?'strut':t.role, strut, t, L:g.L, p0:g.p0, p1:g.p1, from:t.from, to:t.to||null, As, bar:+t.bar||5, n:+t.n||2, Hu, HuLab, HuCol, Ha, HaLab,
             phiTn, AsReq, nReq:Math.ceil(AsReq/bar.A-1e-9), nReqElong:Math.ceil(Ha*g.L*12/(eLim*Es)/bar.A-1e-9), AsReqElong:Ha*g.L*12/(eLim*Es), elong, eLim, trN, trAs, phiTr, ld, lap, ldh, wSelf, AsMinFlex, items, gov, ok:items.every(i=>i.ratio<=1.0001)};
   });
 };
@@ -17028,7 +17130,10 @@ E.flags = function(P, R){
   if(/[CDEF]/.test(C.SDC||'') && !(P.options||{}).omegaAnchors) add('med','Anchors','SDC '+C.SDC+': ACI 318-19 17.10.5.3(d) requires anchor design forces from combinations with E to include Ω0 when ductile steel failure does not govern.','ACI 17.10.5.3');
   // results
   Object.values(R.cols||{}).forEach(x=>{
-    x.d.summary.filter(s=>s.ratio>1.0001).forEach(s=>add((s.detailing||s.ratio<=1.10)?'med':'high','Footing '+x.ft.mark+' @ '+x.col.id, s.item+' ratio '+s.ratio.toFixed(2)+' ('+s.combo+').',''));
+    x.d.summary.filter(s=>s.ratio>1.0001).forEach(s=>add((s.detailing||s.ratio<=1.10)?'med':'high','Footing '+x.ft.mark+' @ '+x.col.id, s.item+' ratio '+s.ratio.toFixed(2)+' ('+s.combo+').'+
+      (s.item==='Sliding ∥ wall'?(x.col.parPath==='slab'||(s.strut)?' The chosen wall-parallel path is still short — add dowels / slab area or extend the along-wall grade beam.':' The pad cannot carry this (net uplift, no friction). In the column panel set "Load along the wall" to slab dowels, or add an along-wall grade beam to the other column of the braced bay.'):''),''));
+    if(x.d.slab){ const sb=x.d.slab; add('med','Slab tie-in @ '+x.col.id,'Wall-parallel shear goes into the slab: ('+sb.n+') #'+sb.bar+' dowels, shear friction μ = '+sb.mu+' (V<sub>u</sub> = '+sb.Hu.toFixed(1)+' k, φV<sub>n</sub> = '+sb.phiVn.toFixed(1)+' k); slab friction over ≈ '+Math.round(sb.A)+' sf of '+(+C.slab||6)+'" slab (μ = '+C.mu+', 0.6D). EOR to confirm the slab as part of the lateral load path, that the slab reinforcement carries this shear across control/construction joints, and the dowel embedment each side (ld).','ACI 22.9 / 25.4'); }
+    const sx=x.d.struts||{}; ['x','y'].forEach(a=>{ if(sx[a]) add('info','Along-wall grade beam @ '+x.col.id,'Pads '+sx[a].join(', ')+' are joined by along-wall grade beam(s); their wall-parallel shear is checked together (summed shear vs. friction + passive of all joined pads + stemwall friction along the beam). EOR to confirm.','—'); });
     if(x.a.gov.ratio>1.0001){ const g=x.a.gov; const pryG = g.pry && g.pry>=Math.max(g.vi/x.a.phiVsa, g.bN)-1e-9 && g.bV<=g.pry+1e-9;
       add('high','Anchors @ '+x.col.id,'Anchor interaction/strength ratio '+g.ratio.toFixed(2)+' ('+g.label+').'+(pryG?' Governed by pryout (ACI 17.7.3, V = '+g.V.toFixed(1)+'k vs φVcpg = '+g.phiVcpg.toFixed(1)+'k) — the plinth width limits the breakout area. Pryout is not relieved by anchor reinforcement under ACI 318-19'+(E.tieAt(P,x.col)?'; EOR to decide whether the tie U-bar load path governs instead.':(g.seis?'; the seismic case includes Ω0 = '+x.a.Om+' (ACI 17.10.6.3(c)) — deeper embedment, a larger plinth or a ductile-attachment design (17.10.6.3(a)/(b)) are the alternatives.':'.')):''),'ACI 17'); }
     x.p.items.filter(s=>s.ratio>1.0001).forEach(s=>add('med','Plinth '+x.pl.mark+' @ '+x.col.id, s.item+': '+(+s.applied).toFixed(2)+' > '+(+s.cap).toFixed(2)+' '+s.units,''));
@@ -19172,9 +19277,11 @@ PM.planPoint=function(svg,ev){ const pt=svg.createSVGPoint(); pt.x=ev.clientX; p
   const xmin=+svg.dataset.xmin, ymax=+svg.dataset.ymax, sc=+svg.dataset.s; return {x:p.x/sc+xmin, y:ymax-p.y/sc}; };
 PM.addTie=function(from,to,toPt){ const P=PM.P; P.ties=P.ties||[]; const O=P.options;
   const a=P.columns.find(c=>c.id===from), b=to?P.columns.find(c=>c.id===to):null;
-  const role=(a&&a.kind==='frame'&&(!b||b.kind==='frame'))?'frame':'endwall';
+  let role=(a&&a.kind==='frame'&&(!b||b.kind==='frame'))?'frame':'endwall';
+  if(a&&b&&E.tieIsStrut(P,{from,to},a)) role='strut';
   let id='GB-'+(a?a.id.replace('-',''):'')+(b?'-'+b.id.replace('-',''):''); while(P.ties.some(t=>t.id===id)) id+='+';
   const t={id,role,from,b:12,h:12,n:role==='frame'?(+O.tieN||4):2,bar:role==='frame'?(+O.tieBar||5):5}; if(b) t.to=to; else t.toPt=toPt;
+  if(role==='strut'){ t.h=18; t.n=2; }
   P.ties.push(t); if(O.lateral!=='tie' && role==='frame') O.lateral='tie';
   PM.selTie=id; PM.save('Drew grade beam '+id+' ('+from+' → '+(to||toPt.map(v=>v.toFixed(1)).join(', '))+')'); PM.run(); PM.renderDesign(); };
 PM.delTie=function(id){ const P=PM.P; const i=(P.ties||[]).findIndex(t=>t.id===id); if(i<0) return; P.ties.splice(i,1); if(PM.selTie===id) PM.selTie=null; PM.save('Deleted grade beam '+id); PM.run(); PM.renderDesign(); };
@@ -19245,42 +19352,101 @@ PM.renderInspector=function(){
 PM.colObj=id=>PM.P.columns.find(c=>c.id===id);
 PM.typeUsers=function(mark){ return Object.values(PM.R.cols).filter(q=>q.ft.mark===mark).map(q=>q.col.id); };
 PM.plinthUsers=function(mark){ return Object.values(PM.R.cols).filter(q=>q.pl.mark===mark).map(q=>q.col.id); };
+// ---- column workbench: everything needed to make one column work, in one place
+PM._scope={};   // per column: 'type' (edit the shared type) | 'col' (only this column -> its own type)
+PM.ftTxt=t=>`${E.frac(t.B*12)} × ${E.frac(t.L*12)} × ${t.T}"`;
+PM.previewFt=function(c,ft){ try{ const d=E.designColumn(PM.P,c,ft,E.plinthFor(PM.P,c)); return d.gov; }catch(e){ return null; } };
+PM.previewPl=function(c,pl){ try{ const ft=E.groupOf(PM.P,c), a=E.designAnchors(PM.P,c,pl,ft), p=E.designPlinth(PM.P,c,pl,ft,a); return Math.max(a.gov.ratio, ...p.items.map(i=>i.ratio)); }catch(e){ return null; } };
+PM.rtxt=r=>r==null||!isFinite(r)?'':(r>1.0001?'✗ ':'✓ ')+r.toFixed(2);
 PM.inspTypesHtml=function(id,x){
-  const P=PM.P, c=PM.colObj(id)||{}, g=E.groupFor(P,c);
-  const fOpt=`<option value="" ${!c.footing?'selected':''}>Auto (${esc(g.footing||P.types[0].mark)} for ${esc(c.kind||'this kind')})</option>`+P.types.map(t=>`<option value="${esc(t.mark)}" ${c.footing===t.mark?'selected':''}>${esc(t.mark)} — ${E.frac(t.B*12)} × ${E.frac(t.L*12)} × ${t.T}"</option>`).join('');
-  const pOpt=`<option value="" ${!c.plinth?'selected':''}>Auto (${esc(g.plinth||P.plinths[0].mark)} for ${esc(c.kind||'this kind')})</option>`+P.plinths.map(p=>`<option value="${esc(p.mark)}" ${c.plinth===p.mark?'selected':''}>${esc(p.mark)} — ${E.fracIn(p.bx)} × ${E.fracIn(p.by)}</option>`).join('');
-  const users=PM.typeUsers(x.ft.mark), n=users.length;
-  const warn=n>1?`<span class="pm-chip y" title="${esc(users.join(', '))}">Changes ${esc(x.ft.mark)} for ${n} columns</span> <span class="note" style="margin:0">(${esc(users.slice(0,8).join(', '))}${n>8?' …':''}) — use <i>+ New type from this column</i> to change only ${esc(id)}.</span>`
-    :`<span class="note" style="margin:0">${esc(x.ft.mark)} is used only by ${esc(id)}.</span>`;
+  const P=PM.P, c=PM.colObj(id)||{}, g=E.groupFor(P,c), users=PM.typeUsers(x.ft.mark), n=users.length;
+  const scope=n>1?(PM._scope[id]||'type'):'col';
+  const fOpt=`<option value="" ${!c.footing?'selected':''}>Auto — ${esc(g.footing||P.types[0].mark)} (default for ${esc(c.kind||'kind')})</option>`+P.types.map(t=>{ const gv=PM.previewFt(c,t);
+    return `<option value="${esc(t.mark)}" ${c.footing===t.mark?'selected':''}>${esc(t.mark)} · ${PM.ftTxt(t)} · ${PM.rtxt(gv&&gv.ratio)}${gv&&gv.ratio>1.0001?' '+esc(gv.item):''}</option>`; }).join('');
+  const pOpt=`<option value="" ${!c.plinth?'selected':''}>Auto — ${esc(g.plinth||P.plinths[0].mark)} (default for ${esc(c.kind||'kind')})</option>`+P.plinths.map(p=>`<option value="${esc(p.mark)}" ${c.plinth===p.mark?'selected':''}>${esc(p.mark)} · ${E.fracIn(p.bx)} × ${E.fracIn(p.by)} · ${PM.rtxt(PM.previewPl(c,p))}</option>`).join('');
+  const step=(k,lbl,val)=>`<div class="pm-step-in"><span>${lbl}</span><button class="pm-btn small" data-stp="${k}|-1" title="smaller">−</button><b>${val}</b><button class="pm-btn small" data-stp="${k}|1" title="larger">+</button></div>`;
   const rp=x.reqPl, plShort=rp&&(rp.bx>x.pl.bx+0.01||rp.by>x.pl.by+0.01);
-  return `<div class="pm-insp-types">
-    <div class="grp-label" style="margin-top:8px">Types for this column</div>
-    <div class="pm-hcsel"><div><label>Footing</label><select id="pm-in-ftg">${fOpt}</select></div>
-      <div><label>Plinth</label><select id="pm-in-pl">${pOpt}</select></div></div>
-    <div class="row" style="gap:8px;margin-top:6px;flex-wrap:wrap"><button class="pm-btn small primary" id="pm-in-newft" title="Copies ${esc(x.ft.mark)}, assigns the copy to ${esc(id)} only, and auto-sizes it for this column">+ New type from this column</button>
-      <button class="pm-btn small" id="pm-in-newpl" title="Copies plinth ${esc(x.pl.mark)} at the size this base plate needs and assigns it to ${esc(id)} only">+ New plinth from this column</button>${plShort?`<span class="pm-chip y">Plinth ${esc(x.pl.mark)} is short: needs ${rp.bx}" × ${rp.by}"</span>`:''}</div>
-    <details style="margin-top:6px"><summary class="note" style="margin:0;cursor:pointer">Edit footing ${esc(x.ft.mark)} size (B / L / T)</summary>
-      <div class="pm-blt">
-        <label class="note" style="margin:0">B (ft) <input class="w-s" id="pm-in-B" value="${x.ft.B}"></label>
-        <label class="note" style="margin:0">L (ft) <input class="w-s" id="pm-in-L" value="${x.ft.L}"></label>
-        <label class="note" style="margin:0">T (in) <input class="w-s" id="pm-in-T" value="${x.ft.T}"></label></div>
-      <div style="margin-top:4px">${warn}</div></details></div>`;
+  const gov=x.d.gov, fails=x.d.summary.filter(s=>s.ratio>1.0001).sort((a,b)=>b.ratio-a.ratio);
+  return `<div class="pm-wb">
+    <div class="pm-wb-h">Make it work <span class="note" style="margin:0;font-weight:400">— every change re-runs the checks; undo any change on step 1</span></div>
+    <div class="pm-wb-st">${fails.length?fails.slice(0,4).map(s=>`<span class="pm-chip r" title="${esc(s.combo)}">${esc(s.item)} ${s.ratio.toFixed(2)}</span>`).join(' ')+(fails.length>4?` <span class="note" style="margin:0">+${fails.length-4} more</span>`:''):`<span class="pm-chip g">Footing OK · ${gov.ratio.toFixed(2)} ${esc(gov.item||'')}</span>`}</div>
+    <label class="pm-wb-l">Footing type <span class="note" style="margin:0">(ratio shown = this column with that type)</span></label>
+    <select id="pm-in-ftg" class="pm-wb-sel">${fOpt}</select>
+    <div class="pm-wb-box">
+      <div class="row" style="gap:6px;align-items:center;flex-wrap:wrap;margin:0 0 6px">
+        <b>${esc(x.ft.mark)}</b><span class="note" style="margin:0">${PM.ftTxt(x.ft)} · ${esc(PM.ftgReinf(x.ft))}</span></div>
+      ${n>1?`<div class="pm-seg" id="pm-in-scope"><button data-sc="type" class="${scope==='type'?'on':''}" title="${esc(users.join(', '))}">Edit ${esc(x.ft.mark)} (all ${n} columns)</button><button data-sc="col" class="${scope==='col'?'on':''}">Only ${esc(id)} (own type)</button></div>`
+        :`<div class="note" style="margin:0 0 4px">${esc(x.ft.mark)} is used only by ${esc(id)} — edits change just this column.</div>`}
+      <div class="pm-steps-in">${step('B','B',E.frac(x.ft.B*12))}${step('L','L',E.frac(x.ft.L*12))}${step('T','T',x.ft.T+'"')}
+        <label class="note pm-sq"><input type="checkbox" id="pm-in-sq" ${PM._sq!==false?'checked':''}> keep square</label></div>
+      <div class="row" style="gap:6px;margin:6px 0 0;flex-wrap:wrap"><button class="pm-btn small primary" id="pm-in-auto" title="Smallest square footing that passes bearing, uplift, overturning and sliding ⟂ (sliding ∥ wall is handled below)">Auto-size ${scope==='col'&&n>1?'for '+esc(id)+' only':esc(x.ft.mark)}</button>
+        <select id="pm-in-bar" title="Bottom bars">${[4,5,6,7].map(b=>`<option value="${b}" ${+x.ft.bar===b?'selected':''}>#${b}</option>`).join('')}</select>
+        <span class="note" style="margin:0">× <input class="w-s" id="pm-in-n" value="${x.ft.n}" style="width:44px"> each way</span></div>
+      ${scope==='type'&&n>1?`<div class="note" style="margin:6px 0 0"><span class="pm-chip y">changes ${n} columns</span> ${esc(users.slice(0,10).join(', '))}${n>10?' …':''}</div>`:''}
+    </div>
+    <label class="pm-wb-l">Plinth <span class="note" style="margin:0">(ratio = anchors + plinth)</span></label>
+    <div class="row" style="gap:6px;margin:0;flex-wrap:wrap"><select id="pm-in-pl" class="pm-wb-sel" style="flex:1">${pOpt}</select>
+      <button class="pm-btn small" id="pm-in-newpl" title="New plinth type at the size this base plate needs, for ${esc(id)} only">+ Sized for this plate</button></div>
+    ${plShort?`<div class="note" style="margin:4px 0 0"><span class="pm-chip y">Plinth ${esc(x.pl.mark)} short — needs ${rp.bx}" × ${rp.by}"</span></div>`:''}
+    ${PM.parPathHtml(id,x)}
+  </div>`;
 };
+PM.isBraced=function(o){ return (PM.P.bracing||[]).some(b=>(b.cols||[]).includes(o.id)) || Object.keys(o.rxn||{}).some(k=>/^B(WU|WC|EB|EF)$/.test(k)); };
+PM.parPathHtml=function(id,x){
+  const P=PM.P, c=PM.colObj(id); if(!E.perpAxis(c)) return '';
+  const s=x.d.summary.find(q=>q.item==='Sliding ∥ wall'), sd=x.d.summary.find(q=>/^Slab dowels/.test(q.item)), sa=x.d.summary.find(q=>/^Slab area/.test(q.item));
+  const sl=c.slab||{}, on=c.parPath==='slab';
+  const struts=E.strutsAt(P,c), Rt=PM.R.ties||[];
+  const perpAx=E.perpAxis(c), parAx=perpAx==='x'?'y':'x';
+  const cands=P.columns.filter(o=>o.id!==c.id && Math.abs((perpAx==='y'?o.y-c.y:o.x-c.x))<1.0 && !struts.some(t=>t.from===o.id||t.to===o.id))
+    .map(o=>({o,d:Math.abs(parAx==='x'?o.x-c.x:o.y-c.y),br:PM.isBraced(o)})).sort((a,b)=>(b.br-a.br)||(a.d-b.d)).slice(0,6);
+  return `<label class="pm-wb-l" style="margin-top:12px">Load along the wall (∥) ${s?chip(s.ratio):'<span class="note" style="margin:0">— none</span>'}</label>
+    <div class="pm-wb-box">
+      <div class="pm-seg" id="pm-in-path"><button data-pp="pad" class="${on?'':'on'}">Pad + stemwall only</button><button data-pp="slab" class="${on?'on':''}">Dowels into slab</button></div>
+      ${on?`<div class="pm-slab"><label class="note">Dowels <input class="w-s" id="pm-sl-n" value="${sl.n||''}" placeholder="auto ${x.d.slab?x.d.slab.nAuto:''}"></label>
+        <label class="note">Bar <select id="pm-sl-bar">${[4,5,6].map(b=>`<option value="${b}" ${(+sl.bar||4)===b?'selected':''}>#${b}</option>`).join('')}</select></label>
+        <label class="note">Joint <select id="pm-sl-mu"><option value="0.6" ${(+sl.mu||0.6)===0.6?'selected':''}>smooth (μ 0.6)</option><option value="1" ${+sl.mu===1?'selected':''}>roughened ¼" (μ 1.0)</option></select></label>
+        <label class="note">Slab area <input class="w-s" id="pm-sl-A" value="${sl.A||''}" placeholder="auto" style="width:60px"> sf</label></div>
+        <div class="note" style="margin:4px 0 0">${sd?`Dowels (${sd.n}) #${sd.bar}: V<sub>u</sub> ${(+sd.applied).toFixed(1)} k / φV<sub>n</sub> ${(+sd.cap).toFixed(1)} k ${chip(sd.ratio)}`:''}
+          ${x.d.slab?` · slab needed ≈ ${Math.round(x.d.slab.Areq)} sf${sa?' '+chip(sa.ratio):''} (max ${x.d.slab.Amax} sf)`:''}</div>`
+      :`<div class="note" style="margin:4px 0 0">${s?`Pad resists ${(+s.cap).toFixed(1)} k vs ${(+s.applied).toFixed(1)} k (${esc(s.combo)}).`:''}</div>`}
+      <div class="note" style="margin:8px 0 2px"><b>Along-wall grade beam</b> — joins pads so they slide together (use the other column of the braced bay)</div>
+      ${struts.map(t=>{ const r=Rt.find(q=>q.id===t.id); const o=t.from===c.id?t.to:t.from; return `<div class="row" style="gap:6px;margin:2px 0;align-items:center"><span>${esc(t.id)} → <b>${esc(o)}</b> · ${t.n} #${t.bar} ${r?chip(r.gov.ratio):''}</span>
+        <button class="pm-btn small" data-stsel="${esc(t.id)}">Edit</button><button class="pm-btn small danger" data-stdel="${esc(t.id)}">✕</button></div>`; }).join('')}
+      ${cands.length?`<div class="row" style="gap:6px;margin:4px 0 0;flex-wrap:wrap"><select id="pm-st-to">${cands.map(q=>`<option value="${esc(q.o.id)}">${esc(q.o.id)} (${E.frac(q.d*12)} away${q.br?', braced bay':''})</option>`).join('')}</select><button class="pm-btn small" id="pm-st-add">+ Add along-wall grade beam</button></div>`:''}
+    </div>
+    <div class="row" style="gap:6px;margin:6px 0 0;flex-wrap:wrap"><button class="pm-btn small" id="pm-par-all" title="Turn on slab dowels for every column where Sliding ∥ wall fails">Dowels into slab at all failing columns (${Object.values(PM.R.cols).filter(q=>(q.d.summary.find(z=>z.item==='Sliding ∥ wall')||{}).ratio>1.0001).length})</button></div>`;
+};
+// make col use its own copy of its footing type (first edit in "only this column" mode)
+PM.forkType=function(id){ const P=PM.P, c=PM.colObj(id), x=PM.R.cols[id]; const src=P.types.find(t=>t.mark===x.ft.mark);
+  const mark=PM.nextMark(P.types,'F'), nt=JSON.parse(JSON.stringify(src)); nt.mark=mark; P.types.push(nt); c.footing=mark; PM._scope[id]='type'; return nt; };
 PM.hookInspTypes=function(el,id){
-  const P=PM.P, c=PM.colObj(id); if(!c) return; const q=s=>el.querySelector(s);
+  const P=PM.P, c=PM.colObj(id); if(!c) return; const q=s=>el.querySelector(s), x=PM.R.cols[id];
   const redo=()=>{ PM.run(); PM.renderDesign(); };
+  const target=()=>{ const n=PM.typeUsers(x.ft.mark).length; const sc=n>1?(PM._scope[id]||'type'):'col';
+    return (sc==='col'&&n>1)?PM.forkType(id):P.types.find(t=>t.mark===x.ft.mark); };
   q('#pm-in-ftg').onchange=e=>{ const v=e.target.value; if(v) c.footing=v; else delete c.footing; PM.save('Column '+id+': footing = '+(v||'auto')); redo(); };
   q('#pm-in-pl').onchange=e=>{ const v=e.target.value; if(v) c.plinth=v; else delete c.plinth; PM.save('Column '+id+': plinth = '+(v||'auto')); redo(); };
-  q('#pm-in-newft').onclick=()=>PM.newTypeFromCol(id);
+  el.querySelectorAll('#pm-in-scope [data-sc]').forEach(b=>b.onclick=()=>{ PM._scope[id]=b.dataset.sc; PM.renderInspector(); });
+  const sq=q('#pm-in-sq'); if(sq) sq.onchange=()=>{ PM._sq=sq.checked; };
+  el.querySelectorAll('[data-stp]').forEach(b=>b.onclick=()=>{ const [k,dir]=b.dataset.stp.split('|'); const T=target(); const d=+dir;
+    if(k==='T') T.T=Math.max(8,(+T.T)+2*d); else { const v=Math.max(1.5,(+T[k])+0.5*d); T[k]=v; if(PM._sq!==false){ T.B=v; T.L=v; } }
+    PM.save('Footing '+T.mark+': '+(k==='T'?'T = '+T.T+'"':'B × L = '+T.B+' × '+T.L+' ft')+' (from column '+id+')'); redo(); });
+  q('#pm-in-auto').onclick=()=>{ const T=target(); PM.autoSize(T.mark); };
+  q('#pm-in-bar').onchange=e=>{ const T=target(); T.bar=+e.target.value; PM.save('Footing '+T.mark+': bar #'+T.bar); redo(); };
+  q('#pm-in-n').onchange=e=>{ const v=parseInt(e.target.value); if(!(v>1)) return; const T=target(); T.n=v; PM.save('Footing '+T.mark+': '+v+' bars each way'); redo(); };
   q('#pm-in-newpl').onclick=()=>PM.newPlinthFromCol(id);
-  const x=PM.R.cols[id];
-  ['B','L','T'].forEach(k=>{ const inp=q('#pm-in-'+k); inp.onchange=()=>{
-    const v=parseFloat(inp.value); if(!(v>0)){ inp.value=x.ft[k]; return; }
-    const n=PM.typeUsers(x.ft.mark).length;
-    if(n>1 && !confirm('Footing '+x.ft.mark+' is shared by '+n+' columns. Change '+k+' to '+v+' for all of them?\n(Cancel, then use "+ New type from this column" to change only '+id+'.)')){ inp.value=x.ft[k]; return; }
-    const T=P.types.find(t=>t.mark===x.ft.mark); T[k]=v; PM.save('Footing '+T.mark+': '+k+' = '+v+' (from column '+id+', '+n+' column'+(n>1?'s':'')+')'); redo();
-    }; });
-  const det=q('.pm-insp-types details'); if(det){ if(PM._inspEdit) det.open=true; det.ontoggle=()=>{ PM._inspEdit=det.open; }; }
+  // wall-parallel path
+  el.querySelectorAll('#pm-in-path [data-pp]').forEach(b=>b.onclick=()=>{ const v=b.dataset.pp; if(v==='slab') c.parPath='slab'; else delete c.parPath; PM.save('Column '+id+': load along wall → '+(v==='slab'?'dowels into slab':'pad + stemwall')); redo(); });
+  const slSet=(k,v)=>{ c.slab=Object.assign({},c.slab||{}); if(v===''||v==null||(typeof v==='number'&&!(v>0))) delete c.slab[k]; else c.slab[k]=v; PM.save('Column '+id+': slab '+k+' = '+(v===''?'auto':v)); redo(); };
+  const on=(s,f)=>{ const e=q(s); if(e) e.onchange=f; };
+  on('#pm-sl-n',e=>slSet('n',parseInt(e.target.value)||'')); on('#pm-sl-bar',e=>slSet('bar',+e.target.value));
+  on('#pm-sl-mu',e=>slSet('mu',+e.target.value)); on('#pm-sl-A',e=>slSet('A',parseFloat(e.target.value)||''));
+  const add=q('#pm-st-add'); if(add) add.onclick=()=>{ const to=q('#pm-st-to').value; PM.addTie(id,to); const t=P.ties[P.ties.length-1]; const r=E.autoTie(P,t.id); if(r){ Object.assign(t,r); } PM.selTie=null; PM.sel=id; PM.save('Along-wall grade beam '+t.id+' auto-sized'); redo(); };
+  el.querySelectorAll('[data-stdel]').forEach(b=>b.onclick=()=>{ if(confirm('Delete along-wall grade beam '+b.dataset.stdel+'?')){ PM.delTie(b.dataset.stdel); } });
+  el.querySelectorAll('[data-stsel]').forEach(b=>b.onclick=()=>{ PM.selTie=b.dataset.stsel; PM.drawPlan(); PM.renderInspector(); });
+  const all=q('#pm-par-all'); if(all) all.onclick=()=>{ const ids=Object.values(PM.R.cols).filter(q=>(q.d.summary.find(z=>z.item==='Sliding ∥ wall')||{}).ratio>1.0001).map(q=>q.col.id);
+    if(!ids.length) return; ids.forEach(i=>{ PM.colObj(i).parPath='slab'; }); PM.save('Dowels into slab at '+ids.join(', ')); redo(); };
 };
 PM.nextMark=function(list,pref){ const used=new Set(list.map(t=>t.mark)); if(pref==='F'){ let i=list.length+1; while(used.has('F'+i)) i++; return 'F'+i; }
   for(let i=0;i<26*27;i++){ const m=i<26?String.fromCharCode(65+i):String.fromCharCode(64+Math.floor(i/26))+String.fromCharCode(65+i%26); if(!used.has(m)) return m; } return 'P'+list.length; };
@@ -19341,19 +19507,19 @@ PM.renderTypes=function(){
   const govT=m=>{ const T=R.types[m]; return T?T.gov.ratio:null; };
   $('pm-types').innerHTML=`<div class="grp-label">Footing types</div>
     <div class="table-wrap"><table class="pm-tbl"><tr><th class="l">Mark</th><th>Qty</th><th>B (ft)</th><th>L (ft)</th><th>T (in)</th><th>Bar</th><th>No. each way</th><th>Top bars E.W.</th><th>Top bar</th><th title="Footing edge past the exterior face of concrete. Blank = centred under the load">Edge past wall (in)</th><th>Gov. ratio</th><th class="l">Governing check</th><th></th></tr>
-    ${P.types.map((t,i)=>{ const T=R.types[t.mark]; return `<tr><td class="l"><input class="w-s" style="text-align:left" data-ty="${i}|mark" value="${esc(t.mark)}"></td><td>${qty(t.mark)}</td>
+    ${P.types.map((t,i)=>{ const T=R.types[t.mark], q=qty(t.mark); return `<tr><td class="l"><b>${esc(t.mark)}</b> <a href="#" class="pm-golink" title="Rename" onclick="PM.renameType(${i});return false;">✎</a></td><td>${q?`<a href="#" class="pm-golink" title="Select these columns in the results table" onclick="PM.selectType('${esc(t.mark)}');return false;">${q}</a>`:'<span class="note" style="margin:0">0</span>'}</td>
       <td><input class="w-s" data-ty="${i}|B" value="${t.B}"></td><td><input class="w-s" data-ty="${i}|L" value="${t.L}"></td><td><input class="w-s" data-ty="${i}|T" value="${t.T}"></td>
       <td><select data-ty="${i}|bar">${[4,5,6,7].map(b=>`<option value="${b}" ${+t.bar===b?'selected':''}>#${b}</option>`).join('')}</select></td><td><input class="w-s" data-ty="${i}|n" value="${t.n}"></td>
       <td><input class="w-s" data-ty="${i}|top.n" value="${(t.top&&t.top.n)||''}" placeholder="—"></td><td><select data-ty="${i}|top.bar">${[4,5,6,7].map(b=>`<option value="${b}" ${+((t.top||{}).bar||5)===b?'selected':''}>#${b}</option>`).join('')}</select></td>
       <td><input class="w-s" data-ty="${i}|projOut" value="${t.projOut!=null?t.projOut:''}" placeholder="ctr"></td>
       <td>${chip(govT(t.mark))}</td><td class="l" style="font-size:.7rem">${T?esc(T.gov.item+' @ '+T.gov.col):''}</td>
-      <td><button class="pm-btn small" onclick="PM.autoSize('${esc(t.mark)}')">Auto-size</button> <button class="pm-btn small danger" onclick="PM.delType(${i})">✕</button></td></tr>`; }).join('')}</table></div>
-    <div class="row" style="gap:8px;margin-top:6px"><button class="pm-btn small" onclick="PM.addType()">+ Footing type</button><span class="note" style="margin:0">Auto-size finds the smallest square footing (6" steps) that passes bearing, uplift, overturning and sliding for every column of that type, then sets the bars. If a fixed <i>edge past wall</i> forces eccentricity, it also tries the footing centred under the base plate.</span></div>
+      <td><button class="pm-btn small" onclick="PM.autoSize('${esc(t.mark)}')">Auto-size</button> ${q?'':`<button class="pm-btn small danger" title="Delete (unused)" onclick="PM.delType(${i})">✕</button>`}</td></tr>`; }).join('')}</table></div>
+    <div class="row" style="gap:8px;margin-top:6px"><button class="pm-btn small" onclick="PM.addType()">+ Footing type</button><button class="pm-btn small" onclick="PM.autoSizeAll()">Auto-size all types</button>${P.types.some(t=>!qty(t.mark))?'<button class="pm-btn small" onclick="PM.removeUnused()">Remove unused types</button>':''}<span class="note" style="margin:0">Auto-size finds the smallest square footing (6" steps) that passes bearing, uplift, overturning and sliding for every column of that type, then sets the bars. If a fixed <i>edge past wall</i> forces eccentricity, it also tries the footing centred under the base plate.</span></div>
     <div class="grp-label" style="margin-top:14px">Plinth types (pedestals integral with the stemwall)</div>
     <div class="table-wrap"><table class="pm-tbl"><tr><th class="l">Mark</th><th>Qty</th><th>X (in)</th><th>Y (in)</th><th>Height (in)</th><th>U-bars</th><th>Bar</th><th>h<sub>ef</sub> (in)</th><th class="l">Ties</th><th class="l">Needed by layout</th><th></th></tr>
     ${P.plinths.map((p,i)=>{ const need=Object.values(R.cols).filter(x=>x.pl.mark===p.mark).map(x=>x.reqPl); const mx=need.length?{bx:Math.max(...need.map(n=>n.bx)),by:Math.max(...need.map(n=>n.by))}:null;
       const short=mx&&(mx.bx>p.bx||mx.by>p.by);
-      return `<tr><td class="l"><input class="w-s" style="text-align:left" data-pl="${i}|mark" value="${esc(p.mark)}"></td><td>${qtyP(p.mark)}</td>
+      return `<tr><td class="l"><b>${esc(p.mark)}</b> <a href="#" class="pm-golink" title="Rename" onclick="PM.renamePlinth(${i});return false;">✎</a></td><td>${qtyP(p.mark)?`<a href="#" class="pm-golink" onclick="PM.selectPlinth('${esc(p.mark)}');return false;">${qtyP(p.mark)}</a>`:'0'}</td>
       <td><input class="w-s" data-pl="${i}|bx" value="${p.bx}"></td><td><input class="w-s" data-pl="${i}|by" value="${p.by}"></td><td><input class="w-s" data-pl="${i}|h" value="${p.h}"></td>
       <td><input class="w-s" data-pl="${i}|vert.n" value="${p.vert.n}"></td><td><select data-pl="${i}|vert.bar">${[4,5,6].map(b=>`<option value="${b}" ${+p.vert.bar===b?'selected':''}>#${b}</option>`).join('')}</select></td>
       <td><input class="w-s" data-pl="${i}|hef" value="${p.hef||12}"></td><td class="l"><input class="w-xl" data-pl="${i}|ties" value="${esc(p.ties||'')}"></td>
@@ -19381,19 +19547,57 @@ PM.autoSize=function(mark){ const t=E.autoSize(PM.P,mark); if(!t){ alert('No squ
   if(t.centred){ delete T.projOut; PM.P.columns.forEach(c=>{ if(E.groupOf(PM.P,c)===T) delete c.ftgProj; });
     setTimeout(()=>alert('Type '+mark+' passes at '+t.B+' ft only when the footing is centred under the base plate, so the fixed edge projection past the wall was removed. See the plan for the new footing edge.'),30); }
   PM.save(); PM.run(); PM.renderDesign(); };
+PM.renameMark=function(kind,i){ const P=PM.P, arr=kind==='ft'?P.types:P.plinths, o=arr[i]; const nw=(prompt('New mark for '+o.mark+':',o.mark)||'').trim(); if(!nw||nw===o.mark) return;
+  if(arr.some(t=>t.mark===nw)){ alert(nw+' is already used.'); return; } const old=o.mark, k=kind==='ft'?'footing':'plinth'; o.mark=nw;
+  P.groups.forEach(g=>{ if(g[k]===old) g[k]=nw; }); P.columns.forEach(c=>{ if(c[k]===old) c[k]=nw; }); PM.save('Renamed '+old+' → '+nw); PM.run(); PM.renderDesign(); };
+PM.renameType=i=>PM.renameMark('ft',i); PM.renamePlinth=i=>PM.renameMark('pl',i);
+PM.selectType=function(m){ PM.bulk={}; Object.values(PM.R.cols).forEach(x=>{ if(x.ft.mark===m) PM.bulk[x.col.id]=1; }); PM.renderResults(); $('pm-results').scrollIntoView({behavior:'smooth'}); };
+PM.selectPlinth=function(m){ PM.bulk={}; Object.values(PM.R.cols).forEach(x=>{ if(x.pl.mark===m) PM.bulk[x.col.id]=1; }); PM.renderResults(); $('pm-results').scrollIntoView({behavior:'smooth'}); };
+PM.autoSizeAll=function(){ const P=PM.P, used=P.types.filter(t=>PM.typeUsers(t.mark).length), bad=[];
+  used.forEach(T=>{ const t=E.autoSize(P,T.mark); if(!t){ bad.push(T.mark); return; } Object.assign(T,{B:t.B,L:t.L,bar:t.bar,n:t.n}); if(t.centred) delete T.projOut; });
+  PM.save('Auto-sized all footing types'); PM.run(); PM.renderDesign(); if(bad.length) setTimeout(()=>alert('No square footing up to 12 ft passes for '+bad.join(', ')+'.'),30); };
+PM.removeUnused=function(){ const P=PM.P; const un=P.types.filter(t=>!PM.typeUsers(t.mark).length && !P.groups.some(g=>g.footing===t.mark)); if(!un.length){ alert('Every type is used (or is a kind default).'); return; }
+  if(!confirm('Remove unused footing types '+un.map(t=>t.mark).join(', ')+'?')) return; P.types=P.types.filter(t=>!un.includes(t)); PM.save('Removed unused types'); PM.run(); PM.renderDesign(); };
 PM.addType=function(){ const n=PM.P.types.length+1; PM.P.types.push({mark:'F'+n,B:4,L:4,T:12,bar:4,n:5}); PM.save(); PM.run(); PM.renderDesign(); };
 PM.delType=function(i){ if(PM.P.types.length<2) return; PM.P.types.splice(i,1); PM.save(); PM.run(); PM.renderDesign(); };
 PM.addPlinth=function(){ const m=String.fromCharCode(65+PM.P.plinths.length); PM.P.plinths.push({mark:m,bx:14,by:14,h:24,vert:{n:4,bar:4,shape:'U'},ties:'(3) #3 within top 5", 8" o.c. elsewhere',hef:12}); PM.save(); PM.run(); PM.renderDesign(); };
 PM.delPlinth=function(i){ if(PM.P.plinths.length<2) return; PM.P.plinths.splice(i,1); PM.save(); PM.run(); PM.renderDesign(); };
+PM.bulk=PM.bulk||{};
 PM.renderResults=function(){
-  const R=PM.R; const pick=(x,re)=>{ const s=x.d.summary.filter(s=>re.test(s.item)); return s.length?Math.max(...s.map(v=>v.ratio)):null; };
-  $('pm-results').innerHTML=`<div class="grp-label">Results by column (demand / capacity)</div>
-    <div class="table-wrap"><table class="pm-tbl"><tr><th class="l">Column</th><th class="l">Ftg</th><th class="l">Plinth</th><th>Bearing</th><th>Uplift</th><th>Overturn</th><th>Sliding</th><th>Flexure</th><th>Shear</th><th>Min. As</th><th>Anchors</th><th>Plinth</th><th>${(PM.P.options.lateral==='tie')?'Tie':'Hairpin'}</th></tr>
-    ${Object.values(R.cols).map(x=>`<tr class="pm-click ${PM.sel===x.col.id?'pm-rowsel':''}" data-sel="${esc(x.col.id)}"><td class="l"><b>${esc(x.col.id)}</b></td><td class="l">${esc(x.ft.mark)}</td><td class="l">${esc(x.pl.mark)}</td>
+  const R=PM.R, P=PM.P; const pick=(x,re)=>{ const s=x.d.summary.filter(s=>re.test(s.item)); return s.length?Math.max(...s.map(v=>v.ratio)):null; };
+  const ids=Object.keys(R.cols); Object.keys(PM.bulk).forEach(k=>{ if(!R.cols[k]) delete PM.bulk[k]; });
+  const nSel=ids.filter(k=>PM.bulk[k]).length;
+  const fSel=(c,cur)=>`<select class="pm-cellsel" data-cf="${esc(c.id)}">${P.types.map(t=>`<option ${t.mark===cur?'selected':''}>${esc(t.mark)}</option>`).join('')}</select>`;
+  const pSel=(c,cur)=>`<select class="pm-cellsel" data-cp="${esc(c.id)}">${P.plinths.map(t=>`<option ${t.mark===cur?'selected':''}>${esc(t.mark)}</option>`).join('')}</select>`;
+  $('pm-results').innerHTML=`<div class="grp-label">Results by column (demand / capacity) — change a column's footing or plinth right in the table</div>
+    <div class="pm-bulk"><span>Select:</span><button class="pm-btn small" data-bs="fail">failing</button><button class="pm-btn small" data-bs="all">all</button><button class="pm-btn small" data-bs="none">none</button>
+      ${nSel?`<b style="margin-left:8px">${nSel} selected →</b>
+      <select id="pm-bk-f"><option value="">set footing…</option><option value="__auto">Auto (kind default)</option>${P.types.map(t=>`<option value="${esc(t.mark)}">${esc(t.mark)} · ${PM.ftTxt(t)}</option>`).join('')}<option value="__new">New type, auto-sized for these</option></select>
+      <select id="pm-bk-p"><option value="">set plinth…</option><option value="__auto">Auto (kind default)</option>${P.plinths.map(t=>`<option value="${esc(t.mark)}">${esc(t.mark)} · ${E.fracIn(t.bx)} × ${E.fracIn(t.by)}</option>`).join('')}</select>
+      <select id="pm-bk-par"><option value="">load along wall…</option><option value="slab">dowels into slab</option><option value="pad">pad + stemwall only</option></select>`:'<span class="note" style="margin:0">tick columns to change several at once</span>'}</div>
+    <div class="table-wrap"><table class="pm-tbl"><tr><th></th><th class="l">Column</th><th class="l">Ftg</th><th class="l">Plinth</th><th>Bearing</th><th>Uplift</th><th>Overturn</th><th>Sliding</th><th>Flexure</th><th>Shear</th><th>Min. As</th><th>Anchors</th><th>Plinth</th><th>${(P.options.lateral==='tie')?'Tie':'Hairpin'}</th></tr>
+    ${Object.values(R.cols).map(x=>`<tr class="pm-click ${PM.sel===x.col.id?'pm-rowsel':''}" data-sel="${esc(x.col.id)}"><td><input type="checkbox" data-bk="${esc(x.col.id)}" ${PM.bulk[x.col.id]?'checked':''}></td><td class="l"><b>${esc(x.col.id)}</b>${x.col.parPath==='slab'?' <span class="note" style="margin:0" title="wall-parallel shear into the slab">▤</span>':''}</td>
+      <td class="l">${fSel(x.col,x.ft.mark)}${x.col.footing?'':' <span class="note" style="margin:0" title="kind default">·</span>'}</td><td class="l">${pSel(x.col,x.pl.mark)}</td>
       <td>${chip(pick(x,/bearing/))}</td><td>${chip(pick(x,/Uplift/))}</td><td>${chip(pick(x,/Overturning/))}</td><td>${chip(pick(x,/Sliding/))}</td><td>${chip(pick(x,/Flexure/))}</td><td>${chip(pick(x,/shear|punching/))}</td><td>${chip(pick(x,/Min\. steel/))}</td>
-      <td>${chip(x.a.gov.ratio)}</td><td>${chip(Math.max(...x.p.items.map(s=>s.ratio)))}</td><td>${(()=>{ const t=(R.ties||[]).find(q=>q.from===x.col.id||q.to===x.col.id); if(t) return chip(t.gov.ratio); if(PM.P.options.lateral==='tie') return '—'; return x.lat.cases.length?chip(Math.max(...x.lat.cases.map(c=>c.need/c.cap))):'—'; })()}</td></tr>`).join('')}</table></div>
+      <td>${chip(x.a.gov.ratio)}</td><td>${chip(Math.max(...x.p.items.map(s=>s.ratio)))}</td><td>${(()=>{ const t=(R.ties||[]).find(q=>(q.from===x.col.id||q.to===x.col.id)&&!q.strut); if(t) return chip(t.gov.ratio); if(P.options.lateral==='tie') return '—'; return x.lat.cases.length?chip(Math.max(...x.lat.cases.map(c=>c.need/c.cap))):'—'; })()}</td></tr>`).join('')}</table></div>
     ${(R.ties||[]).length?PM.tieResultsHtml():''}`;
-  $('pm-results').querySelectorAll('[data-sel]').forEach(tr=>tr.onclick=()=>{ PM.sel=tr.dataset.sel; PM.drawPlan(); PM.renderInspector(); PM.renderResults(); });
+  const el=$('pm-results'), stop=e=>e.stopPropagation();
+  el.querySelectorAll('[data-sel]').forEach(tr=>tr.onclick=()=>{ PM.sel=tr.dataset.sel; PM.selTie=null; PM.drawPlan(); PM.renderInspector(); PM.renderResults(); PM.renderHandCalc(); });
+  el.querySelectorAll('[data-bk]').forEach(cb=>{ cb.onclick=stop; cb.onchange=()=>{ if(cb.checked) PM.bulk[cb.dataset.bk]=1; else delete PM.bulk[cb.dataset.bk]; PM.renderResults(); }; });
+  el.querySelectorAll('[data-cf]').forEach(se=>{ se.onclick=stop; se.onchange=()=>{ PM.colObj(se.dataset.cf).footing=se.value; PM.save('Column '+se.dataset.cf+': footing = '+se.value); PM.run(); PM.renderDesign(); }; });
+  el.querySelectorAll('[data-cp]').forEach(se=>{ se.onclick=stop; se.onchange=()=>{ PM.colObj(se.dataset.cp).plinth=se.value; PM.save('Column '+se.dataset.cp+': plinth = '+se.value); PM.run(); PM.renderDesign(); }; });
+  el.querySelectorAll('[data-bs]').forEach(b=>b.onclick=()=>{ const m=b.dataset.bs; PM.bulk={};
+    if(m==='all') ids.forEach(k=>PM.bulk[k]=1);
+    if(m==='fail') Object.values(R.cols).forEach(x=>{ if(x.d.gov.ratio>1.0001||x.a.gov.ratio>1.0001||x.p.items.some(i=>i.ratio>1.0001)) PM.bulk[x.col.id]=1; });
+    PM.renderResults(); });
+  const sel=()=>ids.filter(k=>PM.bulk[k]).map(k=>PM.colObj(k));
+  const bf=$('pm-bk-f'); if(bf) bf.onchange=()=>{ const v=bf.value, cs=sel(); if(!v) return;
+    if(v==='__new'){ const mark=PM.nextMark(P.types,'F'), src=R.cols[cs[0].id].ft, nt=JSON.parse(JSON.stringify(src)); nt.mark=mark; P.types.push(nt); cs.forEach(c=>c.footing=mark);
+      const t=E.autoSize(P,mark); if(t) Object.assign(nt,{B:t.B,L:t.L,bar:t.bar,n:t.n}); PM.save('New footing '+mark+' ('+nt.B+' × '+nt.L+' ft) for '+cs.map(c=>c.id).join(', ')); }
+    else { cs.forEach(c=>{ if(v==='__auto') delete c.footing; else c.footing=v; }); PM.save('Footing '+(v==='__auto'?'auto':v)+' for '+cs.map(c=>c.id).join(', ')); }
+    PM.run(); PM.renderDesign(); };
+  const bp=$('pm-bk-p'); if(bp) bp.onchange=()=>{ const v=bp.value, cs=sel(); if(!v) return; cs.forEach(c=>{ if(v==='__auto') delete c.plinth; else c.plinth=v; }); PM.save('Plinth '+(v==='__auto'?'auto':v)+' for '+cs.map(c=>c.id).join(', ')); PM.run(); PM.renderDesign(); };
+  const bq=$('pm-bk-par'); if(bq) bq.onchange=()=>{ const v=bq.value, cs=sel(); if(!v) return; cs.forEach(c=>{ if(v==='slab') c.parPath='slab'; else delete c.parPath; }); PM.save('Load along wall → '+(v==='slab'?'dowels into slab':'pad')+' for '+cs.map(c=>c.id).join(', ')); PM.run(); PM.renderDesign(); };
 };
 PM.tieResultsHtml=function(){
   const T=PM.R.ties||[];
