@@ -15974,6 +15974,22 @@ import math
 
 from pyrevit import revit, DB, forms, script
 from System.Collections.Generic import List
+import System
+
+
+def eid(i):
+    """ElementId -> int. Revit 2024+ uses .Value; 2027 removed .IntegerValue."""
+    try:
+        return int(i.Value)
+    except AttributeError:
+        return int(i.IntegerValue)
+
+
+def to_eid(v):
+    try:
+        return DB.ElementId(System.Int64(int(v)))
+    except Exception:
+        return DB.ElementId(int(v))
 
 doc = revit.doc
 uidoc = revit.uidoc
@@ -16072,7 +16088,7 @@ def load_family(family_name):
 
 
 def get_or_dup_type(bic, family_name, type_name, params):
-    """1) a type whose dimension parameters already match, 2) a type with this name,
+    """1) the type with this name (resized to match), 2) a type whose dimension parameters already match,
     3) a duplicate of the first type, renamed and resized. Loads the family from the Revit
     library if it is missing, and reads the size back so a wrong parameter name is reported."""
     syms = symbol_by_family(bic, family_name)
@@ -16084,6 +16100,10 @@ def get_or_dup_type(bic, family_name, type_name, params):
         return None
     sym = None
     for s in syms:
+        if DB.Element.Name.GetValue(s) == type_name:
+            sym = s
+            break
+    for s in (syms if sym is None else []):
         ok = True
         for k, v in params.items():
             d = get_double(s, k)
@@ -16320,7 +16340,7 @@ def measure():
                 continue
             if k is None:
                 if -15 <= xy[0] <= bb.get('length', 999) + 15 and -15 <= xy[1] <= bb.get('width', 999) + 15:
-                    res['extras'].append({'cat': 'Footing', 'type': DB.Element.Name.GetValue(e.Symbol), 'id': e.Id.IntegerValue, 'x': xy[0], 'y': xy[1]})
+                    res['extras'].append({'cat': 'Footing', 'type': DB.Element.Name.GetValue(e.Symbol), 'id': eid(e.Id), 'x': xy[0], 'y': xy[1]})
                 continue
             col = k.split('/', 1)[1] if k.startswith('FTG/') else k
             seen[k] = seen.get(k, 0) + 1
@@ -16329,7 +16349,7 @@ def measure():
             if off is None:
                 off = pval(e, DB.BuiltInParameter.INSTANCE_ELEVATION_PARAM)
             res['footings'].append({'key': 'FTG/' + col, 'col': col, 'cx': xy[0], 'cy': xy[1], 'B': get_double(sym, 'Width'), 'L': get_double(sym, 'Length'),
-                                    'T': get_double(sym, 'Foundation Thickness'), 'drop': round(tof - (off or 0.0), 4), 'type': DB.Element.Name.GetValue(sym), 'id': e.Id.IntegerValue})
+                                    'T': get_double(sym, 'Foundation Thickness'), 'drop': round(tof - (off or 0.0), 4), 'type': DB.Element.Name.GetValue(sym), 'id': eid(e.Id)})
     for e in DB.FilteredElementCollector(doc).OfCategory(DB.BuiltInCategory.OST_StructuralColumns).WhereElementIsNotElementType():
         k = key_of(e)
         if k is None or not isinstance(e, DB.FamilyInstance):
@@ -16339,8 +16359,8 @@ def measure():
         xy = Winv(e.Location.Point)
         be = (lvl_elev(e, DB.BuiltInParameter.FAMILY_BASE_LEVEL_PARAM) or 0.0) + (pval(e, DB.BuiltInParameter.FAMILY_BASE_LEVEL_OFFSET_PARAM) or 0.0)
         te = (lvl_elev(e, DB.BuiltInParameter.FAMILY_TOP_LEVEL_PARAM) or 0.0) + (pval(e, DB.BuiltInParameter.FAMILY_TOP_LEVEL_OFFSET_PARAM) or 0.0)
-        res['plinths'].append({'key': 'PL/' + col, 'col': col, 'cx': xy[0], 'cy': xy[1], 'bx': get_double(e.Symbol, 'b'), 'by': get_double(e.Symbol, 'h'),
-                               'h': round(te - be, 4), 'drop': round((level.Elevation + tof) - be, 4), 'type': DB.Element.Name.GetValue(e.Symbol), 'id': e.Id.IntegerValue})
+        res['plinths'].append({'key': 'PL/' + col, 'col': col, 'cx': xy[0], 'cy': xy[1], 'bx': get_double(e.Symbol, 'h'), 'by': get_double(e.Symbol, 'b'),
+                               'h': round(te - be, 4), 'drop': round((level.Elevation + tof) - be, 4), 'type': DB.Element.Name.GetValue(e.Symbol), 'id': eid(e.Id)})
     for e in DB.FilteredElementCollector(doc).OfCategory(DB.BuiltInCategory.OST_StructuralFraming).WhereElementIsNotElementType():
         k = key_of(e)
         if k is None:
@@ -16349,7 +16369,7 @@ def measure():
         seen['GB/' + gid] = seen.get('GB/' + gid, 0) + 1
         try:
             c = e.Location.Curve
-            res['gradeBeams'].append({'key': 'GB/' + gid, 'id_': gid, 'id': gid, 'rid': e.Id.IntegerValue, 'p0': Winv(c.GetEndPoint(0)), 'p1': Winv(c.GetEndPoint(1)),
+            res['gradeBeams'].append({'key': 'GB/' + gid, 'id_': gid, 'id': gid, 'rid': eid(e.Id), 'p0': Winv(c.GetEndPoint(0)), 'p1': Winv(c.GetEndPoint(1)),
                                       'b': get_double(e.Symbol, 'b'), 'h': get_double(e.Symbol, 'h')})
         except Exception:
             pass
@@ -16360,7 +16380,7 @@ def measure():
         try:
             c = e.Location.Curve
             res['walls'].append({'a': Winv(c.GetEndPoint(0)), 'b': Winv(c.GetEndPoint(1)), 'drop': round(-(pval(e, DB.BuiltInParameter.WALL_BASE_OFFSET) or 0.0), 4),
-                                 'h': pval(e, DB.BuiltInParameter.WALL_USER_HEIGHT_PARAM), 't': e.Width, 'id': e.Id.IntegerValue})
+                                 'h': pval(e, DB.BuiltInParameter.WALL_USER_HEIGHT_PARAM), 't': e.Width, 'id': eid(e.Id)})
         except Exception:
             pass
     res['dupes'] = [k for k, n in seen.items() if n > 1]
@@ -16374,8 +16394,17 @@ if old:
     msg = '{} elements from an earlier placement are in this model.'.format(len(old))
     if os.path.isfile(placed_file):
         msg += ' Placement is locked after the first run - Check model reports differences for you to correct by hand.'
-    pick = forms.CommandSwitchWindow.show(['Check model against the design', 'Re-place everything (delete and rebuild)'], message=msg)
+    opts_ = ['Check model against the design', 'Re-place everything (delete and rebuild)']
+    if not os.path.isfile(placed_file):
+        msg += ' No baseline (placed.json) was saved last time.'
+        opts_.insert(0, 'Save the current model as the baseline (placed.json)')
+    pick = forms.CommandSwitchWindow.show(opts_, message=msg)
     if not pick:
+        script.exit()
+    if pick.startswith('Save'):
+        write_json(placed_file, {'schema': 'tamarack.pemb.placed.v1', 'job': job, 'placedAt': datetime.datetime.now().isoformat(),
+                                 'rvt': doc.Title, 'design': data, 'model': measure()})
+        out.print_md('Saved **PEMB\\{}\\placed.json** from the elements already in the model - this is the baseline for Check model.'.format(job))
         script.exit()
     if pick.startswith('Check'):
         mode = 'check'
@@ -16413,7 +16442,7 @@ if mode == 'check':
         with revit.Transaction('PEMB check - highlight changes'):
             for x in changed:
                 try:
-                    view.SetElementOverrides(DB.ElementId(x['id']), ogs)
+                    view.SetElementOverrides(to_eid(x['id']), ogs)
                 except Exception:
                     pass
     out.print_md('## PEMB model check - {}'.format(job))
@@ -16475,7 +16504,7 @@ with revit.Transaction('Place PEMB foundations'):
     ptypes = {}
     for t in data.get('plinthTypes', []):
         sym = get_or_dup_type(DB.BuiltInCategory.OST_StructuralColumns, S.get('plinthFamily', 'Concrete-Rectangular-Column'),
-                              t.get('typeName') or ('PEMB-PLINTH-' + t['mark']), {'b': t['bx'], 'h': t['by']})
+                              t.get('typeName') or ('PEMB-PLINTH-' + t['mark']), {'b': t['by'], 'h': t['bx']})   # Concrete-Rectangular-Column: h runs along plan X, b along plan Y
         if sym is None:
             warnings.append('Plinth family "{}" is not loaded - plinths skipped.'.format(S.get('plinthFamily')))
             break
@@ -16712,6 +16741,10 @@ with revit.Transaction('Place PEMB foundations'):
         place_group(S.get('hairpinGroup', 'HAIRPIN'), sig, W(ox, oy), buildh)
         counts['hairpins'] += 1
 
+if not (data.get('walls') or {}).get('create'):
+    warnings.append('Stemwall + wall footing not created - "Create stemwall + wall footing" is off in the tab (Deliver > Revit link > settings). Tick it, send the placement again, then Re-place - or model the walls by hand.')
+if not data.get('gradeBeams'):
+    TYPE_WARN.append('Created no grade beams - the design has none (Design > Grade beams).')
 out.print_md('## PEMB foundations placed')
 out.print_md('Origin: grid **{}** / **{}** · rotation {:.2f}° · level **{}** (footings on **{}**) · T.O. footing offset {:.2f} ft'.format(
     S.get('originGridX'), S.get('originGridY'), math.degrees(angle), level.Name, flevel.Name, tof))
@@ -17242,7 +17275,7 @@ E.designAnchors = function(P, col, pl, ft){
   const C=P.criteria, opt=P.options||{};
   const det=(P.details||{})[col.detail]||{};
   const da=+(col.dia||det.dia||0.75), g=E.AB_GRADES[C.abGrade]||E.AB_GRADES['F1554-36'];
-  const bt=E.BOLTS[da]||{Ase:Math.PI*da*da/4*0.78}, Ase=bt.Ase, futa=Math.min(g.futa,1.9*g.fya,125), Abrg=E.abrg(da);
+  const bt=E.BOLTS[da]||{Ase:Math.PI*da*da/4*0.78}, Ase=bt.Ase, futa=Math.min(g.futa,1.9*g.fya,125), Abrg=Math.max(E.abrg(da), pl.washer? (+pl.washer)*(+pl.washer)-Math.PI*da*da/4 : 0);   // pl.washer = square plate washer at the embedded end (in)
   const fcp=(+C.fc)*1000, sq=Math.sqrt(fcp), hef0=+(pl.hef||C.hef||12);
   const pr=E.plinthRect(P,col,pl), bs=E.boltsGlobal(col), n=bs.length||1, pg=E.plateGlobal(col);
   const xs=bs.map(b=>b.x), ys=bs.map(b=>b.y), xc=xs.reduce((a,b)=>a+b,0)/n, yc=ys.reduce((a,b)=>a+b,0)/n;
@@ -17288,6 +17321,15 @@ E.designAnchors = function(P, col, pl, ft){
   // otherwise the top plinth ties ((3) #3, 2 legs)
   const tieAs = (tieCol && trN) ? trN*2*trBar.A : 3*2*E.REBAR[3].A, phiVar=0.75*tieAs*(+C.fy);
   const arSrc = (tieCol && trN) ? '('+trN+') #'+(+(tieCol.transferBar)||+opt.tieTransferBar||5)+' U-bar'+(trN>1?'s':'')+' around the anchors (grade-beam tie '+tieCol.id+')' : '(3) #3 plinth ties within top 5"';
+  // shear lug (col.lug = {w, h} in): the lug takes all base shear, the rods take tension only.
+  //   bearing ACI 318-19 17.11.2: phi 0.65 x 1.7 f'c Aef (Aef = w x (h - 1" grout))
+  //   breakout AISC Design Guide 1 (2nd ed.) 3.5: phi 0.75 x 4 sqrt(f'c) x Av, Av = projected half-pyramid in front of the lug, limited by the plinth
+  const lug=col.lug&&+col.lug.w>0&&+col.lug.h>0?{w:+col.lug.w,h:+col.lug.h}:null; let lugCap=null;
+  if(lug){ const Aef=lug.w*Math.max(0,lug.h-1), phiBrg=0.65*1.7*(+C.fc)*Aef;
+    const lcx=pg.cx, lcy=pg.cy, dpth=lug.h-1, hPl=+pl.h||24;
+    const brk=(c1,wid)=>{ const w2=Math.min(wid,lug.w+2*1.5*c1), d2=Math.min(hPl,dpth+1.5*c1); return 0.75*4*sq*Math.max(0,w2*d2-lug.w*dpth)/1000; };
+    const phiX=Math.min(brk(pr.x1-lcx,pr.y1-pr.y0),brk(lcx-pr.x0,pr.y1-pr.y0)), phiY=Math.min(brk(pr.y1-lcy,pr.x1-pr.x0),brk(lcy-pr.y0,pr.x1-pr.x0));
+    lugCap={Aef,phiBrg,phiX,phiY,w:lug.w,h:lug.h}; }
   const combos=E.combos(P,'LRFD',{omega:!!opt.omegaAnchors && /[CDEF]/.test(C.SDC||'')});
   const rows=[]; let gov={ratio:-1};
   combos.forEach(cb=>E.forces(P,col,cb).forEach(F=>{
@@ -17308,16 +17350,17 @@ E.designAnchors = function(P, col, pl, ft){
     const phiVcpg=0.70*2*Ncbg0*sf; // kcp=2
     const bN = Math.max(Tmax/phiNsa, Tmax/(phiNpn*sf), opt.anchorReinf ? N/phiNar : N/phiNcbg, N>0&&phiNsb<Infinity? Tmax/(phiNsb*sf):0);
     const edge = opt.anchorReinf ? V/phiVar : Math.max(Math.abs(F.Hx)/phiVx, Math.abs(F.Hy)/phiVy);
-    const bV = Math.max(vi/phiVsa, V/phiVcpg, edge);
+    let bV = Math.max(vi/phiVsa, V/phiVcpg, edge), lugR=null;
+    if(lugCap){ lugR={brg:V/(lugCap.phiBrg*sf), bx:Math.abs(F.Hx)/(lugCap.phiX*sf||1e-9), by:Math.abs(F.Hy)/(lugCap.phiY*sf||1e-9)}; bV=0; }
     // ACI 17.8.1/17.8.2: full strength in one direction when the other ratio is <= 0.2
     const inter = (bN<=0.2||bV<=0.2) ? Math.max(bN,bV) : Math.pow(bN,5/3)+Math.pow(bV,5/3);
-    const pry = V/phiVcpg;
-    const r={id:cb.id,label:cb.label+(F.brace?' + bracing('+F.brace+')':''),brace:F.brace,P:F.P,Hx:F.Hx,Hy:F.Hy,N,V,Ti,exi,eyi,Ix,Iy,Tmax,vi,phiNcbg,psiEc,phiVcpg,phiVx,phiVy,bN,bV,inter,pry,seis,sf};
-    rows.push(r); const ratio=Math.max(bN,bV,inter); if(ratio>gov.ratio) gov=Object.assign({ratio},r);
+    const pry = lugCap?0:V/phiVcpg, lugMax=lugR?Math.max(lugR.brg,lugR.bx,lugR.by):0;
+    const r={id:cb.id,label:cb.label+(F.brace?' + bracing('+F.brace+')':''),brace:F.brace,P:F.P,Hx:F.Hx,Hy:F.Hy,N,V,Ti,exi,eyi,Ix,Iy,Tmax,vi:lugCap?0:vi,phiNcbg,psiEc,phiVcpg,phiVx,phiVy,bN,bV,inter,pry,seis,sf,lugR};
+    rows.push(r); const ratio=Math.max(bN,bV,inter,lugMax); if(ratio>gov.ratio) gov=Object.assign({ratio},r);
   }));
   const ldh = E.ldh(4, +C.fc, +C.fy);
   return {xc, yc, bs, pg, da, grade:C.abGrade, Ase, futa, Abrg, n, hef0, hef, sx, sy, ca:{cxm,cxp,cym,cyp}, camin, ANc, ANco, psiEd, Nb, Ncbg0,
-          Np, phiNsa, phiVsa, phiNpn, phiNsb, vcb, psiCV, AsAR, legs, phiNar, tieAs, phiVar, arSrc, rows, gov, ok:gov.ratio<=1.0001, ldh, pr, ha,
+          Np, phiNsa, phiVsa, phiNpn, phiNsb, vcb, psiCV, AsAR, legs, phiNar, tieAs, phiVar, arSrc, rows, gov, lug:lugCap, ok:gov.ratio<=1.0001, ldh, pr, ha,
           omega: !!opt.omegaAnchors && /[CDEF]/.test(C.SDC||''), Om:+C.Omega0};
 };
 // hooked bar development ACI 25.4.3.1 (psi_e=1, psi_r=1.6, psi_o=1.0, psi_c per f'c)
@@ -17520,11 +17563,44 @@ E.autoSize = function(P, mark){
 //   footing types -> E.autoSize · plinths -> geometry minimum, then grow for anchor breakout / pryout,
 //   add verticals for dowel area / tension, deepen the footing for hook development
 //   grade beams -> E.autoTie · wall footing -> widen until bearing passes
+// Anchor fixes for one plinth type (all columns that use it), in the order an EOR would reach for them:
+//   1. wider plinth (more breakout / pryout area, more edge distance)  2. deeper embedment (up to plinth height - 3")
+//   3. shear lug under the base plate on the columns whose shear still fails (rods then carry tension only), re-trying 1-2
+// Leaves everything as it was when nothing works (anchor steel / pullout needs a bigger rod or grade: PEMB coordination).
+E.fixAnchors = function(P, pl, us, o){
+  o=o||{}; const MAXPL=+o.maxPl||48, log=[], ok=r=>r<=1.0001;
+  const ev=()=>us.map(c=>{ const ft=E.groupOf(P,c); return {c,an:E.designAnchors(E.dropP(P,c),c,E.dropPl(pl,c),ft)}; });
+  const bad=r=>r.filter(q=>!ok(q.an.gov.ratio));
+  const s0={bx:pl.bx,by:pl.by,hef:pl.hef,lugs:us.map(c=>c.lug)};
+  let r=ev(); if(!bad(r).length) return {changed:false,log,left:[]};
+  const grow=()=>{ while(bad(r).length && Math.max(pl.bx,pl.by)<MAXPL){ pl.bx+=2; pl.by+=2; r=ev(); }
+    while(bad(r).length && (+pl.hef||12)<(+pl.h||24)-3){ pl.hef=(+pl.hef||12)+2; r=ev(); } };
+  // anchor reinforcement carrying the tension (options.anchorReinf): more / bigger plinth verticals first
+  const v=pl.vert=pl.vert||{n:4,bar:4,shape:'U'}, v0={n:v.n,bar:v.bar};
+  if((P.options||{}).anchorReinf){ let g=0; while(g++<30 && bad(r).some(q=>q.an.gov.bN>1.0001 && q.an.gov.N/(q.an.phiNar||1e9)>1.0001)){ if((+v.n||4)<12) v.n=(+v.n||4)+1; else if((+v.bar||4)<8){ v.bar=(+v.bar||4)+1; v.n=Math.max(4,v0.n); } else break; r=ev(); }
+    if(v.n!==v0.n||v.bar!==v0.bar) log.push('Plinth '+pl.mark+' verticals ('+v.n+') #'+v.bar+' U-bars as anchor reinforcement'); }
+  // pullout (head bearing): a square plate washer on the embedded end
+  const w0=pl.washer; const pullBad=()=>bad(r).some(q=>{ const g=q.an.gov; return g.Tmax/(q.an.phiNpn*(g.sf||1))>1.0001; });
+  if(pullBad()){ for(const w of [2,2.5,3,3.5,4]){ pl.washer=w; r=ev(); if(!pullBad()) break; }
+    if(pullBad()){ if(w0==null) delete pl.washer; else pl.washer=w0; r=ev(); } else log.push('Plinth '+pl.mark+' anchors: '+pl.washer+'" square plate washer at the embedded end (pullout)'); }
+  grow();
+  if(bad(r).length && o.lug!==false){
+    // shear-governed columns get a lug; start the plinth over from its original size
+    const sh=bad(r).filter(q=>{ const g=q.an.gov; return g.bV>1.0001 || g.pry>1.0001 || (g.inter>1.0001 && g.bV>=g.bN); }).map(q=>q.c);
+    if(sh.length){ pl.bx=s0.bx; pl.by=s0.by; pl.hef=s0.hef; sh.forEach(c=>{ c.lug={w:8,h:6}; }); r=ev(); grow();
+      for(const L of [{w:10,h:6},{w:12,h:8},{w:12,h:10}]){ if(!bad(r).length) break; sh.forEach(c=>{ c.lug=Object.assign({},L); }); r=ev(); if(bad(r).length){ pl.bx=s0.bx; pl.by=s0.by; pl.hef=s0.hef; r=ev(); grow(); } }
+      if(!bad(r).length) log.push('Shear lug '+sh[0].lug.w+'" x '+sh[0].lug.h+'" under the base plate at '+sh.map(c=>c.id).join(', ')+' (rods take tension only) — coordinate with the PEMB manufacturer'); } }
+  if(bad(r).length){ pl.bx=s0.bx; pl.by=s0.by; pl.hef=s0.hef; v.n=v0.n; v.bar=v0.bar; if(w0==null) delete pl.washer; else pl.washer=w0; us.forEach((c,i)=>{ if(s0.lugs[i]===undefined) delete c.lug; else c.lug=s0.lugs[i]; });
+    return {changed:false,log:[],left:bad(ev()).map(q=>q.c.id)}; }
+  if(pl.bx!==s0.bx||pl.hef!==s0.hef) log.push('Plinth '+pl.mark+' '+pl.bx+'" × '+pl.by+'"'+(pl.hef!==s0.hef?', anchor embedment '+pl.hef+'"':'')+' for anchor breakout / pryout');
+  return {changed:true,log,left:[]};
+};
 E.autoDesign = function(P, o){
   o=o||{}; const log=[], MAXPL=48, MAXT=36;
   const ok=r=>r<=1.0001, note=m=>{ if(!log.includes(m)) log.push(m); };
   const plUsers=(R,m)=>Object.values(R.cols).filter(x=>x.pl.mark===m);
-  for(let pass=0; pass<8; pass++){
+  let useLug=false;
+  for(let pass=0; pass<12; pass++){
     let changed=false, R=E.run(P);
     // 1. along-wall sliding the pad cannot carry
     if(o.alongWall!=='flag') Object.values(R.cols).forEach(x=>{ const c=(P.columns||[]).find(q=>q.id===x.col.id); if(!c||c.parPath==='slab'||!E.perpAxis(c)) return;
@@ -17543,11 +17619,8 @@ E.autoDesign = function(P, o){
       const bad=(r,k)=>r.some(q=>q.pp.items.some(i=>i.item.startsWith(k)&&!ok(i.ratio)));
       const req=us.map(c=>E.plinthRequired(P,c)); const bx0=Math.max(pl.bx,...req.map(r=>r.bx)), by0=Math.max(pl.by,...req.map(r=>r.by));
       if(bx0!==pl.bx||by0!==pl.by){ pl.bx=bx0; pl.by=by0; changed=true; note('Plinth '+pl.mark+' ≥ bolt edge distance: '+bx0+'" × '+by0+'"'); }
-      let r=ev(); const ancBad=()=>r.some(q=>!ok(q.an.gov.ratio));
-      if(ancBad()){ const b0=pl.bx, l0=pl.by, h0=pl.hef; while(ancBad() && Math.max(pl.bx,pl.by)<MAXPL){ pl.bx+=2; pl.by+=2; r=ev(); }
-        while(ancBad() && (+pl.hef||12)<(+pl.h||24)-3){ pl.hef=(+pl.hef||12)+2; r=ev(); }
-        if(ancBad()){ pl.bx=b0; pl.by=l0; pl.hef=h0; r=ev(); }   // cannot be fixed by the plinth alone (anchor steel / bolt layout) - leave it for the EOR
-        else if(pl.bx!==b0||pl.hef!==h0){ changed=true; note('Plinth '+pl.mark+' '+pl.bx+'" × '+pl.by+'"'+(pl.hef!==h0?', anchor embedment '+pl.hef+'"':'')+' for anchor breakout / pryout'); } }
+      let r=ev();
+      const fx=E.fixAnchors(P,pl,us,{lug:useLug&&o.lug!==false}); if(fx.changed){ changed=true; fx.log.forEach(note); } r=ev();
       const v=pl.vert=pl.vert||{n:4,bar:4,shape:'U'};
       if(bad(r,'Dowels')||bad(r,'Pedestal tension')){ const n0=v.n, b0=v.bar; let done=false;
         for(const bar of [4,5,6,7,8].filter(q=>q>=(+b0||4))){ for(let n=Math.max(4,+n0||4); n<=12; n++){ v.bar=bar; v.n=n; r=ev(); if(!bad(r,'Dowels')&&!bad(r,'Pedestal tension')){ done=true; break; } } if(done) break; }
@@ -17559,7 +17632,7 @@ E.autoDesign = function(P, o){
     // 5. perimeter wall footing
     const pm=E.designPerimeter(P), per=P.perimeter=P.perimeter||{};
     if(!ok(pm.ratio) && (+per.ftgW||16)<48){ per.ftgW=(+per.ftgW||16)+2; changed=true; note('Wall footing widened to '+per.ftgW+'"'); }
-    if(!changed) break;
+    if(!changed){ if(useLug||o.lug===false) break; useLug=true; }
   }
   const R=E.run(P), left=[];
   Object.values(R.cols).forEach(x=>{ x.d.summary.concat([{item:'Anchors',ratio:x.a.gov.ratio}],x.p.items).filter(s=>!ok(s.ratio)).forEach(s=>left.push(x.col.id+': '+s.item+' '+s.ratio.toFixed(2))); });
@@ -18744,11 +18817,11 @@ Rp.build=function(P,R){
     const fsch=P.types.map(t=>{ const q=cols.filter(x=>x.ft.mark===t.mark).length; if(!q) return ''; const v=t.B*t.L*t.T/12/27*q;
       return `<tr><td class="c">${esc(t.mark)}</td><td class="c">${q}</td><td>${n(v,2)} CY</td><td class="l">${e.frac(t.B*12)} × ${e.frac(t.L*12)} × ${t.T}" DP</td><td class="l">${(t.top&&+t.top.n)?((+t.top.n===+t.n&&+t.top.bar===+t.bar)?`(${t.n}) #${t.bar} E.W. @ TOP &amp; BOT`:`(${t.n}) #${t.bar} E.W. BOT + (${t.top.n}) #${t.top.bar} E.W. TOP`):`(${t.n}) #${t.bar} EA WAY BOT`}${R.cols[Object.keys(R.cols).find(k=>R.cols[k].ft.mark===t.mark)].d.hooks?', STD 90° HOOKS':''}</td></tr>`; }).join('');
     const psch=P.plinths.map(p=>{ const xs=cols.filter(x=>x.pl.mark===p.mark); if(!xs.length) return ''; const c=xs[0].col, det=(P.details||{})[c.detail]||{};
-      return `<tr><td class="c">${esc(p.mark)}</td><td class="l">${e.frac(p.bx)} × ${e.frac(p.by)} (X×Y)</td><td class="c">${xs.length}</td><td>${n(p.bx*p.by*p.h/46656*xs.length,2)} CY</td><td class="l">(${p.vert.n}) U-SHAPED #${p.vert.bar}</td><td class="l">${esc(p.ties)}</td><td class="l">${esc(C.abGrade)} ${e.fracDia(+(c.dia||det.dia||0.75))} Ø × ${p.hef||12}" EMBED</td><td class="c">${e.fracIn(+(det.proj||2))}</td></tr>`; }).join('');
+      return `<tr><td class="c">${esc(p.mark)}</td><td class="l">${e.frac(p.bx)} W × ${e.frac(p.by)} D</td><td class="c">${xs.length}</td><td>${n(p.bx*p.by*p.h/46656*xs.length,2)} CY</td><td class="l">(${p.vert.n}) U-SHAPED #${p.vert.bar}</td><td class="l">${esc(p.ties)}</td><td class="l">${esc(C.abGrade)} ${e.fracDia(+(c.dia||det.dia||0.75))} Ø × ${p.hef||12}" EMBED${p.washer?' W/ '+p.washer+'" SQ PL WASHER':''}</td><td class="c">${e.fracIn(+(det.proj||2))}</td></tr>`; }).join('');
     page('Foundation plan &amp; schedules',`
       <div class="svgwrap">${D().plan(P,R,{w:1000,print:true,layers:{util:false},id:'rp-plan',title:'PRELIMINARY FOUNDATION PLAN'})}</div>
       <h2>Footing schedule</h2><table><tr><th class="c">Mark</th><th class="c">Qty</th><th>Volume</th><th class="l">Size</th><th class="l">Reinforcement</th></tr>${fsch}</table>
-      <h2>Concrete plinth schedule</h2><table class="tight"><tr><th class="c">Mark</th><th class="l">Size</th><th class="c">Qty</th><th>Volume</th><th class="l">Vertical reinf.</th><th class="l">Horizontal reinf.</th><th class="l">Column anchor bolt</th><th class="c">AB proj.</th></tr>${psch}</table>
+      <h2>Concrete plinth schedule</h2><table class="tight"><tr><th class="c">Mark</th><th class="l">Size</th><th class="c">Qty</th><th>Volume</th><th class="l">Vertical reinf.</th><th class="l">Horizontal reinf.</th><th class="l">Column anchor bolt</th><th class="c">AB proj.</th></tr>${psch}</table>${(()=>{ const L=(P.columns||[]).filter(c=>c.lug); if(!L.length) return ''; const g={}; L.forEach(c=>{ const k=c.lug.w+'" × '+c.lug.h+'"'; (g[k]=g[k]||[]).push(c.id); }); return '<p class="note"><b>Shear lugs</b> (plate welded under the base plate into a grout pocket; the anchor rods carry tension only; coordinate with the PEMB manufacturer): '+Object.entries(g).map(([k,v])=>k+' at '+v.join(', ')).join('; ')+'.</p>'; })()}<span hidden></span>
       ${(P.ties||[]).length?(()=>{ const gb={}; (P.ties||[]).forEach(t=>{ const k=`${e.frac(+t.b||12)} × ${e.frac(+t.h||12)}|(${t.n}) #${t.bar} LONG`; gb[k]=gb[k]||{q:0,L:0}; gb[k].q++; gb[k].L+=e.tieEnds(P,t).L; });
         return `<h2>Grade beam tie schedule</h2><table><tr><th class="l">Type</th><th class="c">Qty</th><th>Length</th><th>Volume</th><th class="l">Reinforcement</th></tr>${Object.entries(gb).map(([k,v])=>{ const [sz,rf]=k.split('|'); const t0=(P.ties||[]).find(t=>`${e.frac(+t.b||12)} × ${e.frac(+t.h||12)}`===sz); return `<tr><td class="l">${sz} GRADE BEAM</td><td class="c">${v.q}</td><td>${n(v.L,1)} ft</td><td>${n(v.L*(+t0.b||12)*(+t0.h||12)/144/27,2)} CY</td><td class="l">${rf}</td></tr>`; }).join('')}</table>`; })():''}
       <p class="note">${P.types.some(t=>t.projOut!=null)||P.columns.some(c=>c.ftgProj)?'Footing edges set past the face of concrete: '+P.types.filter(t=>t.projOut!=null).map(t=>t.mark+' '+e.fracIn(+t.projOut)).concat(P.columns.filter(c=>c.ftgProj).map(c=>c.id+' '+Object.entries(c.ftgProj).map(([f,v])=>f+' '+e.fracIn(+v)).join('/'))).join(', ')+'; others':'Footings'} centred ${O.ftgPlace==='plinth'?'on the plinth':'under the base-plate centre'}; plinths are integral with the ${e.fracIn(P.perimeter.stemW)} stemwall, flush with the face of concrete. ${O.lateral==='hairpin'?`#${O.hairpinBar} hairpins, ${n(O.hairpinLeg,1)}'-0" legs, centred in the slab at every column.`:''} Continuous footing ${e.fracIn(P.perimeter.ftgW)} W × ${e.fracIn(P.perimeter.ftgT)} DP w/ ${esc(P.perimeter.bars)} under the perimeter stemwall. Base plates and bolt patterns per PEMB anchor bolt drawings — verify with the manufacturer's final anchor bolt plan.</p>`,undefined,'plan');
@@ -18783,7 +18856,7 @@ Rp.build=function(P,R){
         <h2>Footing ${esc(mark)} — ${xs.length} column${xs.length>1?'s':''} (${esc(T.cols.join(', '))})</h2>
         <table class="kv"><tr><td>Governing column</td><td>${esc(gov.col.id)} (${esc(gov.col.kind)})</td></tr>
           <tr><td>Width ∥ X × length ∥ Y</td><td>${e.frac(ft.B*12)} × ${e.frac(ft.L*12)}</td></tr><tr><td>Thickness</td><td>${ft.T} in</td></tr>
-          <tr><td>Plinth ${esc(pl.mark)} (X × Y × height)</td><td>${pl.bx} × ${pl.by} × ${pl.h} in</td></tr>
+          <tr><td>Plinth ${esc(pl.mark)} (width × depth × height)</td><td>${pl.bx} × ${pl.by} × ${pl.h} in</td></tr>
           <tr><td>Bottom reinforcing, each way</td><td>(${ft.n}) #${ft.bar}, 3" clear</td></tr><tr><td>d (average of mats)</td><td>${n(d.dAvg,3)} in</td></tr>
           <tr><td>Load point from ftg centre e<sub>x</sub>, e<sub>y</sub></td><td>${n(d.ex*12,2)}, ${n(d.ey*12,2)} in</td></tr></table>
         <h2>Material &amp; soil</h2><table class="kv"><tr><td>f'c / f<sub>y</sub></td><td>${n(C.fc,2)} / ${n(C.fy,0)} ksi</td></tr><tr><td>Concrete density</td><td>${n(C.gammaConc*1000,0)} pcf</td></tr>
@@ -19363,11 +19436,21 @@ PM.lib=(function(){
   const lsAll=()=>{ try{ return JSON.parse(localStorage.getItem(LIBK)||'[]'); }catch(e){ return []; } };
   const lsPut=a=>{ localStorage.setItem(LIBK,JSON.stringify(a)); };
   function tx(mode,fn){ return db().then(d=>new Promise((res,rej)=>{ const t=d.transaction('projects',mode), st=t.objectStore('projects'); const r=fn(st); t.oncomplete=()=>res(r&&r.result); t.onerror=()=>rej(t.error); })); }
+  // light index (names / dates only) so the project list shows instantly without reading every project
+  const IDXK='tfr.pemb.libindex.v1';
+  const meta=r=>{ const o={}; Object.keys(r||{}).forEach(k=>{ if(k!=='P') o[k]=r[k]; }); return o; };
+  const idxGet=()=>{ try{ const v=localStorage.getItem(IDXK); return v?JSON.parse(v):null; }catch(e){ return null; } };
+  const idxSet=a=>{ try{ localStorage.setItem(IDXK,JSON.stringify(a)); }catch(e){} };
+  const idxPut=rec=>{ const a=(idxGet()||[]).filter(r=>r.id!==rec.id); a.push(meta(rec)); idxSet(a); };
+  const idxDel=id=>{ const a=idxGet(); if(a) idxSet(a.filter(r=>r.id!==id)); };
+  const all=()=>tx('readonly',st=>st.getAll()).catch(()=>lsAll());
   return {
-    all:()=>tx('readonly',st=>st.getAll()).catch(()=>lsAll()),
+    all,
+    index:()=>{ const a=idxGet(); if(a) return Promise.resolve(a); return all().then(r=>{ const m=(r||[]).map(meta); idxSet(m); return m; }); },
+    reindex:()=>all().then(r=>{ const m=(r||[]).map(meta); idxSet(m); return m; }),
     get:id=>tx('readonly',st=>st.get(id)).catch(()=>lsAll().find(r=>r.id===id)),
-    put:rec=>tx('readwrite',st=>st.put(rec)).catch(()=>{ const a=lsAll().filter(r=>r.id!==rec.id); a.push(rec); lsPut(a); }),
-    del:id=>tx('readwrite',st=>st.delete(id)).catch(()=>{ lsPut(lsAll().filter(r=>r.id!==id)); })
+    put:rec=>{ idxPut(rec); return tx('readwrite',st=>st.put(rec)).catch(()=>{ const a=lsAll().filter(r=>r.id!==rec.id); a.push(rec); lsPut(a); }); },
+    del:id=>{ idxDel(id); return tx('readwrite',st=>st.delete(id)).catch(()=>{ lsPut(lsAll().filter(r=>r.id!==id)); }); }
   };
 })();
 PM.libRec=function(P,extra){ const p=P.project||{}; return Object.assign({id:p.libId,name:p.name||'Untitled PEMB project',number:p.number||'',city:p.city||'',
@@ -19393,14 +19476,16 @@ PM.libRename=function(){ if(!PM.P) return; const nm=prompt('Project name:',PM.P.
 PM.libDownload=function(id){ PM.lib.get(id).then(r=>{ if(!r) return; const d=new Date(r.updated); PM.download((r.number||'pemb')+'_'+(r.name||'project').replace(/[^\w]+/g,'_').slice(0,40)+'_'+d.toISOString().slice(0,10)+'.pemb.json', JSON.stringify(r.P,null,1),'application/json'); }); };
 PM.libMsg=function(t){ PM._libMsg=t; const m=$('pm-lib-msg'); if(m) m.textContent=t; };
 PM.libMigrate=function(s){ // first run: put the project that was open into the list
-  return PM.lib.all().then(a=>{ if(a.length) return; if(!s||!(s.columns||[]).length) return;
+  return PM.lib.index().then(a=>{ if(a.length) return; if(!s||!(s.columns||[]).length) return;
     if(!s.project) return; s.project.libId=s.project.libId||PM.libNewId(); try{ localStorage.setItem(LS,JSON.stringify(s)); }catch(e){}
     return PM.lib.put(PM.libRec(s,{created:Date.now(),saved:Date.now()})); }).catch(()=>{}); };
 PM.libFilter='';
 PM.libAll=false;
 PM.renderLibrary=function(){
   const el=$('pm-lib'); if(!el) return;
-  PM.lib.all().then(all=>{ all=(all||[]).sort((a,b)=>(b.updated||0)-(a.updated||0));
+  // re-check the index against the database once per session (in the background)
+  if(!PM._libChecked){ PM._libChecked=true; setTimeout(()=>PM.lib.reindex().then(m=>{ const a=JSON.stringify((m||[]).map(r=>r.id+r.updated).sort()); PM.lib.index().then(i=>{ if(a!==JSON.stringify((i||[]).map(r=>r.id+r.updated).sort())) PM.renderLibrary(); }); }).catch(()=>{}),1500); }
+  PM.lib.index().then(all=>{ all=(all||[]).sort((a,b)=>(b.updated||0)-(a.updated||0));
     const cur=PM.P&&PM.P.project.libId, curRec=all.find(r=>r.id===cur);
     const dt=t=>t?new Date(t).toLocaleDateString([], {month:'short',day:'numeric',year:'numeric'}):'—';
     const tm=t=>t?new Date(t).toLocaleTimeString([], {hour:'numeric',minute:'2-digit'}):'';
@@ -20272,6 +20357,7 @@ PM.renderInspector=function(){
       <div class="pm-colnav"><button class="pm-btn small" data-nav="-1" title="Previous column">‹</button><button class="pm-btn small" data-nav="1" title="Next column">›</button></div></div>
     <div class="row" style="gap:6px;margin:6px 0 10px;flex-wrap:wrap"><button class="pm-btn small" onclick="PM.openModal('hc')">Hand calc</button><button class="pm-btn small" onclick="PM.openModal('frame')">Frame line ${esc(x.col.grid[0])} reactions</button><button class="pm-btn small" onclick="PM.zoomSel()">Zoom to it</button></div>
     ${PM.ftBoxHtml(id,x,cls(d.gov.ratio),ftFails)}
+    ${PM.ancBoxHtml(id,x,cls(a.gov.ratio))}
     ${PM.plBoxHtml(id,x,cls(plW),plW)}
     ${PM.parPathHtml(id,x)}
     <div class="pm-box"><div class="pm-box-h">All checks for ${esc(id)}<span class="r">${chip(Math.max(d.gov.ratio,plW))}</span></div><div class="pm-box-b">
@@ -20283,7 +20369,7 @@ PM.renderInspector=function(){
         <p class="note">Load point e<sub>x</sub> ${f2(d.ex*12,1)}", e<sub>y</sub> ${f2(d.ey*12,1)}" from the footing centre · anchors (${a.n}) ${E.fracDia(a.da)} Ø ${esc(a.grade)}, h<sub>ef</sub> ${a.hef0}"</p></details>
     </div></div>`;
   el.querySelectorAll('[data-nav]').forEach(b=>b.onclick=()=>{ const n=ids[(ix+(+b.dataset.nav)+ids.length)%ids.length]; PM.selectCol(n); });
-  PM.hookBulkBox(el); PM.hookInspTypes(el,id);
+  PM.hookBulkBox(el); PM.hookInspTypes(el,id); PM.hookAnc(el,id);
 };
 PM.inspEmptyHtml=function(){ const R=PM.R;
   const worst=Object.values(R.cols).map(x=>({id:x.col.id,x,r:Math.max(x.d.gov.ratio,x.a.gov.ratio,...x.p.items.map(i=>i.ratio))})).sort((p,q)=>q.r-p.r);
@@ -20338,19 +20424,60 @@ PM.ftBoxHtml=function(id,x,cls,fails){
       <input class="w-s" id="pm-in-drop" value="${x.drop||''}" placeholder="0" style="width:52px" title="feet below the typical footing depth"><span class="note" style="margin:0">ft</span></div>
     <div class="note" style="margin:4px 0 0">Bottom of footing ${E.frac(((+P.criteria.Dbase)+(x.drop||0))*12)} below grade${x.drop?` (typical ${E.frac(+P.criteria.Dbase*12)}) · plinth ${x.pl.hBase}" → <b>${E.fracIn(x.pl.h)}</b> tall so the top of concrete stays put`:''}.</div>
   </div></div>`; };
+// ---- anchor bolts: what governs, in plain words, and the levers that fix each mode
+PM.ancModes=function(x){ const a=x.a, g=a.gov||{}, sf=g.sf||1, P=PM.P, ar=!!P.options.anchorReinf; if(!(g.ratio>=0)) return [];
+  const m=[
+    ['Rod steel — tension',(g.Tmax||0)/a.phiNsa,'Stronger rod grade (project setting) or a bigger rod — rod size comes from the PEMB base plate, so ask the manufacturer.'],
+    ['Pullout (head bearing)',(g.Tmax||0)/(a.phiNpn*sf),'Add a plate washer on the embedded end.'],
+    [ar?'Anchor reinforcement — tension':'Concrete breakout — tension',ar?(g.N||0)/(a.phiNar||1e9):(g.N||0)/(g.phiNcbg||1e9),ar?'More / bigger plinth verticals (Plinth box).':'Wider plinth or deeper embedment — or count the plinth verticals as anchor reinforcement.'],
+    ['Side-face blowout',a.phiNsb<Infinity?(g.Tmax||0)/(a.phiNsb*sf):0,'Wider plinth (more edge distance).']];
+  if(a.lug){ const r=g.lugR||{brg:0,bx:0,by:0}; m.push(['Shear lug — bearing',r.brg,'Deeper or wider lug.'],['Shear lug — concrete breakout',Math.max(r.bx,r.by),'Wider plinth in the direction of the shear, or a longer lug.']); }
+  else m.push(['Rod steel — shear',(g.vi||0)/a.phiVsa,'Stronger rod grade or a shear lug.'],
+    ['Concrete breakout — shear',ar?(g.V||0)/(a.phiVar||1e9):Math.max(Math.abs(g.Hx||0)/(g.phiVx||1e9),Math.abs(g.Hy||0)/(g.phiVy||1e9)),ar?'More U-bars around the anchors (grade-beam tie) or a shear lug.':'Wider plinth (edge distance in the direction of the shear), anchor reinforcement, or a shear lug.'],
+    ['Pryout',g.pry||0,'Deeper embedment / wider plinth — or a shear lug so the rods carry no shear (anchor reinforcement does not help pryout).']);
+  m.push(['Tension + shear interaction',g.inter||0,'Fix whichever of tension or shear above is larger.']);
+  return m; };
+PM.ancBoxHtml=function(id,x,cls){ const a=x.a, P=PM.P, c=PM.colObj(id)||{}, pl=x.pl, users=PM.plinthUsers(pl.mark).length, g=a.gov||{};
+  const M=PM.ancModes(x), worst=M.slice().sort((p,q)=>q[1]-p[1])[0]||['',0,''];
+  const pT=(P.plinths||[]).find(q=>q.mark===pl.mark)||pl;
+  return `<div class="pm-box ${cls}" id="pm-ancbox"><div class="pm-box-h">Anchor bolts<span class="note" style="margin:0;font-weight:500">(${a.n}) ${E.fracDia(a.da)} Ø ${esc(a.grade||P.criteria.abGrade)} · h<sub>ef</sub> ${a.hef0}"${pT.washer?' · '+pT.washer+'" plate washer':''}${c.lug?' · '+c.lug.w+'" × '+c.lug.h+'" shear lug':''}</span><span class="r">${chip(a.gov.ratio)}</span></div><div class="pm-box-b">
+    ${a.gov.ratio>1.0001?`<p class="note" style="margin:0 0 6px"><b>${esc(worst[0])}</b> governs (${esc(g.label||'')}). ${esc(worst[2])}</p>`:`<p class="note" style="margin:0 0 6px">All anchor checks pass. Governing: ${esc(worst[0])}${g.label?' · '+esc(g.label):''}.</p>`}
+    <details ${a.gov.ratio>1.0001?'open':''}><summary class="note" style="margin:0;cursor:pointer">Every anchor check</summary><table class="pm-tbl" style="margin-top:4px">${M.map(([t,r,f])=>`<tr title="${esc(f)}"><td class="l">${esc(t)}${r>1.0001?`<div class="note" style="margin:0;font-size:.66rem">${esc(f)}</div>`:''}</td><td>${chip(r)}</td></tr>`).join('')}</table></details>
+    <div class="pm-fields" style="grid-template-columns:repeat(2,1fr);margin-top:8px">
+      <div><label>Embedment h<sub>ef</sub> (in) · plinth ${esc(pl.mark)}</label><div class="row" style="gap:4px"><button class="pm-btn small" data-anc="hef|-2">−</button><input class="n" id="pm-anc-hef" value="${pT.hef||12}" style="width:48px;height:26px;padding:1px 3px;text-align:center"><button class="pm-btn small" data-anc="hef|2">+</button></div></div>
+      <div><label>Plate washer at the head · plinth ${esc(pl.mark)}</label><select id="pm-anc-wash"><option value="">none (heavy hex nut)</option>${[2,2.5,3,3.5,4].map(w=>`<option value="${w}" ${+pT.washer===w?'selected':''}>${w}" square</option>`).join('')}</select></div>
+      <div><label>Rod grade · whole project</label><select id="pm-anc-grade">${Object.keys(E.AB_GRADES).map(k=>`<option ${P.criteria.abGrade===k?'selected':''}>${k}</option>`).join('')}</select></div>
+      <div><label>Anchor reinforcement · whole project</label><select id="pm-anc-ar"><option value="0" ${!P.options.anchorReinf?'selected':''}>concrete breakout only</option><option value="1" ${P.options.anchorReinf?'selected':''}>plinth verticals / U-bars carry it (ACI 17.5.2.1)</option></select></div>
+    </div>
+    <div class="row" style="gap:6px;margin-top:8px;flex-wrap:wrap;align-items:center"><label style="margin:0;display:flex;gap:4px;align-items:center"><input type="checkbox" id="pm-anc-lug" ${c.lug?'checked':''}> Shear lug at ${esc(id)}</label>${c.lug?`<span class="note" style="margin:0">w</span><input class="n" id="pm-anc-lw" value="${c.lug.w}" style="width:40px">"<span class="note" style="margin:0">× depth</span><input class="n" id="pm-anc-lh" value="${c.lug.h}" style="width:40px">"`:''}</div>
+    ${c.lug?'<p class="note" style="margin:4px 0 0">The lug takes all the base shear; the rods carry tension only. Lug bearing per ACI 318-19 17.11.2, breakout per AISC Design Guide 1 §3.5 (simplified). The lug is welded to the base plate, so coordinate with the PEMB manufacturer.</p>':''}
+    ${a.gov.ratio>1.0001?`<div class="row" style="gap:6px;margin-top:8px"><button class="pm-btn small primary" id="pm-anc-fix" title="Tries plinth verticals, a plate washer, a wider plinth, deeper embedment, then a shear lug">Fix anchors on plinth ${esc(pl.mark)}${users>1?' ('+users+' columns)':''}</button></div>`:''}
+  </div></div>`; };
+PM.hookAnc=function(el,id){ const P=PM.P, c=PM.colObj(id), x=PM.R.cols[id]; if(!c||!x) return; const pT=(P.plinths||[]).find(q=>q.mark===x.pl.mark); const q=s=>el.querySelector(s);
+  const redo=lab=>{ PM.save(lab); PM.run(); PM.renderDesign(); };
+  el.querySelectorAll('[data-anc]').forEach(b=>b.onclick=()=>{ const d=+b.dataset.anc.split('|')[1]; pT.hef=Math.max(6,Math.min((+pT.h||24)+((x.pl.hBase?x.pl.h-x.pl.hBase:0))-3,(+pT.hef||12)+d)); redo('Plinth '+pT.mark+' embedment '+pT.hef+'"'); });
+  const hf=q('#pm-anc-hef'); if(hf) hf.onchange=()=>{ const v=parseFloat(hf.value); if(isFinite(v)){ pT.hef=v; redo('Plinth '+pT.mark+' embedment '+v+'"'); } };
+  const ws=q('#pm-anc-wash'); if(ws) ws.onchange=()=>{ if(ws.value) pT.washer=+ws.value; else delete pT.washer; redo('Plinth '+pT.mark+' plate washer '+(ws.value||'none')); };
+  const gr=q('#pm-anc-grade'); if(gr) gr.onchange=()=>{ P.criteria.abGrade=gr.value; redo('Anchor rod grade '+gr.value); };
+  const ar=q('#pm-anc-ar'); if(ar) ar.onchange=()=>{ P.options.anchorReinf=ar.value==='1'; redo('Anchor reinforcement '+(P.options.anchorReinf?'on':'off')); };
+  const lg=q('#pm-anc-lug'); if(lg) lg.onchange=()=>{ if(lg.checked) c.lug={w:8,h:6}; else delete c.lug; redo('Shear lug at '+id+(lg.checked?' 8" x 6"':' removed')); };
+  ['lw','lh'].forEach(k=>{ const i=q('#pm-anc-'+k); if(i) i.onchange=()=>{ const v=parseFloat(i.value); if(isFinite(v)&&v>0){ c.lug[k==='lw'?'w':'h']=v; redo('Shear lug at '+id+' '+c.lug.w+'" x '+c.lug.h+'"'); } }; });
+  const fx=q('#pm-anc-fix'); if(fx) fx.onclick=()=>{ const us=P.columns.filter(cc=>E.plinthFor(P,cc)===pT); const r=E.fixAnchors(P,pT,us,{lug:true});
+    if(r.changed){ redo('Fixed anchors on plinth '+pT.mark+': '+r.log.join('; ')); PM.toast(r.log.join(' · ')); } else PM.toast('No plinth, washer or lug change makes these pass ('+r.left.join(', ')+') — needs a bigger rod or grade from the PEMB manufacturer'); };
+};
 PM.plBoxHtml=function(id,x,cls,plW){
   const P=PM.P, c=PM.colObj(id)||{}, g=E.groupFor(P,c), users=PM.plinthUsers(x.pl.mark), n=users.length;
   const scope=n>1?(PM._pscope[id]||'type'):'col';
   const pOpt=`<option value="" ${!c.plinth?'selected':''}>Auto — ${esc(g.plinth||P.plinths[0].mark)} (default for ${esc(c.kind||'kind')})</option>`+P.plinths.map(p=>`<option value="${esc(p.mark)}" ${c.plinth===p.mark?'selected':''}>${esc(p.mark)} · ${E.fracIn(p.bx)} × ${E.fracIn(p.by)} · ${PM.rtxt(PM.previewPl(c,p))}</option>`).join('');
   const rp=x.reqPl, plShort=rp&&(rp.bx>x.pl.bx+0.01||rp.by>x.pl.by+0.01);
-  return `<div class="pm-box ${cls}"><div class="pm-box-h">Plinth ${esc(x.pl.mark)}<span class="note" style="margin:0;font-weight:500">${E.fracIn(x.pl.bx)} × ${E.fracIn(x.pl.by)} (X × Y) · ${E.fracIn(x.pl.h)} tall${x.pl.hBase?' (type '+x.pl.hBase+'" + drop)':''} · (${x.pl.vert.n}) #${x.pl.vert.bar} U</span><span class="r">${chip(plW)}</span></div><div class="pm-box-b">
+  return `<div class="pm-box ${cls}"><div class="pm-box-h">Plinth ${esc(x.pl.mark)}<span class="note" style="margin:0;font-weight:500">${E.fracIn(x.pl.bx)} W × ${E.fracIn(x.pl.by)} D × ${E.fracIn(x.pl.h)} H${x.pl.hBase?' (type '+x.pl.hBase+'" + drop)':''} · (${x.pl.vert.n}) #${x.pl.vert.bar} U</span><span class="r">${chip(plW)}</span></div><div class="pm-box-b">
     ${plShort?`<div class="note" style="margin:0 0 6px"><span class="pm-chip y">too small for this base plate — needs ${rp.bx}" × ${rp.by}"</span></div>`:''}
     <label class="pm-wb-l" style="margin-top:0">Use plinth type <span class="note" style="margin:0;text-transform:none;font-weight:400">— ratio = anchors + plinth</span></label>
     <select id="pm-in-pl" class="pm-wb-sel">${pOpt}</select>
     <label class="pm-wb-l">Size</label>
     ${n>1?`<div class="pm-seg" id="pm-in-pscope"><button data-psc="type" class="${scope==='type'?'on':''}" title="${esc(users.join(', '))}">Change ${esc(x.pl.mark)} (all ${n} columns)</button><button data-psc="col" class="${scope==='col'?'on':''}">Only ${esc(id)}</button></div>`
       :`<div class="note" style="margin:0 0 4px">${esc(x.pl.mark)} is used only by ${esc(id)}.</div>`}
-    <div class="pm-steps-in">${PM.stepHtml('px','X',E.fracIn(x.pl.bx))}${PM.stepHtml('py','Y',E.fracIn(x.pl.by))}${PM.stepHtml('ph','H',(x.pl.hBase||x.pl.h)+'"'+(x.pl.hBase?' +drop':''))}</div>
+    <div class="pm-steps-in">${PM.stepHtml('px','Width',E.fracIn(x.pl.bx))}${PM.stepHtml('py','Depth',E.fracIn(x.pl.by))}${PM.stepHtml('ph','Height',(x.pl.hBase||x.pl.h)+'"'+(x.pl.hBase?' +drop':''))}</div>
     <div class="row" style="gap:6px;margin:8px 0 0;flex-wrap:wrap;align-items:center"><button class="pm-btn small" id="pm-in-newpl" title="New plinth type at the size this base plate needs, for ${esc(id)} only">Size for this base plate</button>
       <span class="note" style="margin:0">U-bars</span><input class="w-s" id="pm-in-pvn" value="${x.pl.vert.n}" style="width:40px"><select id="pm-in-pvb">${[4,5,6].map(b=>`<option value="${b}" ${+x.pl.vert.bar===b?'selected':''}>#${b}</option>`).join('')}</select></div>
     ${scope==='type'&&n>1?`<div class="note" style="margin:6px 0 0"><span class="pm-chip y">changes ${n} columns</span> ${esc(users.slice(0,10).join(', '))}${n>10?' …':''}</div>`:''}
@@ -20511,7 +20638,7 @@ PM.renderTypes=function(){
         ${u.length?`<a href="#" class="pm-golink" title="${esc(u.join(', '))}" onclick="PM.pickCols('${esc(p.mark)}','pl');return false;">${u.length} col${u.length>1?'s':''}</a>`:'<span class="note" style="margin:0">unused</span>'}
         ${mx?`<span class="pm-chip ${short?'y':'g'}" title="size the base plates / bolt layouts need">needs ${mx.bx}" × ${mx.by}"</span>`:''}
         <span class="r">${u.length?chip(w):''}${u.length?'':`<button class="pm-btn small danger" onclick="PM.delPlinth(${i})">✕</button>`}</span></div>
-        <div class="steps">${st(i,'bx','X',E.fracIn(p.bx),'pstp')}${st(i,'by','Y',E.fracIn(p.by),'pstp')}${st(i,'h','H',p.h+'"','pstp')}</div>
+        <div class="steps">${st(i,'bx','Width',E.fracIn(p.bx),'pstp')}${st(i,'by','Depth',E.fracIn(p.by),'pstp')}${st(i,'h','Height',p.h+'"','pstp')}</div>
         <div class="steps"><span class="note" style="margin:0">U-bars</span><input class="n" data-pl="${i}|vert.n" value="${p.vert.n}"><select data-pl="${i}|vert.bar">${[4,5,6].map(b=>`<option value="${b}" ${+p.vert.bar===b?'selected':''}>#${b}</option>`).join('')}</select>
           <span class="note" style="margin:0">h<sub>ef</sub></span><input class="n" data-pl="${i}|hef" value="${p.hef||12}">"
           <span class="note" style="margin:0">ties</span><input data-pl="${i}|ties" value="${esc(p.ties||'')}" style="width:150px"></div></div>`; }).join('')}
@@ -20866,7 +20993,7 @@ PM.revitJson=function(){
     out.plinths.push({col:c.id,mark:x.pl.mark,cx:ft(pr.cx),cy:ft(pr.cy),bx:x.pl.bx/12,by:x.pl.by/12,h:x.pl.h/12,rot:0,drop:+(x.drop||0)});
     out.baseplates.push({col:c.id,detail:c.detail,group:rv.groupPrefix+(c.detail||c.kind)+'-'+(+(c.dia||det.dia)).toString().replace('.','_'),
       plate:{x0:ft(pg.x0),y0:ft(pg.y0),x1:ft(pg.x1),y1:ft(pg.y1)},bolts:E.boltsGlobal(c).map(b=>[ft(b.x),ft(b.y)]),dia:+(c.dia||det.dia||0.75),proj:+(det.proj||2),embed:+(x.pl.hef||12),
-      text:`(${(c.bolts||[]).length}) ${E.fracDia(+(c.dia||det.dia||0.75))} DIA ${P.criteria.abGrade} x ${x.pl.hef||12}" EMBED`});
+      text:`(${(c.bolts||[]).length}) ${E.fracDia(+(c.dia||det.dia||0.75))} DIA ${P.criteria.abGrade} x ${x.pl.hef||12}" EMBED${x.pl.washer?' W/ '+x.pl.washer+'" SQ PL WASHER':''}${c.lug?' + '+c.lug.w+'" x '+c.lug.h+'" SHEAR LUG':''}`,lug:c.lug||null});
     if(P.options.lateral==='hairpin'){ const leg=+P.options.hairpinLeg||7; let nx=0,ny=0; if(c.face==='S')ny=1; if(c.face==='N')ny=-1; if(c.face==='W')nx=1; if(c.face==='E')nx=-1;
       if(nx||ny){ let pts; if(c.kind==='corner'){ const dx=c.x<P.pemb.length/2?1:-1, dy=c.y<P.pemb.width/2?1:-1, ox=(dx>0?pr.x1:pr.x0)/12, oy=(dy>0?pr.y1:pr.y0)/12, a=Math.atan2(dy,dx), sp=0.36;
           pts=[[ox+leg*Math.cos(a+sp),oy+leg*Math.sin(a+sp)],[ox,oy],[ox+leg*Math.cos(a-sp),oy+leg*Math.sin(a-sp)]]; }
@@ -21044,7 +21171,7 @@ PM.dlCsv=function(){
   const gb={}; (P.ties||[]).forEach(t=>{ const k=`${E.frac(+t.b||12)} X ${E.frac(+t.h||12)} GRADE BEAM|(${t.n}) #${t.bar} LONG`; gb[k]=(gb[k]||0)+1; });
   Object.keys(gb).forEach(k=>{ const [sz,rf]=k.split('|'); rows.push(['GRADE BEAM','',gb[k],sz,rf,'','']); });
   P.plinths.forEach(p=>{ const xs=Object.values(R.cols).filter(x=>x.pl.mark===p.mark); if(!xs.length) return; const c=xs[0].col, det=(P.details||{})[c.detail]||{};
-    rows.push(['PLINTH',p.mark,xs.length,`${E.frac(p.bx)}W x ${E.frac(p.by)}DP`,`(${p.vert.n}) U-SHAPED #${p.vert.bar} + ${p.ties}`,`${P.criteria.abGrade} ${E.fracDia(+(c.dia||det.dia||0.75))} DIA x ${p.hef||12}" EMBED`,E.fracIn(+(det.proj||2))]); });
+    rows.push(['PLINTH',p.mark,xs.length,`${E.frac(p.bx)}W x ${E.frac(p.by)}DP`,`(${p.vert.n}) U-SHAPED #${p.vert.bar} + ${p.ties}`,`${P.criteria.abGrade} ${E.fracDia(+(c.dia||det.dia||0.75))} DIA x ${p.hef||12}" EMBED${p.washer?' W/ '+p.washer+'" SQ PL WASHER':''}`,E.fracIn(+(det.proj||2))]); });
   PM.download((P.project.number||'PEMB')+'_schedules.csv', rows.map(r=>r.map(v=>'"'+String(v).replace(/"/g,'""')+'"').join(',')).join('\n'),'text/csv');
 };
 
@@ -21056,9 +21183,12 @@ PM.init=function(){
   if(dz){ ['dragenter','dragover'].forEach(ev=>dz.addEventListener(ev,e=>{ e.preventDefault(); dz.classList.add('dragover'); }));
     ['dragleave','drop'].forEach(ev=>dz.addEventListener(ev,e=>{ e.preventDefault(); dz.classList.remove('dragover'); }));
     dz.addEventListener('drop',e=>{ const f=e.dataTransfer.files[0]; if(f) PM.openPdf(f); }); }
-  const saved0=PM.load();
-  PM.libMigrate(saved0).then(()=>{ if(PM.P) return; const saved=PM.load();
-    if(saved){ PM.setProject(saved, saved.columns&&saved.columns.length?'design':'project',{lib:saved.project&&saved.project.libId?undefined:false}); } else { PM.header(); PM.setStep('project'); } });
+  const t0=performance.now(); const saved0=PM.load();
+  PM.header(); PM.setStep('project');   // project list first - it only needs the light index
+  PM.libMigrate(saved0).then(()=>{ PM.renderLibrary(); if(PM.P) return; const saved=PM.load();
+    // re-open the last project after the list has painted (designing a big job takes a moment)
+    if(saved) requestAnimationFrame(()=>setTimeout(()=>{ if(PM.P) return; const t1=performance.now(); PM.setProject(saved,'project',{lib:saved.project&&saved.project.libId?undefined:false}); PM.renderLibrary();
+      console.log('[PEMB] list '+Math.round(t1-t0)+' ms · reopened '+(saved.project&&saved.project.name||'project')+' in '+Math.round(performance.now()-t1)+' ms'); },30)); });
 };
 document.addEventListener('click',e=>{ if(e.target.closest && e.target.closest('[data-panel="pemb"]')) setTimeout(()=>{ PM.init(); if(PM.step==='design') PM.drawPlan(); },20); });
 if(document.readyState!=='loading') setTimeout(()=>{ if(document.getElementById('pemb') && document.getElementById('pemb').classList.contains('active')) PM.init(); },50);
