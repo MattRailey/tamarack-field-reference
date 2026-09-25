@@ -16711,7 +16711,10 @@ with revit.Transaction('Place PEMB foundations', doc=doc):
             warnings.append('Footing family "{}" is not loaded - footings skipped.'.format(S.get('footingFamily')))
             break
         set_param(sym, [DB.BuiltInParameter.ALL_MODEL_TYPE_MARK], t['mark'])
-        set_param(sym, [DB.BuiltInParameter.ALL_MODEL_TYPE_COMMENTS], t.get('reinf', ''))
+        # office schedule fields (Crook): bottom bars in Horizontal Reinforcement, design f'c in CONCRETE PSI;
+        # Type Comments only when the family has no Horizontal Reinforcement parameter
+        if not set_param(sym, ['Horizontal Reinforcement'], t.get('reinf', '')):
+            set_param(sym, [DB.BuiltInParameter.ALL_MODEL_TYPE_COMMENTS], t.get('reinf', ''))
         if t.get('concrete'):
             set_param(sym, ['CONCRETE PSI'], t['concrete'])
         ftypes[t['mark']] = sym
@@ -16723,24 +16726,25 @@ with revit.Transaction('Place PEMB foundations', doc=doc):
             warnings.append('Plinth family "{}" is not loaded - plinths skipped.'.format(S.get('plinthFamily')))
             break
         set_param(sym, [DB.BuiltInParameter.ALL_MODEL_TYPE_MARK], t['mark'])
-        set_param(sym, [DB.BuiltInParameter.ALL_MODEL_TYPE_COMMENTS], t.get('vert', '') + ' + ' + t.get('ties', ''))
         # schedule parameters used on the office's plinth schedule (shared parameters; skipped quietly if absent)
-        set_param(sym, ['Vertical Reinforcement'], t.get('vert', ''))
+        if not set_param(sym, ['Vertical Reinforcement'], t.get('vert', '')):
+            set_param(sym, [DB.BuiltInParameter.ALL_MODEL_TYPE_COMMENTS], t.get('vert', '') + ' + ' + t.get('ties', ''))
         set_param(sym, ['Horizontal Reinforcement'], t.get('ties', ''))
         if t.get('ab'):
             set_param(sym, ['Column Anchor Bolt Embedment', 'Column Anchor Bolt', 'Anchor Bolt'], t['ab'])
         if t.get('abProj'):
-            set_param(sym, ['Column Anchor Bolt Projection', 'AB Projection', 'Anchor Bolt Projection'], t['abProj'])
+            set_param(sym, ['ANCHORAGE', 'Column Anchor Bolt Projection', 'AB Projection', 'Anchor Bolt Projection'], t['abProj'])   # ANCHORAGE = AB projection on the office schedule
         ptypes[t['mark']] = sym
 
     def tag_symbol(bic, spec):
         """'Family : Type' (either part may be blank) -> the tag type; falls back to the first of that category."""
-        fam, typ = (spec.split(':', 1) + [''])[:2] if spec else ('', '')
-        fam, typ = fam.strip(), typ.strip()
+        nz = lambda x: ' '.join((x or '').upper().replace(':', ' ').replace(' - ', ' ').split())
+        want = nz(spec)
         syms = list(DB.FilteredElementCollector(doc).OfCategory(bic).OfClass(DB.FamilySymbol))
         for sy in syms:
             try:
-                if (not fam or sy.Family.Name == fam) and (not typ or DB.Element.Name.GetValue(sy) == typ):
+                f_, t_ = sy.Family.Name, DB.Element.Name.GetValue(sy)
+                if want and want in (nz(f_), nz(t_), nz(f_ + ' ' + t_)):
                     return sy
             except Exception:
                 pass
@@ -16751,8 +16755,8 @@ with revit.Transaction('Place PEMB foundations', doc=doc):
 
     tagsym = ptagsym = None
     if S.get('tag'):
-        tagsym = tag_symbol(DB.BuiltInCategory.OST_StructuralFoundationTags, S.get('footingTag', 'FOUNDATION DETAILING TAG : FOOTING'))
-        ptagsym = tag_symbol(DB.BuiltInCategory.OST_StructuralColumnTags, S.get('plinthTag', 'COLUMN DETAILING TAG : OVERLAY'))
+        tagsym = tag_symbol(DB.BuiltInCategory.OST_StructuralFoundationTags, S.get('footingTag', 'FOUNDATION DETAILING TAG - FOOTING'))
+        ptagsym = tag_symbol(DB.BuiltInCategory.OST_StructuralColumnTags, S.get('plinthTag', 'COLUMN DETAILING TAG - OVERLAY'))
         for sy_ in (tagsym, ptagsym):
             if sy_ is not None and not sy_.IsActive:
                 sy_.Activate()
@@ -19878,8 +19882,8 @@ PM.defaults = function(){
              {mark:'C',bx:12,by:20,h:24,vert:{n:3,bar:4,shape:'U'},ties:'(3) #3 within top 5", 8" o.c. elsewhere',hef:12}],
     groups:[{kinds:['frame'],footing:'F2',plinth:'A'},{kinds:['endwall'],footing:'F1',plinth:'B'},{kinds:['corner'],footing:'F1',plinth:'C'},{kinds:['interior'],footing:'F2',plinth:'A'}],
     revit:{createWalls:true,level:'T.O. FOOTING',viewName:'',footingFamily:'Footing-Rectangular',footingTypePrefix:'PEMB-',plinthFamily:'Concrete-Rectangular-Column',
-      tofElev:-2.0,plinthTop:0.0,groupPrefix:'BP-',hairpinGroup:'HAIRPIN-#5',footingTag:'FOUNDATION DETAILING TAG : FOOTING',plinthTag:'COLUMN DETAILING TAG : OVERLAY',originGridX:'1',originGridY:'A',createGrids:false,tag:true,
-      footingLevel:'',footingTypeName:'',plinthTypeName:'',beamFamily:'Concrete-Rectangular Beam',beamTypeName:'{b} X {h} GRADE BEAM',beamTop:1.0,
+      tofElev:-2.0,plinthTop:0.0,groupPrefix:'BP-',hairpinGroup:'HAIRPIN-#5',footingTag:'FOUNDATION DETAILING TAG - FOOTING',plinthTag:'COLUMN DETAILING TAG - OVERLAY',originGridX:'1',originGridY:'A',createGrids:false,tag:true,
+      footingLevel:'',footingTypeName:'{B} x {L} x {T} DP',plinthTypeName:'{bx}W X{by}DP',beamFamily:'Concrete-Rectangular Beam',beamTypeName:'{b} X {h} GRADE BEAM',beamTop:1.0,
       wallType:'Exterior - 8" Concrete',wallFtgType:'Bearing Footing - 16" x 8"',wallTop:2.0,createSlab:true,slabType:'PEMB SOG {t}"'},
     pkg:{sections:{cover:1,guide:1,senotes:1,handcalc:1,basis:1,rxn:1,plan:1,combos:1,footings:1,uplift:1,hairpin:1,anchors:1,plinth:1,perim:1,results:1,validation:1}},
     verified:false};
@@ -21611,8 +21615,8 @@ PM.revitJson=function(){
     origin:{note:'Coordinates are feet from the intersection of the steel lines of grid '+rv.originGridX+' and grid '+rv.originGridY+'. +X toward the last numbered grid, +Y toward the last lettered grid.', gridX:rv.originGridX, gridY:rv.originGridY},
     settings:rv, grids:[...P.grids.x.map(g=>({name:g.name,dir:'Y',pos:g.pos})),...P.grids.y.map(g=>({name:g.name,dir:'X',pos:g.pos}))],
     building:{width:P.pemb.width,length:P.pemb.length},
-    footingTypes:P.types.map(t=>({mark:t.mark,B:t.B,L:t.L,T:t.T/12,reinf:PM.ftgReinf(t),concrete:Math.round((+P.criteria.fcSpec||+P.criteria.fc||3)*1000)+' PSI',typeName:PM.typeName(rv.footingTypeName,{B:E.frac(t.B*12),L:E.frac(t.L*12),T:t.T+'"',mark:t.mark})||((rv.footingTypePrefix||'PEMB-')+t.mark)})),
-    plinthTypes:P.plinths.map(p=>({mark:p.mark,bx:p.bx/12,by:p.by/12,h:p.h/12,vert:`(${p.vert.n}) U-SHAPED #${p.vert.bar}`,ties:p.ties,...PM.abCallout(P,p),typeName:PM.typeName(rv.plinthTypeName,{bx:E.frac(p.bx),by:E.frac(p.by),mark:p.mark})||('PEMB-PLINTH-'+p.mark)})),
+    footingTypes:P.types.map(t=>({mark:t.mark,B:t.B,L:t.L,T:t.T/12,reinf:PM.ftgReinf(t),concrete:Math.round((+P.criteria.fc||+P.criteria.fcSpec||2.5)*1000)+' PSI',typeName:PM.typeName(rv.footingTypeName||'{B} x {L} x {T} DP',{B:E.frac(t.B*12),L:E.frac(t.L*12),T:t.T+'"',mark:t.mark})||((rv.footingTypePrefix||'PEMB-')+t.mark)})),
+    plinthTypes:P.plinths.map(p=>({mark:p.mark,bx:p.bx/12,by:p.by/12,h:p.h/12,vert:`(${p.vert.n}) U-SHAPED #${p.vert.bar} BARS`,ties:PM.schedTies(p.ties),...PM.abCallout(P,p),typeName:PM.typeName(rv.plinthTypeName||'{bx}W X{by}DP',{bx:E.frac(p.bx),by:E.frac(p.by),mark:p.mark})||('PEMB-PLINTH-'+p.mark)})),
     footings:[], plinths:[], baseplates:[], hairpins:[], gradeBeams:[], walls:null, perimeter:null};
   cols.forEach(x=>{ const c=x.col, fc=E.footingCenter(P,c,x.pl,x.ft), pr=E.plinthRect(P,c,x.pl), pg=E.plateGlobal(c); const det=(P.details||{})[c.detail]||{};
     out.footings.push({col:c.id,mark:x.ft.mark,cx:ft(fc.x),cy:ft(fc.y),B:x.ft.B,L:x.ft.L,T:x.ft.T/12,rot:0,drop:+(x.drop||0)});
@@ -21660,6 +21664,8 @@ PM.revitJson=function(){
 };
 // anchor-bolt callout for a plinth type, the way the schedule reads (Crook: F1554 GRADE 36 3/4" DIA X12" EMBED):
 // rod size / projection from the columns that use it (most common), grade + embedment from the design
+// ties in the schedule's wording (Crook): (3) #3 TIES W/IN TOP 5", 8" O.C. OTHERWISE
+PM.schedTies=function(t){ return String(t||'').replace(/\bwithin\b/i,'TIES W/IN').replace(/\belsewhere\b/i,'OTHERWISE').replace(/o\.c\./ig,'O.C.').toUpperCase().replace('TIES TIES','TIES'); };
 PM.abCallout=function(P,p){ const us=(P.columns||[]).filter(c=>E.plinthFor(P,c)===p); const cnt={};
   us.forEach(c=>{ const det=(P.details||{})[c.detail]||{}; const k=(+(c.dia||det.dia||0.75))+'|'+(+(det.proj||2)); cnt[k]=(cnt[k]||0)+1; });
   const top=Object.entries(cnt).sort((a,b)=>b[1]-a[1])[0]; if(!top) return {ab:'',abProj:''}; const [dia,proj]=top[0].split('|').map(Number);
