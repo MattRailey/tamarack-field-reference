@@ -835,6 +835,26 @@
 #pemb .pm-colrs{ position:absolute; top:-4px; bottom:-4px; right:-7px; width:10px; cursor:col-resize; z-index:2; }
 #pemb .pm-colrs::after{ content:''; position:absolute; left:4px; top:3px; bottom:3px; width:2px; background:var(--line,#dfe3ea); border-radius:1px; }
 #pemb .pm-colrs:hover::after{ background:var(--blueprint,#2f7cf6); }
+
+  /* ---- At a glance (project-wide choices + results) */
+  #pemb .pm-sum .pm-area-b{ padding-top:6px; }
+  #pemb .pm-glance{ display:flex; flex-direction:column; gap:10px; }
+  #pemb .pm-gl-status{ padding:7px 10px; border-radius:7px; font-size:.84rem; display:flex; flex-wrap:wrap; align-items:center; gap:4px; }
+  #pemb .pm-gl-status.ok{ background:#e7f5ec; color:#14532d; } #pemb .pm-gl-status.bad{ background:#fdecea; color:#7f1d1d; }
+  #pemb .pm-gl-grid{ display:grid; grid-template-columns:repeat(auto-fit,minmax(260px,1fr)); gap:10px; }
+  #pemb .pm-gl-2{ grid-template-columns:repeat(auto-fit,minmax(340px,1fr)); }
+  #pemb .pm-gl-card{ border:1px solid var(--line,#dbe1ea); border-radius:9px; padding:9px 11px; background:var(--card,#fff); display:flex; flex-direction:column; gap:6px; min-width:0; }
+  #pemb .pm-gl-card h4{ margin:0; font-size:.82rem; letter-spacing:.2px; display:flex; gap:8px; align-items:baseline; }
+  #pemb .pm-gl-row{ font-size:.78rem; display:flex; flex-wrap:wrap; gap:4px 8px; align-items:center; }
+  #pemb .pm-gl-row input[type=number]{ padding:2px 4px; font-size:.78rem; } #pemb .pm-gl-row select{ padding:2px 4px; font-size:.78rem; }
+  #pemb .pm-gl-row label{ display:inline-flex; gap:4px; align-items:center; margin:0; font-size:.78rem; }
+  #pemb .pm-gl-res{ font-size:.78rem; margin-top:auto; padding-top:4px; border-top:1px dashed var(--line,#dbe1ea); }
+  #pemb .pm-gl-card .pm-tbl{ font-size:.76rem; } #pemb .pm-gl-card .pm-tbl td, #pemb .pm-gl-card .pm-tbl th{ padding:3px 6px; }
+  #pemb .pm-gl-q{ display:flex; flex-wrap:wrap; gap:4px 14px; font-size:.78rem; }
+  #pemb .pm-glance input[type=number], #pemb .pm-glance select{ height:24px; min-height:0; padding:1px 4px; font-size:.78rem; line-height:1.2; width:auto; display:inline-block; margin:0; }
+  #pemb .pm-glance input[type=number]{ max-width:64px; }
+  #pemb .pm-glance input[type=checkbox]{ width:14px; height:14px; min-height:0; margin:0; padding:0; flex:none; }
+  #pemb .pm-glance label{ white-space:nowrap; }
   /* ---- end PEMB Foundations tab ---- */
 </style>
 </head>
@@ -3598,6 +3618,7 @@
 
         <!-- 3 DESIGN -->
         <div class="pm-step" data-step="design" hidden>
+          <section class="pm-area pm-sum" id="pm-sumarea"><div class="pm-area-h pm-toggle" onclick="PM.toggleSummary(event)"><span class="pm-area-n">&#9733;</span><h3>At a glance</h3><span class="pm-area-sub">the project-wide choices and what they give &mdash; everything else is below</span><span id="pm-sumcaret" style="margin-left:auto">&#9662;</span></div><div class="pm-area-b" id="pm-summary"></div></section>
           <div class="pm-ws">
             <section class="pm-area pm-area-plan"><div class="pm-area-h"><span class="pm-area-n">A</span><h3>Foundation</h3><div class="pm-viewseg" id="pm-viewseg"><button data-view="plan" class="on">Plan</button><button data-view="3d">3D</button></div><span class="pm-area-sub" id="pm-viewhint">wheel to zoom &middot; hold the wheel (or Space) and drag to pan &middot; double-click the wheel to fit &middot; drag a box to pick several</span><button class="pm-btn small primary" id="pm-autodesign" style="margin-left:auto" title="Size footings, plinths, anchors embedment, grade beams and the wall footing so every check passes where there is a clear fix. Ctrl+Z undoes it.">Design it for me</button></div>
               <div class="pm-ptools" id="pm-ptools"></div>
@@ -17949,7 +17970,8 @@ E.designColumn = function(P, col, ft, pl, opts){
   const extras = E.upliftExtras(P, col, ft);
   const extraW = (opt.slabUplift?extras.slab:0) + (opt.perimUplift?extras.perim:0) + (extras.slabWt||0) + (extras.gbWt||0);
   const passiveF = y => 0.5*(+C.passive)*(Db*Db-(Db-T)*(Db-T))*y;     // on footing face only (Enercalc)
-  const stemPP = (opt.stemPassive && ['frame','endwall','corner'].includes(col.kind)) ? 0.5*(+C.passive)*Math.pow(+opt.stemPassiveDepth||((+per.stemH+ +per.ftgT)/12),2)*(+opt.stemPassiveLen||0) : 0;
+  const eng = (opt.stemPassive && ['frame','endwall','corner'].includes(col.kind)) ? E.stemEngage(P,col) : null;
+  const stemPP = eng ? eng.Pp : 0;
   const asd=E.combos(P,'ASD'), lrfd=E.combos(P,'LRFD');
   // which horizontal components does the isolated footing actually see?
   //  - thrust perpendicular to the wall goes into the slab via hairpins / tie (SE's
@@ -17991,7 +18013,7 @@ E.designColumn = function(P, col, ft, pl, opts){
       const mT=mf.T/12, mA=mf.B*mf.L, mAp=mp.bx*mp.by/144;
       mem[m.id]={col:m, ft:mf, W:mA*mT*gc + mAp*(mp.h/12)*gc + Math.max(0,(mA-mAp)*(Db-mT))*gs,
         pp:ax=>0.5*(+C.passive)*(Db*Db-(Db-mT)*(Db-mT))*(ax==='x'?mf.L:mf.B)}; }); });
-  const res={col:col.id, ft, pl, pr, fc0, Wf, Wp, Ws, extras, extraW, ex, ey, arm, asd:[], lrfd:[], stemPP, perp, restrainPerp, restrainPar, lateralCap, tie:tie?tie.id:null};
+  const res={col:col.id, ft, pl, pr, fc0, Wf, Wp, Ws, extras, extraW, ex, ey, arm, asd:[], lrfd:[], stemPP, eng, perp, restrainPerp, restrainPar, lateralCap, tie:tie?tie.id:null};
   const byItem={};
   function keep(item, ratio, applied, cap, combo, extra){
     const cur=byItem[item];
@@ -18553,7 +18575,7 @@ E.autoSize = function(P, mark){
   const cols=(P.columns||[]).filter(c=>E.groupOf(P,c)===ft);
   // 'Sliding ∥ wall' is carried by the stemwall / a strut, so a bigger pad is not the fix - it stays a flag
   let crit=['Soil bearing','Uplift','Overturning X','Overturning Y','Sliding ⟂ wall','Sliding X','Sliding Y'];
-  const tryAll=(critList)=>{ for(let B=Math.max(2.0,+ft.Bmin||0); B<=12; B+=0.5){
+  const tryAll=(critList)=>{ for(let B=Math.max(2.0,+ft.Bmin||0); B<=(+(P.options||{}).maxFtgB||16); B+=0.5){
     let t=Object.assign({},ft,{B,L:B});
     const pass=tt=>cols.every(c=>{ const cc=tt.centred?Object.assign({},c,{ftgProj:null}):c; const d=E.designColumn(P,cc,tt,E.plinthFor(P,c)); return d.summary.filter(s=>crit.includes(s.item)).every(s=>s.ratio<=1.0001); });
     let ok=pass(t);
@@ -18745,17 +18767,21 @@ E.autoDesign = function(P, o){
     //     beyond a single #6 hairpin get a grade-beam tie across the building instead.
     { const hpFail=R=>Object.values(R.cols).filter(x=>x.d.summary.some(q=>/^Hairpin/.test(q.item)&&!ok(q.ratio)));
       const O=P.options=P.options||{}; R=E.run(P);
-      if(hpFail(R).length && o.hairpin!=='flag'){
+      if(hpFail(R).length && o.hairpin!=='flag' && O.lateral!=='none'){
         const cands=[[5,1],[6,1],[7,1],[5,2],[6,2]], b0=[O.hairpinBar,O.hairpinN], nt0=(P.ties||[]).length;
         const tryC=list=>{ for(const [b,nn] of list){ O.hairpinBar=b; O.hairpinN=nn; if(!hpFail(E.run(P)).length) return true; } return false; };
         if(!tryC(cands.slice(0,2))){
-          const lines=[...new Set(hpFail(E.run(P)).filter(x=>x.col.kind==='frame').map(x=>x.col.grid[0]))];
-          if(lines.length){ const add=E.autoFrameTies(P,lines); if(add.length){ note('Frame thrust beyond a #6 hairpin → grade-beam tie across the building at line(s) '+lines.join(', ')+' ('+add.join(', ')+')'); } }
+          if(O.autoTies!==false){ const lines=[...new Set(hpFail(E.run(P)).filter(x=>x.col.kind==='frame').map(x=>x.col.grid[0]))];
+            if(lines.length){ const add=E.autoFrameTies(P,lines); if(add.length){ note('Frame thrust beyond a #6 hairpin → grade-beam tie across the building at line(s) '+lines.join(', ')+' ('+add.join(', ')+')'); } } }
           if(!tryC(cands)){ O.hairpinBar=b0[0]; O.hairpinN=b0[1]; }
         }
         if((O.hairpinBar||5)!==(b0[0]||5)||(O.hairpinN||1)!==(b0[1]||1)){ changed=true; note('Hairpins: '+(O.hairpinN>1?'('+O.hairpinN+') ':'')+'#'+O.hairpinBar+' at each column'); }
         if((P.ties||[]).length!==nt0) changed=true;
       } }
+    // 3c. soil method (no hairpins / ties): heavier continuous stemwall bars engage more wall before the pads grow
+    if((P.options||{}).lateral==='none'){ const R3=E.run(P), per=P.perimeter=P.perimeter||{};
+      const need=Object.values(R3.cols).some(x=>x.d.eng && x.d.eng.limitedBy==='flexure' && x.d.summary.some(q=>q.item==='Sliding ⟂ wall'&&!ok(q.ratio)));
+      if(need){ const st=per.stemHoriz=Object.assign({n:2,bar:4},per.stemHoriz||{}); if(st.bar<6){ st.bar++; changed=true; note('Stemwall horizontal bars ('+st.n+') #'+st.bar+' continuous through the plinths (engages more wall in passive)'); } else if(st.n<4){ st.n++; changed=true; note('Stemwall horizontal bars ('+st.n+') #'+st.bar+' continuous through the plinths'); } } }
     // 4. grade beams
     (P.ties||[]).forEach(t=>{ const r=E.autoTie(P,t.id); if(!r) return;
       // ties set by hand (bulk edit / match) keep their size; steel is only added when that tie fails
@@ -19099,6 +19125,31 @@ E.globalSliding = function(P, R){
   });
   const gov={}; rows.forEach(r=>{ if(!gov[r.ax]||r.ratio>gov[r.ax].ratio) gov[r.ax]=r; });
   return {rows, gov, area, Lw, wSlab, face, returnPassive:!!opt.returnPassive, globalSlab:!!opt.globalSlab, soilClass:C.soilClass||''};
+};
+
+// ---------------------------------------------------------------- stemwall passive at a column (thrust ⟂ wall, soil method)
+// The stemwall and wall footing are cast through the plinth (horizontal bars continuous through it), so under outward thrust
+// they bear on the soil as a horizontal beam cantilevering a each side of the plinth. The engaged length is the smallest of
+// options.stemPassiveLen (the SE's sheet, default 20 ft), the column's tributary wall length (half-way to the neighbours on
+// the wall line) and what the horizontal bars can carry in plan bending: 1.6 w a² / 2 <= phi Mn, w = passive per ft.
+E.stemEngage = function(P, col){
+  const C=P.criteria, opt=P.options||{}, per=P.perimeter||{};
+  const d=+opt.stemPassiveDepth||((+per.stemH||24)+(+per.ftgT||8))/12, w=0.5*(+C.passive)*d*d;   // k per ft of wall
+  let trib=+opt.stemPassiveLen||20;
+  const ax=E.perpAxis(col)==='x'?'y':'x', wl=E.wallLine(P,col,ax);
+  if(wl && wl.cols.length>1){ const pos=c=>ax==='x'?c.x:c.y, me=pos(col), ps=wl.cols.map(pos).filter(v=>Math.abs(v-me)>0.5).sort((a,b)=>a-b);
+    const lo=ps.filter(v=>v<me).pop(), hi=ps.find(v=>v>me); const half=v=>v==null?trib/2:Math.abs(v-me)/2;
+    trib=Math.min(trib, half(lo)+half(hi)); }
+  // plan bending of the stemwall + wall footing about a vertical axis; one layer of each set of bars in tension
+  const fy=+C.fy, fc=+C.fc, sh=per.stemHoriz||{n:2,bar:4}, sb=E.REBAR[+sh.bar||4]||E.REBAR[4];
+  const AsS=(+sh.n||2)*sb.A, dS=Math.max(1,(+per.stemW||8)/2);                                   // single curtain, centred
+  const fb=E.REBAR[4], AsF=fb.A, dF=Math.max(1,(+per.ftgW||16)-3-fb.d/2);                        // one of the (2) #4 wall-footing bars
+  const Mn=(As,dd,b)=>{ const a=As*fy/(0.85*fc*b); return 0.9*As*fy*(dd-a/2)/12; };
+  const phiMn=Mn(AsS,dS,(+per.stemH||24))+Mn(AsF,dF,(+per.ftgT||8));
+  const aFlex=Math.sqrt(2*phiMn/(1.6*Math.max(w,1e-6)));
+  const plinthW=((E.plinthFor(P,col)||{}).bx||24)/12;
+  const L=opt.stemFlexLimit===false?trib:Math.min(trib, 2*aFlex+plinthW);
+  return {d, w, trib, aFlex, phiMn, L, Pp:w*L, limitedBy: L<trib-1e-6?'flexure':'tributary', bars:'('+(+sh.n||2)+') #'+(+sh.bar||4)};
 };
 
 // ---------------------------------------------------------------- stemwall at a column
@@ -20350,7 +20401,7 @@ Rp.build=function(P,R){
         ${g.d.restrainPerp?`<p>Thrust ⟂ wall is carried <b>100% by the ${g.d.tie?'grade-beam tie '+esc(g.d.tie)+' (page '+PG('ties')+')':'hairpin (page '+PG('hp')+')'}</b>; footing friction and passive are not counted with it.</p>`:`
         <table class="tight"><tr><th>V<sub>applied</sub> (k)</th><th>V<sub>footing</sub> (k)</th><th>Stemwall P<sub>p</sub> (k)</th><th>V<sub>capacity</sub> (k)</th><th>SF</th></tr>
         ${sl?`<tr><td>${n(sl.applied,2)}</td><td>${n(sl.footOnly,3)}</td><td>${n(sl.spp,2)}</td><td>${n((sl.footOnly||0)+(sl.spp||0),2)}</td><td>${n(((sl.footOnly||0)+(sl.spp||0))/Math.max(sl.applied,1e-6),2)}</td></tr>`:''}</table>`}
-        <p class="note">Stemwall passive P<sub>p</sub> = ½ · ${n(C.passive*1000,0)} pcf · (${per.stemH}+${per.ftgT} in)² · ${n(O.stemPassiveLen,1)} ft. V<sub>footing</sub> = μN + passive on the footing face — computed here in place of an ENERCALC sliding run (see Method validation).</p>
+        <p class="note">Stemwall passive P<sub>p</sub> = ½ · ${n(C.passive*1000,0)} pcf · (${per.stemH}+${per.ftgT} in)² · L, L = ${g.d.eng?n(g.d.eng.L,1)+' ft engaged ('+(g.d.eng.limitedBy==='flexure'?'limited by '+esc(g.d.eng.bars)+' horizontal bars through the plinth: 1.6·w·a²/2 ≤ φM<sub>n</sub> = '+n(g.d.eng.phiMn,1)+' k-ft, a = '+n(g.d.eng.aFlex,1)+' ft each side':'tributary / '+n(O.stemPassiveLen,0)+' ft max')+')':'—'}. V<sub>footing</sub> = μN + passive on the footing face — computed here in place of an ENERCALC sliding run (see Method validation).</p>
       </div></div>`,undefined,'se'+mark);
   });
   // ------------------------------------------------ building-wide sliding
@@ -21702,6 +21753,7 @@ PM.colorBy='gov';
 PM.renderDesign=function(){
   const P=PM.P;
   if(PM.selFrame==null){ const f=E.frames(P).find(q=>q.kind==='frame'); PM.selFrame=f?f.line:null; }
+  try{ PM.renderSummary(); }catch(e){ console.error('[PEMB summary]',e); }
   PM.renderPlanTools(); PM.drawPlan(); PM.setSide(PM.side||'col'); PM.renderResults(); PM.renderIssued(); PM.stepBadges();
   const rb=$('pm-resbody'); if(rb) rb.hidden=PM._resClosed; const rc=$('pm-rescaret'); if(rc) rc.textContent=PM._resClosed?'▸':'▾';
   if(PM._modal) PM.renderModal();
@@ -21731,7 +21783,7 @@ PM.draw3d=function(){ const el=$('pm-3d'); if(!el||!PM.R||!window.PEMB3D) return
       if(PM.R.cols[t]){ if(e.shiftKey||e.ctrlKey||e.metaKey){ if(PM.bulk[t]) delete PM.bulk[t]; else PM.bulk[t]=1; PM.afterMulti(); } else { PM.bulk={}; PM.selectCol(t); } } }}); };
 PM.mode='select';
 // one-click design: size everything with a clear fix, list what is left for the EOR
-PM.autoDesign=function(auto){ const P=PM.P; if(!P||!(P.columns||[]).length) return;
+PM.autoDesign=function(auto){ const P=PM.P; if(!P||!(P.columns||[]).length) return; PM._sumStale=false;
   const btn=$('pm-autodesign'); if(btn){ btn.disabled=true; btn.textContent='Designing…'; }
   setTimeout(()=>{ let r; try{ r=E.autoDesign(P,{alongWall:(P.options||{}).autoAlongWall||'slab'}); }catch(e){ console.error(e); r={log:[],left:['Auto-design stopped: '+e.message]}; }
     P.autoDesigned=Date.now(); PM._ad={t:Date.now(),log:r.log,left:r.left,auto:!!auto};
@@ -22809,6 +22861,81 @@ PM.init=function(){
     // re-open the last project after the list has painted (designing a big job takes a moment)
     if(saved) requestAnimationFrame(()=>setTimeout(()=>{ if(PM.P) return; const t1=performance.now(); PM.setProject(saved,'project',{lib:saved.project&&saved.project.libId?undefined:false}); PM.renderLibrary();
       console.log('[PEMB] list '+Math.round(t1-t0)+' ms · reopened '+(saved.project&&saved.project.name||'project')+' in '+Math.round(performance.now()-t1)+' ms'); },30)); });
+};
+// ================================================================= AT A GLANCE (project-wide choices + results)
+// One screen for the EOR: the handful of project-wide decisions as switches, and what they produce, without the detail.
+PM.toggleSummary=function(ev){ if(ev&&ev.target&&ev.target.closest&&ev.target.closest('button,input,select,label,a')) return;
+  PM._sumClosed=!PM._sumClosed; try{ localStorage.setItem('tfr.pemb.sumclosed',PM._sumClosed?'1':''); }catch(e){}
+  const b=$('pm-summary'); if(b) b.hidden=PM._sumClosed; const c=$('pm-sumcaret'); if(c) c.textContent=PM._sumClosed?'▸':'▾'; };
+try{ PM._sumClosed=localStorage.getItem('tfr.pemb.sumclosed')==='1'; }catch(e){}
+// frame thrust method: 'soil' (stemwall + footing passive, bars through the plinth), 'hairpin', 'tie'
+PM.thrustMethod=function(P){ const O=P.options||{}; if(O.lateral==='none') return 'soil'; if((P.ties||[]).some(t=>t.role==='frame')) return 'tie'; return 'hairpin'; };
+PM.setThrust=function(m){ const P=PM.P, O=P.options=P.options||{}; const cur=PM.thrustMethod(P); if(m===cur) return;
+  P.ties=P.ties||[];
+  if(cur==='tie'){ P._tiesOff=P.ties.filter(t=>t.role==='frame'); P.ties=P.ties.filter(t=>t.role!=='frame'); }
+  (P.columns||[]).forEach(c=>{ delete c.restrain; });
+  if(m==='tie'){ const back=P._tiesOff||[]; delete P._tiesOff; if(back.length) P.ties=P.ties.concat(back); else E.autoFrameTies(P); O.lateral='tie'; O.autoTies=true; }
+  else if(m==='hairpin'){ O.lateral='hairpin'; O.autoTies=false; }
+  else { O.lateral='none'; O.autoTies=false; }
+  PM.save('Frame thrust ⟂ wall → '+({soil:'soil passive (stemwall + footing)',hairpin:'hairpins into the slab',tie:'grade-beam ties'})[m]);
+  PM._sumStale=true; PM.run(); PM.renderDesign(); };
+PM.sumSet=function(path,v,label){ const ks=path.split('.'); let o=PM.P; for(let i=0;i<ks.length-1;i++){ o=o[ks[i]]=o[ks[i]]||{}; } o[ks[ks.length-1]]=v;
+  PM.save(label||('Changed '+path)); PM._sumStale=true; PM.run(); PM.renderDesign(); };
+PM.renderSummary=function(){
+  const el=$('pm-summary'); if(!el) return; el.hidden=!!PM._sumClosed; const cc=$('pm-sumcaret'); if(cc) cc.textContent=PM._sumClosed?'▸':'▾';
+  const P=PM.P, R=PM.R; if(!P||!R){ el.innerHTML='<p class="note">Open a project first.</p>'; return; }
+  const O=P.options||{}, C=P.criteria, per=P.perimeter||{}, cols=Object.values(R.cols), m=PM.thrustMethod(P);
+  const seg=(items,cur,fn)=>`<span class="pm-seg" style="margin:0">${items.map(([k,t,tip])=>`<button class="${cur===k?'on':''}" title="${esc(tip||'')}" onclick="${fn}('${k}')">${t}</button>`).join('')}</span>`;
+  const num=(path,val,w,label,step)=>`<input type="number" step="${step||'any'}" value="${val}" style="width:${w||56}px" onchange="PM.sumSet('${path}',parseFloat(this.value)||0,'${label}')">`;
+  const sel=(path,val,opts,label)=>`<select onchange="PM.sumSet('${path}',isNaN(+this.value)||this.value===''?this.value:+this.value,'${label}')">${opts.map(([v,t])=>`<option value="${v}" ${String(val)===String(v)?'selected':''}>${t}</option>`).join('')}</select>`;
+  const chk=(path,val,label)=>`<input type="checkbox" ${val?'checked':''} onchange="PM.sumSet('${path}',this.checked,'${label}')">`;
+  // ---- results
+  const bad=[]; cols.forEach(x=>{ x.d.summary.concat(x.p.items).forEach(q=>{ if(q.ratio>1.0001) bad.push({col:x.col.id,item:q.item,r:q.ratio}); }); if(x.a.gov.ratio>1.0001) bad.push({col:x.col.id,item:'Anchors',r:x.a.gov.ratio}); });
+  (R.ties||[]).forEach(t=>{ if(t.gov.ratio>1.0001) bad.push({col:t.id,item:t.gov.item,r:t.gov.ratio}); });
+  if(R.perim&&R.perim.ratio>1.0001) bad.push({col:'wall',item:'Wall footing',r:R.perim.ratio});
+  const byItem={}; bad.forEach(b=>{ const k=b.item.replace(/ \(.*$/,''); (byItem[k]=byItem[k]||[]).push(b); });
+  const worst=(xs,f)=>xs.reduce((a,x)=>{ const r=f(x); return r>a.r?{x,r}:a; },{x:null,r:0});
+  // thrust ⟂ wall at the frames
+  const fr=cols.filter(x=>x.col.kind==='frame');
+  const thr=worst(fr,x=>{ if(x.d.tie){ const t=(R.ties||[]).find(q=>q.id===x.d.tie); return t?t.gov.ratio:0; } const s=x.d.summary.filter(q=>/^Hairpin|^Sliding ⟂/.test(q.item)); return s.length?Math.max(...s.map(q=>q.ratio)):0; });
+  const lb={3:0.376,4:0.668,5:1.043,6:1.502,7:2.044,8:2.67,9:3.4,10:4.3}; let fcy=0,pcy=0,st=0;
+  cols.forEach(x=>{ const t=x.ft,p=x.pl,v=p.vert||{n:4,bar:4}; fcy+=t.B*t.L*t.T/12/27; pcy+=p.bx*p.by*(+p.h||24)/46656; st+=2*(+t.n)*(Math.max(t.B,t.L)-0.5)*(lb[t.bar]||1)+(+v.n)*2*((+p.h||24)/12+t.T/12+1)*(lb[v.bar]||0.7); });
+  let tcy=0; (R.ties||[]).forEach(t=>{ tcy+=(+t.t.b||12)*(+t.t.h||12)/144*t.L/27; st+=t.n*t.L*(lb[t.bar]||1); });
+  const segs=E.perimSegments(P), wcy=segs.reduce((a,g)=>a+g.fw*g.fh*g.L,0)/27, lugs=(P.columns||[]).filter(c=>c.lug).length, hps=cols.filter(x=>x.d.restrainPerp&&!x.d.tie).length;
+  const G=R.global&&R.global.gov||{};
+  // footing / plinth tables
+  const T=(P.types||[]).filter(t=>R.types[t.mark]).map(t=>{ const g=R.types[t.mark].gov; return `<tr><td class="c"><b>${esc(t.mark)}</b></td><td class="l">${E.frac(t.B*12)} × ${E.frac(t.L*12)} × ${t.T}"</td><td class="l">(${t.n}) #${t.bar} e.w.</td><td class="c">${R.types[t.mark].cols.length}</td><td class="l" title="${esc(g.combo||'')}">${esc((g.item||'').replace(/ \(.*$/,''))}</td><td>${chip(g.ratio)}</td></tr>`; }).join('');
+  const PL=(P.plinths||[]).map(p=>{ const xs=cols.filter(x=>x.pl.mark===p.mark); if(!xs.length) return ''; const w=Math.max(...xs.map(x=>Math.max(x.a.gov.ratio,...x.p.items.map(q=>q.ratio)))); const v=p.vert||{};
+    return `<tr><td class="c"><b>${esc(p.mark)}</b></td><td class="l">${p.bx}" × ${p.by}"</td><td class="l">(${v.n}) #${v.bar} U</td><td class="c">${xs.length}</td><td>${chip(w)}</td></tr>`; }).join('');
+  const tm={soil:'Soil passive',hairpin:'Hairpins',tie:'Grade beams'}[m];
+  el.innerHTML=`<div class="pm-glance">
+    <div class="pm-gl-status ${bad.length?'bad':'ok'}">${bad.length?`<b>${bad.length} check${bad.length>1?'s':''} over 1.00</b> — ${Object.entries(byItem).slice(0,5).map(([k,v])=>esc(k)+' ('+v.length+')').join(' · ')} <a href="#" onclick="PM.openIssues();return false;">see Issues</a>`:'<b>Every check passes</b>'}
+      ${PM._sumStale?` <span class="note" style="margin:0 0 0 8px">a project-wide choice changed — </span><button class="pm-btn small primary" onclick="PM._sumStale=false;PM.autoDesign(false)">Design it for me</button>`:''}</div>
+    <div class="pm-gl-grid">
+      <div class="pm-gl-card"><h4>Frame thrust ⟂ wall</h4>
+        ${seg([['soil','Soil passive','Stemwall + wall footing bear on the soil; horizontal bars run through the plinth. No hairpins, no grade beams.'],['hairpin','Hairpins','Hairpins at every column deliver the thrust into the slab.'],['tie','Grade beams','Concrete tie across the building between the frame columns.']],m,'PM.setThrust')}
+        ${m==='soil'?`<div class="pm-gl-row">stemwall engaged ≤ ${num('options.stemPassiveLen',+O.stemPassiveLen||20,52,'Stemwall passive length')} ft · horiz. bars ${sel('perimeter.stemHoriz.n',(per.stemHoriz||{}).n||2,[[2,'(2)'],[3,'(3)'],[4,'(4)']],'Stemwall horizontal bars')} ${sel('perimeter.stemHoriz.bar',(per.stemHoriz||{}).bar||4,[[4,'#4'],[5,'#5'],[6,'#6']],'Stemwall horizontal bar size')} through the plinth</div>
+          <div class="note">Engaged wall at ${fr[0]?esc(fr[0].col.id):'—'}: ${fr[0]&&fr[0].d.eng?E.frac(fr[0].d.eng.L*12)+' ('+(fr[0].d.eng.limitedBy==='flexure'?'limited by the bars in plan bending':'tributary')+')':'—'}</div>`:''}
+        ${m==='hairpin'?`<div class="pm-gl-row">${sel('options.hairpinN',O.hairpinN||1,[[1,'(1)'],[2,'(2)']],'Hairpins per column')} ${sel('options.hairpinBar',O.hairpinBar||5,[[4,'#4'],[5,'#5'],[6,'#6'],[7,'#7']],'Hairpin bar')} hairpin, legs ${num('options.hairpinLeg',O.hairpinLeg||7,44,'Hairpin leg')} ft</div>`:''}
+        ${m==='tie'?`<div class="pm-gl-row">${(R.ties||[]).filter(t=>t.role==='frame').map(t=>esc(t.id)+' ('+t.n+') #'+t.bar).join(', ')} · <a href="#" onclick="PM.setSide('beams');return false;">edit in Grade beams</a></div>`:''}
+        <div class="pm-gl-res">worst at the frames ${chip(thr.r)} ${thr.x?esc(thr.x.col.id):''}</div></div>
+      <div class="pm-gl-card"><h4>Sliding along the walls</h4>
+        ${seg([['global','Building-wide','All pads + all wall footings together (typical PEMB check).'],['column','Each footing','Each pad / wall line on its own.']],O.slideMethod||'global',"(v=>PM.sumSet('options.slideMethod',v,'Along-wall sliding method'))")}
+        <div class="pm-gl-row"><label>${chk('options.globalSlab',!!O.globalSlab,'Slab friction in the building-wide check')} count slab friction</label> <label>${chk('options.returnPassive',!!O.returnPassive,'Return-wall passive')} return-wall passive</label></div>
+        <div class="pm-gl-res">building-wide X ${chip(G.x?G.x.ratio:null)} Y ${chip(G.y?G.y.ratio:null)}</div></div>
+      <div class="pm-gl-card"><h4>Soil &amp; concrete</h4>
+        <div class="pm-gl-row">bearing ${num('criteria.qa',+C.qa,54,'Allowable bearing','0.1')} ksf · passive ${num('criteria.passive',+C.passive,54,'Passive pressure','0.01')} kcf/ft · μ ${num('criteria.mu',+C.mu,46,'Friction','0.01')} · class ${sel('criteria.soilClass',C.soilClass||'',[['','—'],['3','3'],['4','4'],['5','5']],'Soil class')}</div>
+        <div class="pm-gl-row">f'c for design ${num('criteria.fc',+C.fc,48,"f'c",'0.5')} ksi · anchors Ω<sub>0</sub> ${chk('options.omegaAnchors',O.omegaAnchors!==false,'Anchors Omega0')}</div></div>
+      <div class="pm-gl-card"><h4>Base shear &amp; uplift</h4>
+        <div class="pm-gl-row">${seg([['lug','Shear lugs where needed','The lug takes the base shear where the rods cannot (pryout).'],['fric','Base-plate friction','AISC DG1 friction on the grout in compression cases (EOR judgment).']],O.bpFriction?'fric':'lug',"(v=>PM.sumSet('options.bpFriction',v==='fric','Base shear method'))")}</div>
+        <div class="pm-gl-row">uplift extras: slab ${num('options.slabWtUplift',+O.slabWtUplift||0,50,'Slab weight for uplift')} sf · grade beam ${num('options.gbUpliftLen',+O.gbUpliftLen||0,44,'Grade beam weight for uplift')} ft <span class="note" style="margin:0">(0 = off)</span></div>
+        <div class="pm-gl-res">${lugs} lug${lugs===1?'':'s'} · ${hps} hairpin${hps===1?'':'s'}</div></div>
+    </div>
+    <div class="pm-gl-grid pm-gl-2">
+      <div class="pm-gl-card"><h4>Footings <span class="note" style="margin:0">${(P.types||[]).filter(t=>R.types[t.mark]).length} types</span></h4><table class="pm-tbl"><tr><th>Mark</th><th class="l">Size</th><th class="l">Bars</th><th>Qty</th><th class="l">Governs</th><th></th></tr>${T}</table></div>
+      <div class="pm-gl-card"><h4>Plinths <span class="note" style="margin:0">${(P.plinths||[]).filter(p=>cols.some(x=>x.pl.mark===p.mark)).length} types</span></h4><table class="pm-tbl"><tr><th>Mark</th><th class="l">Size</th><th class="l">Verticals</th><th>Qty</th><th></th></tr>${PL}</table>
+        <h4 style="margin-top:8px">Quantities</h4><div class="pm-gl-q"><span><b>${fcy.toFixed(1)}</b> CY footings</span><span><b>${pcy.toFixed(1)}</b> CY plinths</span><span><b>${wcy.toFixed(1)}</b> CY wall footing</span>${tcy?`<span><b>${tcy.toFixed(1)}</b> CY grade beams</span>`:''}<span><b>${Math.round(st).toLocaleString()}</b> lb rebar (pads, plinths${tcy?', ties':''})</span></div></div>
+    </div></div>`;
 };
 document.addEventListener('click',e=>{ if(e.target.closest && e.target.closest('[data-panel="pemb"]')) setTimeout(()=>{ PM.init(); if(PM.step==='design') PM.drawPlan(); },20); });
 if(document.readyState!=='loading') setTimeout(()=>{ if(document.getElementById('pemb') && document.getElementById('pemb').classList.contains('active')) PM.init(); },50);
