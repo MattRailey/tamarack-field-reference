@@ -3587,7 +3587,7 @@
         <!-- 3 DESIGN -->
         <div class="pm-step" data-step="design" hidden>
           <div class="pm-ws">
-            <section class="pm-area pm-area-plan"><div class="pm-area-h"><span class="pm-area-n">A</span><h3>Foundation</h3><div class="pm-viewseg" id="pm-viewseg"><button data-view="plan" class="on">Plan</button><button data-view="3d">3D</button></div><span class="pm-area-sub" id="pm-viewhint">scroll to zoom &middot; drag to pan &middot; click a footing &middot; shift-click or shift-drag to pick several</span></div>
+            <section class="pm-area pm-area-plan"><div class="pm-area-h"><span class="pm-area-n">A</span><h3>Foundation</h3><div class="pm-viewseg" id="pm-viewseg"><button data-view="plan" class="on">Plan</button><button data-view="3d">3D</button></div><span class="pm-area-sub" id="pm-viewhint">scroll to zoom &middot; drag to pan &middot; click a footing &middot; shift-click or shift-drag to pick several</span><button class="pm-btn small primary" id="pm-autodesign" style="margin-left:auto" title="Size footings, plinths, anchors embedment, grade beams and the wall footing so every check passes where there is a clear fix. Ctrl+Z undoes it.">Design it for me</button></div>
               <div class="pm-ptools" id="pm-ptools"></div>
               <div id="pm-plan" class="pm-planwrap"></div>
               <div id="pm-3d" class="pm-planwrap pm-3dwrap" hidden></div>
@@ -16594,6 +16594,32 @@ with revit.Transaction('Place PEMB foundations'):
         if wtype is None:
             warnings.append('Wall type "{}" not found - stemwall skipped.'.format(wl.get('type')))
         else:
+            ftg_cache = {}
+
+            def seg_ftg_type(sg):
+                # per-segment wall footing size (runs / zones sized individually in the browser)
+                nm = sg.get('foundationType') or wl.get('foundationType')
+                if ftype is None or not nm or nm == wl.get('foundationType'):
+                    return ftype
+                if nm in ftg_cache:
+                    return ftg_cache[nm]
+                t = None
+                for ft2 in DB.FilteredElementCollector(doc).OfClass(DB.WallFoundationType):
+                    if DB.Element.Name.GetValue(ft2) == nm:
+                        t = ft2
+                        break
+                if t is None:
+                    try:
+                        t = ftype.Duplicate(nm)
+                        set_param(t, [DB.BuiltInParameter.STRUCTURAL_FOUNDATION_WIDTH, 'Width'], float(sg.get('ftgW') or per_.get('ftgW') or 16.0 / 12))
+                        set_param(t, [DB.BuiltInParameter.STRUCTURAL_FOUNDATION_THICKNESS, 'Foundation Thickness'], float(sg.get('ftgT') or per_.get('ftgT') or 8.0 / 12))
+                        TYPE_WARN.append('Created wall footing type "{}".'.format(nm))
+                    except Exception as ex:
+                        warnings.append('Could not create wall footing type "{}": {} - used the typical one.'.format(nm, ex))
+                        t = ftype
+                ftg_cache[nm] = t
+                return t
+
             segs = wl.get('segments')
             if not segs:
                 pts = wl['centerline']
@@ -16606,9 +16632,10 @@ with revit.Transaction('Place PEMB foundations'):
                 w = DB.Wall.Create(doc, ln, wtype.Id, level.Id, float(wl.get('top', 2.0)) + wdrop, -wdrop, False, True)
                 set_param(w, [DB.BuiltInParameter.ALL_MODEL_INSTANCE_COMMENTS], TAG + ':WALL')
                 counts['walls'] += 1
-                if ftype is not None:
+                sft = seg_ftg_type(sg)
+                if sft is not None:
                     try:
-                        wf = DB.WallFoundation.Create(doc, ftype.Id, w.Id)
+                        wf = DB.WallFoundation.Create(doc, sft.Id, w.Id)
                         set_param(wf, [DB.BuiltInParameter.ALL_MODEL_INSTANCE_COMMENTS], TAG + ':WALLFTG')
                     except Exception as ex:
                         warnings.append('Wall footing not created: {}'.format(ex))
@@ -17461,7 +17488,7 @@ E.autoSize = function(P, mark){
   const cols=(P.columns||[]).filter(c=>E.groupOf(P,c)===ft);
   // 'Sliding ∥ wall' is carried by the stemwall / a strut, so a bigger pad is not the fix - it stays a flag
   let crit=['Soil bearing','Uplift','Overturning X','Overturning Y','Sliding ⟂ wall','Sliding X','Sliding Y'];
-  const tryAll=(critList)=>{ for(let B=2.0; B<=12; B+=0.5){
+  const tryAll=(critList)=>{ for(let B=Math.max(2.0,+ft.Bmin||0); B<=12; B+=0.5){
     let t=Object.assign({},ft,{B,L:B});
     const pass=tt=>cols.every(c=>{ const cc=tt.centred?Object.assign({},c,{ftgProj:null}):c; const d=E.designColumn(P,cc,tt,E.plinthFor(P,c)); return d.summary.filter(s=>crit.includes(s.item)).every(s=>s.ratio<=1.0001); });
     let ok=pass(t);
@@ -17469,7 +17496,7 @@ E.autoSize = function(P, mark){
     if(!ok && (ft.projOut!=null || cols.some(c=>c.ftgProj))){ const t2=Object.assign({},t,{projOut:null,centred:true}); if(pass(t2)){ t=t2; ok=true; } }
     if(ok){
       // bars
-      for(const bar of [ft.bar||5]){
+      for(const bar of [...new Set([+ft.bar||5,5,4,6])]){
         for(let n=3;n<=20;n++){
           const t2=Object.assign({},t,{bar,n});
           const ok2=cols.every(c=>{ const cc=t2.centred?Object.assign({},c,{ftgProj:null}):c; const d=E.designColumn(P,cc,t2,E.plinthFor(P,c)); return d.summary.filter(s=>/Flexure|Min\. steel|Bar spacing|shear|punching/.test(s.item)).every(s=>s.ratio<=1.0001); });
@@ -17485,6 +17512,60 @@ E.autoSize = function(P, mark){
   crit=crit.filter(c=>!/^Sliding/.test(c));
   const r2=tryAll(crit); if(r2) r2.note='Sized for bearing, uplift and overturning; sliding is not met by the pad alone - provide a strut, grade beam or hairpin (see flags).';
   return r2;
+};
+
+// ---------------------------------------------------------------- one-click design
+// Sizes everything that has a clear fix and reports the rest. Mutates P.
+//   along-wall sliding the pad can't carry -> wall-parallel load into the slab / stemwall (col.parPath='slab')
+//   footing types -> E.autoSize · plinths -> geometry minimum, then grow for anchor breakout / pryout,
+//   add verticals for dowel area / tension, deepen the footing for hook development
+//   grade beams -> E.autoTie · wall footing -> widen until bearing passes
+E.autoDesign = function(P, o){
+  o=o||{}; const log=[], MAXPL=48, MAXT=36;
+  const ok=r=>r<=1.0001, note=m=>{ if(!log.includes(m)) log.push(m); };
+  const plUsers=(R,m)=>Object.values(R.cols).filter(x=>x.pl.mark===m);
+  for(let pass=0; pass<8; pass++){
+    let changed=false, R=E.run(P);
+    // 1. along-wall sliding the pad cannot carry
+    if(o.alongWall!=='flag') Object.values(R.cols).forEach(x=>{ const c=(P.columns||[]).find(q=>q.id===x.col.id); if(!c||c.parPath==='slab'||!E.perpAxis(c)) return;
+      const s=x.d.summary.find(q=>q.item==='Sliding ∥ wall'); if(s&&!ok(s.ratio)){ c.parPath='slab'; changed=true; note('Load along the wall → slab / stemwall at '+c.id); } });
+    // 2. footing types
+    (P.types||[]).forEach(T=>{ if(!(P.columns||[]).some(c=>E.groupOf(P,c)===T)) return; const t=E.autoSize(P,T.mark); if(!t) return;
+      if(t.B!==T.B||t.L!==T.L||t.bar!==T.bar||t.n!==T.n){ Object.assign(T,{B:t.B,L:t.L,bar:t.bar,n:t.n}); changed=true; note('Footing '+T.mark+' sized to '+t.B+' ft sq, ('+t.n+') #'+t.bar); }
+      if(t.centred&&T.projOut!=null){ delete T.projOut; (P.columns||[]).forEach(c=>{ if(E.groupOf(P,c)===T) delete c.ftgProj; }); changed=true; } });
+    R=E.run(P);
+    // footing bars that cannot develop in the pad: widen the type (more length past the plinth face)
+    (P.types||[]).forEach(T=>{ const us=Object.values(R.cols).filter(x=>x.ft===T); if(us.some(x=>x.d.summary.some(q=>/development/i.test(q.item)&&!ok(q.ratio))) && T.B<12){ T.B+=0.5; T.L=Math.max(+T.L||T.B,T.B); T.Bmin=T.B; changed=true; note('Footing '+T.mark+' widened to '+T.B+' ft so its bars develop'); } });
+    R=E.run(P);
+    // 3. plinths - each rule solved directly for every column that uses the plinth
+    (P.plinths||[]).forEach(pl=>{ const us=(P.columns||[]).filter(c=>E.plinthFor(P,c)===pl); if(!us.length) return;
+      const ev=()=>us.map(c=>{ const ft=E.groupOf(P,c), Pd=E.dropP(P,c), pd=E.dropPl(pl,c), an=E.designAnchors(Pd,c,pd,ft); return {c,ft,an,pp:E.designPlinth(Pd,c,pd,ft,an)}; });
+      const bad=(r,k)=>r.some(q=>q.pp.items.some(i=>i.item.startsWith(k)&&!ok(i.ratio)));
+      const req=us.map(c=>E.plinthRequired(P,c)); const bx0=Math.max(pl.bx,...req.map(r=>r.bx)), by0=Math.max(pl.by,...req.map(r=>r.by));
+      if(bx0!==pl.bx||by0!==pl.by){ pl.bx=bx0; pl.by=by0; changed=true; note('Plinth '+pl.mark+' ≥ bolt edge distance: '+bx0+'" × '+by0+'"'); }
+      let r=ev(); const ancBad=()=>r.some(q=>!ok(q.an.gov.ratio));
+      if(ancBad()){ const b0=pl.bx, l0=pl.by, h0=pl.hef; while(ancBad() && Math.max(pl.bx,pl.by)<MAXPL){ pl.bx+=2; pl.by+=2; r=ev(); }
+        while(ancBad() && (+pl.hef||12)<(+pl.h||24)-3){ pl.hef=(+pl.hef||12)+2; r=ev(); }
+        if(ancBad()){ pl.bx=b0; pl.by=l0; pl.hef=h0; r=ev(); }   // cannot be fixed by the plinth alone (anchor steel / bolt layout) - leave it for the EOR
+        else if(pl.bx!==b0||pl.hef!==h0){ changed=true; note('Plinth '+pl.mark+' '+pl.bx+'" × '+pl.by+'"'+(pl.hef!==h0?', anchor embedment '+pl.hef+'"':'')+' for anchor breakout / pryout'); } }
+      const v=pl.vert=pl.vert||{n:4,bar:4,shape:'U'};
+      if(bad(r,'Dowels')||bad(r,'Pedestal tension')){ const n0=v.n, b0=v.bar; let done=false;
+        for(const bar of [4,5,6,7,8].filter(q=>q>=(+b0||4))){ for(let n=Math.max(4,+n0||4); n<=12; n++){ v.bar=bar; v.n=n; r=ev(); if(!bad(r,'Dowels')&&!bad(r,'Pedestal tension')){ done=true; break; } } if(done) break; }
+        if(!done){ v.n=n0; v.bar=b0; r=ev(); } else { changed=true; note('Plinth '+pl.mark+' verticals ('+v.n+') #'+v.bar+(v.shape==='U'?' U-bars':'')); } }
+      if(bad(r,'Hook')){ const Ts=[...new Set(us.map(c=>E.groupOf(P,c)))]; let g=0; while(bad(r,'Hook') && g++<12){ Ts.forEach(T=>{ if((+T.T||12)<MAXT) T.T=(+T.T||12)+2; }); r=ev(); }
+        changed=true; note('Footing '+Ts.map(T=>T.mark+' '+T.T+'"').join(', ')+' deep for the plinth dowel hooks'); } });
+    // 4. grade beams
+    (P.ties||[]).forEach(t=>{ const r=E.autoTie(P,t.id); if(r&&(r.n!==t.n||r.bar!==t.bar||r.transferN!==t.transferN)){ Object.assign(t,r); changed=true; note('Grade beam '+t.id+' ('+r.n+') #'+r.bar); } });
+    // 5. perimeter wall footing
+    const pm=E.designPerimeter(P), per=P.perimeter=P.perimeter||{};
+    if(!ok(pm.ratio) && (+per.ftgW||16)<48){ per.ftgW=(+per.ftgW||16)+2; changed=true; note('Wall footing widened to '+per.ftgW+'"'); }
+    if(!changed) break;
+  }
+  const R=E.run(P), left=[];
+  Object.values(R.cols).forEach(x=>{ x.d.summary.concat([{item:'Anchors',ratio:x.a.gov.ratio}],x.p.items).filter(s=>!ok(s.ratio)).forEach(s=>left.push(x.col.id+': '+s.item+' '+s.ratio.toFixed(2))); });
+  (R.ties||[]).forEach(t=>{ if(!ok(t.gov.ratio)) left.push(t.id+': '+t.gov.item+' '+t.gov.ratio.toFixed(2)); });
+  if(R.perim&&!ok(R.perim.ratio)) left.push('Wall footing bearing '+R.perim.ratio.toFixed(2));
+  return {log,left};
 };
 
 // ---------------------------------------------------------------- transcription cross-check
@@ -17581,28 +17662,37 @@ E.flags = function(P, R){
 };
 
 // ---------------------------------------------------------------- perimeter strip footing
-// wall segments: every outline edge, split where a drop zone (per.drops = [{edge, a, b, drop}], a/b ft along the edge) applies
+// wall segments: every outline edge, split where a drop zone (per.drops = [{edge, a, b, drop, ftgW?, ftgT?}], a/b ft along the edge) applies.
+// Per-wall-run overrides: per.edges[i] = {stemH, ftgW, ftgT} (inches). A zone's own ftgW/ftgT win over its run's.
+// Each segment carries its own sizes: sh0 (stem height before any drop, ft), fw, fh (ft), dH = extra stem height vs typical (ft).
+E.perimProps = function(P,edge,zone){ const per=P.perimeter||{}, e=((per.edges||{})[edge])||{}, z=zone||{};
+  const pick=k=>{ const v=z[k]!=null&&z[k]!==''?z[k]:(e[k]!=null&&e[k]!==''?e[k]:per[k]); return +v; };
+  const sh0g=(+per.stemH||20)/12, sh0=(pick('stemH')||+per.stemH||20)/12;
+  return {sw:(+per.stemW||8)/12, sh0, dH:sh0-sh0g, fw:(pick('ftgW')||16)/12, fh:(pick('ftgT')||8)/12,
+    custom:['stemH','ftgW','ftgT'].some(k=>(e[k]!=null&&e[k]!=='')||(z[k]!=null&&z[k]!==''))}; };
 E.perimSegments = function(P){
   const o=E.outline(P), drops=((P.perimeter||{}).drops)||[], out=[];
   o.forEach((p0,i)=>{ const p1=o[(i+1)%o.length], L=Math.hypot(p1[0]-p0[0],p1[1]-p0[1]); if(L<1e-6) return;
     const ux=(p1[0]-p0[0])/L, uy=(p1[1]-p0[1])/L, at=t=>[p0[0]+ux*t,p0[1]+uy*t];
-    const zs=drops.filter(z=>+z.edge===i && +z.drop>0).map(z=>({a:Math.max(0,Math.min(L,+z.a||0)),b:Math.max(0,Math.min(L,z.b==null||z.b===''?L:+z.b)),drop:+z.drop})).filter(z=>z.b>z.a+1e-6).sort((x,y)=>x.a-y.a);
+    const zs=drops.map((z,zi)=>({z,zi})).filter(q=>+q.z.edge===i && (+q.z.drop>0 || q.z.ftgW || q.z.ftgT)).map(q=>({zi:q.zi,z:q.z,a:Math.max(0,Math.min(L,+q.z.a||0)),b:Math.max(0,Math.min(L,q.z.b==null||q.z.b===''?L:+q.z.b)),drop:+q.z.drop||0})).filter(z=>z.b>z.a+1e-6).sort((x,y)=>x.a-y.a);
     const cuts=[0,L]; zs.forEach(z=>cuts.push(z.a,z.b)); const u=[...new Set(cuts.map(v=>+v.toFixed(5)))].sort((x,y)=>x-y);
-    for(let k=0;k<u.length-1;k++){ const t0=u[k], t1=u[k+1]; if(t1-t0<1e-4) continue; const mid=(t0+t1)/2; const z=zs.filter(q=>mid>=q.a&&mid<=q.b).reduce((m,q)=>Math.max(m,q.drop),0);
-      out.push({edge:i,t0,t1,p0:at(t0),p1:at(t1),L:t1-t0,drop:z,edgeL:L}); } });
+    for(let k=0;k<u.length-1;k++){ const t0=u[k], t1=u[k+1]; if(t1-t0<1e-4) continue; const mid=(t0+t1)/2; const inz=zs.filter(q=>mid>=q.a&&mid<=q.b);
+      const zz=inz.reduce((m,q)=>(!m||q.drop>m.drop)?q:m,null);
+      out.push(Object.assign({edge:i,t0,t1,p0:at(t0),p1:at(t1),L:t1-t0,drop:zz?zz.drop:0,edgeL:L,zone:zz?zz.zi:null},E.perimProps(P,i,zz&&zz.z))); } });
   return out; };
 E.designPerimeter = function(P){
   const C=P.criteria, per=P.perimeter||{};
-  const sw=(+per.stemW||8)/12, sh0=(+per.stemH||20)/12, fw=(+per.ftgW||16)/12, fh=(+per.ftgT||8)/12;
+  const sw=(+per.stemW||8)/12, sh00=(+per.stemH||20)/12, fw=(+per.ftgW||16)/12, fh=(+per.ftgT||8)/12;
   const kw=per.kneeWall||null;
   const wKnee = kw ? (+kw.wTop||0)*0 + (+kw.h||0)/12*(+kw.w||8)/12*(+C.gammaConc) : 0;   // knee wall self weight on the stem (its wind is lateral)
   const wWall=(+per.wallDL||0.002)*(+per.eave||P.pemb.eave||20) + wKnee;
   const wSlab=((+C.slab||6)/12*(+C.gammaConc)+(+per.slabLL||0.125))*(+per.slabTrib||1.0);
-  const one=drop=>{ const sh=sh0+drop, Db=(+C.Dbase)+drop;
-    const wStem=sw*sh*(+C.gammaConc), wFtg=fw*fh*(+C.gammaConc), wSoil=Math.max(0,fw-sw)*Math.max(0,Db-fh)*(+C.gammaSoil)*0.5;
-    const w=wWall+wStem+wFtg+wSoil+wSlab, q=w/fw; return {drop,sh,Db,wStem,wFtg,wSoil,w,q,ratio:q/(+C.qa)}; };
+  const one=(drop,g)=>{ g=g||{sw,sh0,fw,fh,dH:0}; const sh=g.sh0+drop, Db=(+C.Dbase)+drop+(g.dH||0);
+    const wStem=g.sw*sh*(+C.gammaConc), wFtg=g.fw*g.fh*(+C.gammaConc), wSoil=Math.max(0,g.fw-g.sw)*Math.max(0,Db-g.fh)*(+C.gammaSoil)*0.5;
+    const w=wWall+wStem+wFtg+wSoil+wSlab, q=w/g.fw; return {drop,sh,Db,wStem,wFtg,wSoil,w,q,ratio:q/(+C.qa)}; };
+  const sh0=sh00;
   const base=one(0);
-  const segs=E.perimSegments(P).map(g=>Object.assign({},g,one(g.drop)));
+  const segs=E.perimSegments(P).map(g=>Object.assign({},g,one(g.drop,g)));
   const worst=segs.reduce((m,g)=>g.ratio>m.ratio?g:m,base);
   const As=2*E.REBAR[4].A, AsMin=0.0018*fw*12*(fh*12);
   return Object.assign({sw,fw,fh,wWall,wKnee,wSlab,qa:+C.qa,As,AsMin,segs,worst,totalL:segs.reduce((a,g)=>a+g.L,0)},base,{ratio:Math.max(base.ratio,worst.ratio)});
@@ -17761,15 +17851,30 @@ D.plan = function(P, R, o){
     const sw=(+per.stemW||8)/12, fw=(+per.ftgW||16)/12, fo=(fw-sw)/2;
     const poly=E().outline(P), off=d=>E().offsetPoly(poly,d);
     const pth=pts=>'M'+pts.map(p=>X(p[0])+' '+Y(p[1])).join(' L')+' Z';
-    g.push(`<path d="${pth(off(-fo))}" fill="none" stroke="#6b7385" stroke-width="${thin}" stroke-dasharray="${s*0.6} ${s*0.35}"/>`);
-    g.push(`<path d="${pth(off(sw+fo))}" fill="none" stroke="#6b7385" stroke-width="${thin}" stroke-dasharray="${s*0.6} ${s*0.35}"/>`);
-    g.push(`<path d="${pth(poly)} ${pth(off(sw).slice().reverse())}" fill="url(#${o.id}-hatch)" fill-rule="evenodd" stroke="${ink}" stroke-width="${med}"/>`);    // lowered (stepped) wall zones
-    (E().perimSegments?E().perimSegments(P):[]).filter(q=>q.drop>0).forEach(q=>{ const dx=q.p1[0]-q.p0[0], dy=q.p1[1]-q.p0[1], L=Math.hypot(dx,dy)||1, nx=-dy/L, ny=dx/L;
-      const poly0=E().outline(P); let A=0; poly0.forEach((p,i)=>{ const r=poly0[(i+1)%poly0.length]; A+=p[0]*r[1]-r[0]*p[1]; }); const k=A>0?1:-1;   // inward normal
-      const m=sw/2*k, a=[q.p0[0]+nx*m,q.p0[1]+ny*m], b=[q.p1[0]+nx*m,q.p1[1]+ny*m];
-      g.push(`<line pointer-events="none" x1="${X(a[0])}" y1="${Y(a[1])}" x2="${X(b[0])}" y2="${Y(b[1])}" stroke="#d9822b" stroke-width="${o.print?Math.max(3,sw*s):4}" stroke-opacity=".75"/>`);
-      const mx=(a[0]+b[0])/2+nx*k*2.2, my=(a[1]+b[1])/2+ny*k*2.2;
-      g.push(`<text pointer-events="none" x="${X(mx)}" y="${Y(my)}" font-size="${fs*0.72}" text-anchor="middle" fill="#a85a12" font-weight="700">WALL + FTG DN ${E().frac(q.drop*12)}</text>`); });
+    const SEG=E().perimSegments?E().perimSegments(P):[];
+    let A=0; poly.forEach((p,i)=>{ const r=poly[(i+1)%poly.length]; A+=p[0]*r[1]-r[0]*p[1]; }); const kIn=A>0?1:-1;   // inward normal sign
+    const nrm=q=>{ const dx=q.p1[0]-q.p0[0], dy=q.p1[1]-q.p0[1], L=Math.hypot(dx,dy)||1; return {ux:dx/L,uy:dy/L,nx:-dy/L*kIn,ny:dx/L*kIn}; };
+    const ln=(a,b,attrs)=>`<line x1="${X(a[0])}" y1="${Y(a[1])}" x2="${X(b[0])}" y2="${Y(b[1])}" ${attrs}/>`;
+    const dash=`fill="none" stroke="#6b7385" stroke-width="${thin}" stroke-dasharray="${s*0.6} ${s*0.35}"`;
+    if(!SEG.some(q=>Math.abs(q.fw-fw)>1e-6)){
+      g.push(`<path d="${pth(off(-fo))}" ${dash}/>`);
+      g.push(`<path d="${pth(off(sw+fo))}" ${dash}/>`);
+    } else SEG.forEach(q=>{ const n=nrm(q), f=(q.fw-sw)/2, s0=q.t0<1e-6, s1=Math.abs(q.t1-q.edgeL)<1e-6;
+      const P0=(d,ext0,ext1)=>[[q.p0[0]+n.nx*d-n.ux*ext0,q.p0[1]+n.ny*d-n.uy*ext0],[q.p1[0]+n.nx*d+n.ux*ext1,q.p1[1]+n.ny*d+n.uy*ext1]];
+      const o1=P0(-f,s0?f:0,s1?f:0), i1=P0(sw+f,s0?-(sw+f):0,s1?-(sw+f):0);
+      g.push(ln(o1[0],o1[1],dash)); g.push(ln(i1[0],i1[1],dash)); });
+    g.push(`<path d="${pth(poly)} ${pth(off(sw).slice().reverse())}" fill="url(#${o.id}-hatch)" fill-rule="evenodd" stroke="${ink}" stroke-width="${med}"/>`);
+    // lowered (stepped) wall zones + non-typical runs
+    SEG.forEach((q,qi)=>{ const n=nrm(q), m=sw/2, a=[q.p0[0]+n.nx*m,q.p0[1]+n.ny*m], b=[q.p1[0]+n.nx*m,q.p1[1]+n.ny*m];
+      const key=q.edge+'|'+(+q.t0.toFixed(3)), on=o.selWall===key;
+      if(on) g.push(ln(a,b,`pointer-events="none" stroke="#2f7cf6" stroke-width="${Math.max(8,q.fw*s+6)}" stroke-opacity=".28" stroke-linecap="round"`));
+      if(q.drop>0) g.push(ln(a,b,`pointer-events="none" stroke="#d9822b" stroke-width="${o.print?Math.max(3,sw*s):4}" stroke-opacity=".75"`));
+      const lab=[]; if(q.drop>0) lab.push('WALL + FTG DN '+E().frac(q.drop*12));
+      if(q.custom){ if(Math.abs(q.dH)>1e-6) lab.push('STEM '+E().frac((q.sh0)*12)); if(Math.abs(q.fw-fw)>1e-6||Math.abs(q.fh-(+per.ftgT||8)/12)>1e-6) lab.push('FTG '+E().frac(q.fw*12)+' x '+E().frac(q.fh*12)); }
+      if(lab.length && q.L>3){ const mx=(a[0]+b[0])/2+n.nx*2.2, my=(a[1]+b[1])/2+n.ny*2.2;
+        g.push(`<text pointer-events="none" x="${X(mx)}" y="${Y(my)}" font-size="${fs*0.72}" text-anchor="middle" fill="${q.drop>0?'#a85a12':'#4b5563'}" font-weight="700">${lab.join(' · ')}</text>`); }
+      if(!o.print){ const tip=`Wall ${q.drop>0?'(lowered '+E().frac(q.drop*12)+') ':''}· stem ${E().frac((q.sh0+q.drop)*12)} · footing ${E().frac(q.fw*12)} x ${E().frac(q.fh*12)} · ${E().frac(q.L*12)} long — click to edit`;
+        g.push(`<line class="pm-wallhit" data-wall="${key}" x1="${X(a[0])}" y1="${Y(a[1])}" x2="${X(b[0])}" y2="${Y(b[1])}" stroke="transparent" stroke-width="${Math.max(10,q.fw*s)}"><title>${tip}</title></line>`); } });
   }
   const cols=P.columns||[];
   const res=(R&&R.cols)||{};
@@ -18008,14 +18113,14 @@ V.build=function(P,R,o){
   });
   // stemwall + wall footing, segment by segment (lowered zones step down)
   if(L.walls){
-    const sw=(+per.stemW||8)/12, sh=(+per.stemH||20)/12, fw=(+per.ftgW||16)/12, fh=(+per.ftgT||8)/12;
+    const sw=(+per.stemW||8)/12;
     const poly=E().outline(P); let A=0; poly.forEach((p,i)=>{ const q=poly[(i+1)%poly.length]; A+=p[0]*q[1]-q[0]*p[1]; }); const k=A>0?1:-1;
     E().perimSegments(P).forEach(g=>{ const dx=g.p1[0]-g.p0[0], dy=g.p1[1]-g.p0[1], Lg=Math.hypot(dx,dy)||1, ux=dx/Lg, uy=dy/Lg, nx=-uy*k, ny=ux*k;
       const ext=sw/2;   // run the stem past the corner by half its thickness so corners close
       const c0=[g.p0[0]+nx*sw/2-(g.t0===0?ux*ext:0), g.p0[1]+ny*sw/2-(g.t0===0?uy*ext:0)], c1=[g.p1[0]+nx*sw/2+(Math.abs(g.t1-g.edgeL)<1e-6?ux*ext:0), g.p1[1]+ny*sw/2+(Math.abs(g.t1-g.edgeL)<1e-6?uy*ext:0)];
-      const zb=-sh-g.drop; add(beamBox(c0,c1,sw,zb,0),'#c4c9d1','wall',{kind:'wall',drop:g.drop});
+      const fw=g.fw, fh=g.fh, key=g.edge+'|'+(+g.t0.toFixed(3)), sel=o.selWall===key; const zb=-g.sh0-g.drop; add(beamBox(c0,c1,sw,zb,0),sel?'#9cc0f5':'#c4c9d1','wall:'+key,{kind:'wall',drop:g.drop,seg:g});
       const e2=fw/2; const d0=[c0[0]-(g.t0===0?ux*(e2-ext):0), c0[1]-(g.t0===0?uy*(e2-ext):0)], d1=[c1[0]+(Math.abs(g.t1-g.edgeL)<1e-6?ux*(e2-ext):0), c1[1]+(Math.abs(g.t1-g.edgeL)<1e-6?uy*(e2-ext):0)];
-      add(beamBox(d0,d1,fw,zb-fh,zb),g.drop?'#f0b27a':'#b3b9c2','wallftg',{kind:'wallftg',drop:g.drop}); });
+      add(beamBox(d0,d1,fw,zb-fh,zb),sel?'#7fa9ef':(g.drop?'#f0b27a':(g.custom?'#c9b8e8':'#b3b9c2')),'wall:'+key,{kind:'wallftg',drop:g.drop,seg:g}); });
   }
   // grade beams / struts: top just under the slab
   if(L.beams) ((R&&R.ties)||[]).forEach(t=>{ const tt=t.t, h=(+tt.h||12)/12, b=(+tt.b||12)/12, zt=-(+C.slab||6)/12;
@@ -18077,7 +18182,7 @@ V.draw=function(st){
   polys.sort((a,b)=>b.depth-a.depth);
   if(st.scene.slab){ const n0=polys.length; push(st.scene.slab,st.scene.slab.alpha); }   // see-through slab laid over everything
   polys.forEach(q=>{ const it=q.it; let col=hex(it.color); const sh=0.62+0.38*Math.max(0,dot(q.n,light));
-    const on=it.tag && (it.tag===sel || multi[it.tag]);
+    const on=it.tag && (it.tag===sel || multi[it.tag] || (st.o.selWall && it.tag==='wall:'+st.o.selWall));
     if(on) col=[Math.round(col[0]*0.55+47*0.45),Math.round(col[1]*0.55+124*0.45),Math.round(col[2]*0.55+246*0.45)];
     g.beginPath(); q.pp.forEach((p,i)=>i?g.lineTo(p[0],p[1]):g.moveTo(p[0],p[1])); g.closePath();
     g.fillStyle=`rgba(${Math.round(col[0]*sh)},${Math.round(col[1]*sh)},${Math.round(col[2]*sh)},${q.alpha==null?1:q.alpha})`; g.fill();
@@ -19373,6 +19478,7 @@ PM.stepBadges=function(){
 PM.STEP_MAP={import:'project',reactions:['inputs','reactions'],layout:['inputs','layout'],criteria:['inputs','criteria'],package:'deliver',revit:'deliver'};
 PM.setStep=function(step){
   const m=PM.STEP_MAP[step]; if(Array.isArray(m)){ PM.sub=m[1]; step=m[0]; } else if(m) step=m;
+  if(step==='design' && PM.P && PM.P.autoDesign==='pending' && (PM.P.columns||[]).length && PM.R){ delete PM.P.autoDesign; setTimeout(()=>PM.autoDesign(true),60); }
   PM.step=step;
   document.querySelectorAll('#pm-steps button').forEach(b=>b.classList.toggle('active',b.dataset.step===step));
   document.querySelectorAll('#pemb .pm-step').forEach(s=>s.hidden=s.dataset.step!==step);
@@ -19627,7 +19733,7 @@ PM.applyNucor=function(){
   P.groups=[{kinds:['frame'],footing:'F3',plinth:'A'},{kinds:['endwall'],footing:'F1',plinth:'B'},{kinds:['corner'],footing:'F2',plinth:'C'},{kinds:['interior'],footing:'F3',plinth:'A'}];
   P.pemb.notes=['Imported from Nucor NBG reaction reports ('+(N.pages||[]).length+' pages). Numbered grids were placed at 25 ft - enter the anchor rod plan spacing on step 3; columns follow their grids.','Bolt patterns and plates are placeholders - enter them from the anchor rod details.'];
   P.verified=false;
-  PM.setProject(P,'layout');
+  P.autoDesign='pending'; PM.setProject(P,'layout');
 };
 // build a project from parsed MBS blocks (or the AI-extraction schema)
 PM.applyParsed=function(merge){
@@ -19690,7 +19796,7 @@ PM.applyParsed=function(merge){
     });
   }));
   P.verified=false;
-  PM.setProject(P,'reactions');
+  P.autoDesign='pending'; PM.setProject(P,'reactions');
 };
 PM.PROMPT=`You are extracting pre-engineered metal building (PEMB) foundation reactions for a foundation design tool.
 Read the attached PEMB anchor bolt / reaction drawings and return ONLY a JSON object (no prose) in this exact shape:
@@ -19737,7 +19843,7 @@ PM.importJsonText=function(t){
     P.columns.push(col);
   });
   P.bracing=j.bracing||[]; if(j.maxTables) P.pemb.maxTables=j.maxTables;
-  PM.setProject(P,'reactions');
+  P.autoDesign='pending'; PM.setProject(P,'reactions');
 };
 
 // ================================================================= 2 REACTIONS
@@ -20008,17 +20114,26 @@ PM.setView=function(v){ PM.view=v; document.querySelectorAll('#pm-viewseg button
   $('pm-viewhint').textContent=v==='3d'?'drag to orbit · right-drag or shift-drag to pan · scroll to zoom · click a footing, beam or wall':'scroll to zoom · drag to pan · click a footing · shift-click or shift-drag to pick several';
   PM.renderPlanTools(); PM.drawPlan(); };
 PM.draw3d=function(){ const el=$('pm-3d'); if(!el||!PM.R||!window.PEMB3D) return; const R=PM.R;
-  PM._v3=PEMB3D.mount(el,PM.P,R,{layers:PM.l3,colorBy:PM.colorBy,sel:PM.sel,multi:PM.bulk,
-    tipFor:it=>{ if(it.kind==='wall'||it.kind==='wallftg'){ const pm=R.perim||{}; return '<b>'+(it.kind==='wall'?'Stemwall':'Wall footing')+'</b>'+(it.drop?' · lowered '+E.frac(it.drop*12):'')+'<br>'+PM.P.perimeter.stemW+'" wall, '+PM.P.perimeter.ftgW+'" × '+PM.P.perimeter.ftgT+'" footing'; }
+  PM._v3=PEMB3D.mount(el,PM.P,R,{layers:PM.l3,colorBy:PM.colorBy,sel:PM.sel,multi:PM.bulk,selWall:PM.selWall,
+    tipFor:it=>{ if(it.kind==='wall'||it.kind==='wallftg'){ const q=it.seg||{}; return '<b>'+(it.kind==='wall'?'Stemwall':'Wall footing')+'</b> · '+esc(PM.wallName(q.edge))+(it.drop?' · lowered '+E.frac(it.drop*12):'')+'<br>'+PM.P.perimeter.stemW+'" × '+E.frac((q.sh0+q.drop)*12)+' stem, '+E.frac(q.fw*12)+' × '+E.frac(q.fh*12)+' footing<br><span style="opacity:.7">click to edit</span>'; }
       if(String(it.tag).startsWith('tie:')){ const t=(R.ties||[]).find(q=>'tie:'+q.id===it.tag); return t?'<b>'+esc(t.id)+'</b> · '+esc(t.from)+' → '+esc(t.to||'')+'<br>('+t.n+') #'+t.bar+' · ratio '+t.gov.ratio.toFixed(2):''; }
       const x=R.cols[it.tag]; if(!x) return ''; const w=x.d.summary.concat([{item:'Anchors',ratio:x.a.gov.ratio}]).sort((a,b)=>b.ratio-a.ratio)[0];
       return '<b>'+esc(x.col.id)+'</b> · footing '+esc(x.ft.mark)+' '+PM.ftTxt(x.ft)+'<br>plinth '+esc(x.pl.mark)+' '+E.fracIn(x.pl.bx)+' × '+E.fracIn(x.pl.by)+' × '+E.fracIn(x.pl.h)+(x.drop?'<br>lowered '+E.frac(x.drop*12):'')+'<br>worst '+w.ratio.toFixed(2)+' '+esc(w.item); },
     onPick:(it,e)=>{ if(!it) return; const t=String(it.tag);
       if(t.startsWith('tie:')){ PM.selTie=t.slice(4); PM.setSide('beams'); PM.drawPlan(); return; }
-      if(t==='wall'||t==='wallftg'){ PM.setSide('walls'); return; }
+      if(t.startsWith('wall:')){ PM.selectWall(t.slice(5)); return; }
       if(PM.R.cols[t]){ if(e.shiftKey||e.ctrlKey||e.metaKey){ if(PM.bulk[t]) delete PM.bulk[t]; else PM.bulk[t]=1; PM.afterMulti(); } else { PM.bulk={}; PM.selectCol(t); } } }}); };
 PM.mode='select';
+// one-click design: size everything with a clear fix, list what is left for the EOR
+PM.autoDesign=function(auto){ const P=PM.P; if(!P||!(P.columns||[]).length) return;
+  const btn=$('pm-autodesign'); if(btn){ btn.disabled=true; btn.textContent='Designing…'; }
+  setTimeout(()=>{ let r; try{ r=E.autoDesign(P,{alongWall:(P.options||{}).autoAlongWall||'slab'}); }catch(e){ console.error(e); r={log:[],left:['Auto-design stopped: '+e.message]}; }
+    P.autoDesigned=Date.now(); PM._ad={t:Date.now(),log:r.log,left:r.left,auto:!!auto};
+    PM.save((auto?'Auto-designed the new job':'Design it for me')+': '+r.log.length+' change'+(r.log.length===1?'':'s')+(r.left.length?', '+r.left.length+' left for review':', everything passes'));
+    PM.run(); PM.renderDesign(); PM.setSide('issues');
+    PM.toast(r.left.length?r.log.length+' changes · '+r.left.length+' checks still need you (see Issues)':'Every check passes · '+r.log.length+' changes (Ctrl+Z undoes)'); },20); };
 PM.renderPlanTools=function(){ const el=$('pm-ptools'); if(!el) return; const L=PM.layers;
+  const ad=$('pm-autodesign'); if(ad){ ad.disabled=false; ad.textContent='Design it for me'; ad.onclick=()=>PM.autoDesign(false); }
   document.querySelectorAll('#pm-viewseg button').forEach(b=>{ b.onclick=()=>PM.setView(b.dataset.view); });
   if(PM.view==='3d'){ const L3=PM.l3;
     el.innerHTML=`<span class="note" style="margin:0">View</span>${[['iso','3D'],['top','Top'],['front','Front'],['side','Side'],['under','From below']].map(([k,t])=>`<button class="pm-btn small" data-v3="${k}">${t}</button>`).join('')}
@@ -20096,7 +20211,7 @@ PM.drawPlan=function(){
   if(PM.view==='3d'){ PM.draw3d(); return; }
   const el=$('pm-plan'); if(!el) return; if(!PM.R){ el.innerHTML='<div class="pm-empty">No columns yet.</div>'; return; }
   const L=Object.assign({},PM.layers,{util:PM.colorBy!=='none'});
-  el.innerHTML=D.plan(PM.P,PM.R,{w:1200,layers:L,colorBy:PM.colorBy,sel:PM.sel,multi:PM.bulk,selFrame:null,selTie:PM.selTie,tieStart:PM.tieStart,title:false,edit:PM.mode!=='select'});
+  el.innerHTML=D.plan(PM.P,PM.R,{w:1200,layers:L,colorBy:PM.colorBy,sel:PM.sel,multi:PM.bulk,selFrame:null,selTie:PM.selTie,selWall:PM.selWall,tieStart:PM.tieStart,title:false,edit:PM.mode!=='select'});
   const svg=el.querySelector('svg'); if(!svg) return;
   svg.removeAttribute('width'); svg.setAttribute('preserveAspectRatio','xMidYMid meet');
   PM.vb0=svg.getAttribute('viewBox').split(/\s+/).map(Number); PM.applyVB(); PM.hookZoom(el);
@@ -20117,6 +20232,7 @@ PM.drawPlan=function(){
     if(ev.shiftKey||ev.ctrlKey||ev.metaKey){ if(PM.bulk[cid]) delete PM.bulk[cid]; else PM.bulk[cid]=1; if(PM.sel && !PM.bulk[PM.sel] && Object.keys(PM.bulk).length) PM.bulk[PM.sel]=1; PM.afterMulti(); return; }
     PM.bulk={}; PM.selectCol(cid); }));
   el.querySelectorAll('.pm-frame').forEach(n=>n.addEventListener('click',()=>{ PM.selFrame=n.dataset.frame; PM.openModal('frame'); }));
+  el.querySelectorAll('.pm-wallhit').forEach(n=>n.addEventListener('click',ev=>{ if(PM.mode!=='select') return; ev.stopPropagation(); PM.selectWall(n.dataset.wall); }));
 };
 PM.renderTieInspector=function(el){
   const P=PM.P, t=(P.ties||[]).find(q=>q.id===PM.selTie); const tr=(PM.R.ties||[]).find(q=>q.id===PM.selTie); if(!t||!tr){ PM.selTie=null; return false; }
@@ -20535,6 +20651,14 @@ PM.renderBeams=function(){
   $('pm-gb-lat').onchange=e=>{ P.options.lateral=e.target.value; PM.save('Frame thrust → '+e.target.value); PM.run(); PM.renderDesign(); };
 };
 // ---- perimeter wall + wall footing, with stepped (dropped) zones
+PM.wallName=function(i){ const P=PM.P, o=E.outline(P); if(i==null||!o[i]) return ''; const a=o[i], b=o[(i+1)%o.length];
+  const nm=(x,y)=>{ const gx=(P.grids.x||[]).reduce((m,g)=>Math.abs(g.pos-x)<Math.abs(m.pos-x)?g:m,{pos:1e9,name:'?'}), gy=(P.grids.y||[]).reduce((m,g)=>Math.abs(g.pos-y)<Math.abs(m.pos-y)?g:m,{pos:1e9,name:'?'}); return gx.name+'-'+gy.name; };
+  return nm(a[0],a[1])+' → '+nm(b[0],b[1]); };
+PM.wallSeg=function(key){ if(!key) return null; const [e,t]=String(key).split('|'); const segs=E.perimSegments(PM.P);
+  return segs.find(q=>q.edge===+e&&Math.abs(q.t0-(+t))<1e-3) || segs.find(q=>q.edge===+e&&+t>=q.t0-1e-3&&+t<q.t1) || null; };
+PM.wallKey=q=>q.edge+'|'+(+q.t0.toFixed(3));
+PM.selectWall=function(key){ PM.selWall=key; PM.selTie=null; if(PM.side!=='walls') PM.setSide('walls'); else PM.renderWalls(); PM.drawPlan();
+  setTimeout(()=>{ const b=$('pm-wallsel'); if(b) b.scrollIntoView({block:'nearest',behavior:'smooth'}); },30); };
 PM.renderWalls=function(){
   const P=PM.P, R=PM.R, el=$('pm-walls'); if(!el||!R) return; const per=P.perimeter, pm=R.perim||E.designPerimeter(P);
   const o=E.outline(P), drops=per.drops||[];
@@ -20542,7 +20666,20 @@ PM.renderWalls=function(){
   const eName=i=>{ const a=o[i], b=o[(i+1)%o.length]; const nm=(x,y)=>{ const gx=(P.grids.x||[]).reduce((m,g)=>Math.abs(g.pos-x)<Math.abs(m.pos-x)?g:m,{pos:1e9,name:'?'}), gy=(P.grids.y||[]).reduce((m,g)=>Math.abs(g.pos-y)<Math.abs(m.pos-y)?g:m,{pos:1e9,name:'?'}); return gx.name+'-'+gy.name; };
     const dir=Math.abs(b[0]-a[0])>Math.abs(b[1]-a[1])?'':''; return nm(a[0],a[1])+' → '+nm(b[0],b[1]); };
   const st=(k,lbl,val)=>`<div class="pm-step-in"><span>${lbl}</span><button class="pm-btn small" data-wst="${k}|-1">−</button><b>${val}</b><button class="pm-btn small" data-wst="${k}|1">+</button></div>`;
-  el.innerHTML=`<div class="pm-box ${pm.ratio>1.0001?'hot':(pm.ratio>0.9?'warm':'')}"><div class="pm-box-h">Stemwall &amp; wall footing<span class="note" style="margin:0;font-weight:500">continuous under the concrete perimeter wall</span><span class="r">${chip(pm.ratio)}</span></div><div class="pm-box-b">
+  per.edges=per.edges||{};
+  const q=PM.wallSeg(PM.selWall); if(!q) PM.selWall=null; const qd=q&&(pm.segs||[]).find(g=>g.edge===q.edge&&Math.abs(g.t0-q.t0)<1e-6);
+  const z=q&&q.zone!=null?drops[q.zone]:null, eo=q?(per.edges[q.edge]||{}):null;
+  const est=(k,lbl,val,tip)=>`<div class="pm-step-in" title="${tip||''}"><span>${lbl}</span><button class="pm-btn small" data-we="${k}|-1">−</button><input class="n" data-wei="${k}" value="${val}" style="width:44px;height:24px;padding:1px 3px;text-align:center;font-weight:700"><button class="pm-btn small" data-we="${k}|1">+</button></div>`;
+  const insp=q?`<div class="pm-box ${qd&&qd.ratio>1.0001?'hot':'warm'}" id="pm-wallsel"><div class="pm-box-h">Selected wall<span class="note" style="margin:0;font-weight:500">${esc(PM.wallName(q.edge))} · ${f2(q.t0,1)}–${f2(q.t1,1)} ft${z?' · lowered zone '+(q.zone+1):''}</span><span class="r">${qd?chip(qd.ratio):''}</span></div><div class="pm-box-b">
+      <div class="pm-steps-in">${est('stemH','Stem h (in)',+((q.sh0+q.drop)*12).toFixed(2),'Top of wall to top of footing. A taller stem puts the footing deeper.')}${est('ftgW','Ftg W (in)',+(q.fw*12).toFixed(2))}${est('ftgT','Ftg T (in)',+(q.fh*12).toFixed(2))}</div>
+      <p class="note" style="margin:6px 0 0">${z?'Changes apply to this lowered zone only (stem height changes how far it is lowered).':'Changes apply to the whole wall run '+esc(PM.wallName(q.edge))+'.'} Bottom of footing ${E.frac((q.sh0+q.drop+q.fh)*12)} below top of wall${qd?' · q = '+f2(qd.q,2)+' ksf':''}.</p>
+      <div class="row" style="gap:6px;margin-top:6px;flex-wrap:wrap">${!z?`<button class="pm-btn small" id="pm-wpart" title="Make a separate zone on this run you can size on its own">Edit only part of this run</button>`:''}${(z?(z.ftgW||z.ftgT||z.drop):q.custom)?`<button class="pm-btn small" id="pm-wreset">${z?'Remove this zone':'Reset run to typical'}</button>`:''}<button class="pm-btn small" id="pm-wdesel">Done</button></div>
+    </div></div>`:'';
+  const runs=o.map((_,i)=>{ const sg=(pm.segs||[]).filter(g=>g.edge===i); if(!sg.length) return ''; const r=Math.max(...sg.map(g=>g.ratio)), g0=sg.find(g=>g.zone==null)||sg[0];
+    const on=q&&q.edge===i; const cust=sg.some(g=>g.custom||g.drop>0);
+    return `<button data-wsel="${PM.wallKey(g0)}" style="${on?'border-color:var(--blueprint);background:rgba(47,124,246,.07)':''}"><span><b>${esc(PM.wallName(i))}</b> · ${E.frac(eL(i)*12)} · stem ${E.frac(g0.sh0*12)} · ftg ${E.frac(g0.fw*12)} × ${E.frac(g0.fh*12)}${sg.length>1?' <span class="note" style="margin:0">+'+(sg.length-1)+' zone'+(sg.length>2?'s':'')+'</span>':''}${cust?' <span class="note" style="margin:0;color:#a85a12">edited</span>':''}</span>${chip(r)}</button>`; }).join('');
+  el.innerHTML=`${insp}<div class="pm-box"><div class="pm-box-h">Wall runs<span class="note" style="margin:0;font-weight:500">click one here or on the plan / 3D to edit it</span></div><div class="pm-box-b"><div class="pm-worst">${runs}</div></div></div>
+  <div class="pm-box ${pm.ratio>1.0001?'hot':(pm.ratio>0.9?'warm':'')}"><div class="pm-box-h">Typical stemwall &amp; wall footing<span class="note" style="margin:0;font-weight:500">continuous under the concrete perimeter wall</span><span class="r">${chip(pm.ratio)}</span></div><div class="pm-box-b">
     <div class="pm-steps-in">${st('stemW','Wall t',per.stemW+'"')}${st('stemH','Wall h',per.stemH+'"')}</div>
     <div class="pm-steps-in" style="margin-top:4px">${st('ftgW','Ftg W',per.ftgW+'"')}${st('ftgT','Ftg T',per.ftgT+'"')}</div>
     <div class="pm-slab" style="margin-top:6px"><label class="note">Bars <input data-wv="bars" value="${esc(per.bars||'')}" style="width:130px"></label></div>
@@ -20572,6 +20709,17 @@ PM.renderWalls=function(){
   el.querySelectorAll('[data-dzcol]').forEach(b=>b.onclick=()=>{ const z=per.drops[+b.dataset.dzcol]; const a=o[+z.edge], c2=o[(+z.edge+1)%o.length], L=eL(+z.edge), ux=(c2[0]-a[0])/L, uy=(c2[1]-a[1])/L; const t0=+z.a||0, t1=z.b==null?L:+z.b;
     const hit=P.columns.filter(c=>{ const t=(c.x-a[0])*ux+(c.y-a[1])*uy, dn=Math.abs((c.x-a[0])*uy-(c.y-a[1])*ux); return dn<2.5 && t>=t0-1.5 && t<=t1+1.5; });
     if(!hit.length){ alert('No columns within 2.5 ft of that stretch of wall.'); return; } hit.forEach(c=>c.drop=+z.drop); PM.save('Lowered '+hit.map(c=>c.id).join(', ')+' by '+z.drop+' ft to match the wall'); redo(); PM.toast('Lowered '+hit.map(c=>c.id).join(', ')); });
+  el.querySelectorAll('[data-wsel]').forEach(b=>b.onclick=()=>PM.selectWall(b.dataset.wsel));
+  if(q){ const setv=(k,v)=>{ v=Math.max(k==='stemH'?4:4,+(+v).toFixed(3));
+      if(z){ if(k==='stemH'){ z.drop=Math.max(0,+((v/12-q.sh0)).toFixed(4)); } else z[k]=v; PM.save('Lowered zone '+(q.zone+1)+': '+k+' = '+v+'"'); }
+      else { const e=per.edges[q.edge]=per.edges[q.edge]||{}; if(k==='stemH') e.stemH=v; else e[k]=v; ['stemH','ftgW','ftgT'].forEach(kk=>{ if(e[kk]!=null&&Math.abs(+e[kk]-(+per[kk]))<1e-6) delete e[kk]; }); if(!Object.keys(e).length) delete per.edges[q.edge]; PM.save('Wall '+PM.wallName(q.edge)+': '+k+' = '+v+'"'); }
+      redo(); };
+    const cur={stemH:(q.sh0+q.drop)*12, ftgW:q.fw*12, ftgT:q.fh*12};
+    el.querySelectorAll('[data-we]').forEach(b=>b.onclick=()=>{ const [k,d]=b.dataset.we.split('|'); setv(k,cur[k]+2*(+d)); });
+    el.querySelectorAll('[data-wei]').forEach(i=>i.onchange=()=>{ const v=parseFloat(i.value); if(isFinite(v)) setv(i.dataset.wei,v); });
+    const wp=$('pm-wpart'); if(wp) wp.onclick=()=>{ per.drops=per.drops||[]; const b=Math.min(q.t1,q.t0+Math.max(4,Math.min(12,q.L/2))); per.drops.push({edge:q.edge,a:+q.t0.toFixed(2),b:+b.toFixed(2),drop:0,ftgW:+(q.fw*12).toFixed(2),ftgT:+(q.fh*12).toFixed(2)}); PM.selWall=q.edge+'|'+(+q.t0.toFixed(3)); PM.save('New wall zone on '+PM.wallName(q.edge)); PM.toast('Set the zone’s from / to below, then size it here'); redo(); };
+    const wr=$('pm-wreset'); if(wr) wr.onclick=()=>{ if(z){ per.drops.splice(q.zone,1); PM.save('Removed wall zone'); } else { delete per.edges[q.edge]; PM.save('Wall '+PM.wallName(q.edge)+' reset to typical'); } redo(); };
+    $('pm-wdesel').onclick=()=>{ PM.selWall=null; PM.renderWalls(); PM.drawPlan(); }; }
   $('pm-dz-add').onclick=()=>{ per.drops=per.drops||[]; const e=+$('pm-dz-edge').value; per.drops.push({edge:e,a:0,drop:4}); PM.save('Added lowered wall zone on '+eName(e)); redo(); };
 };
 // ---- issues: review flags + notes to the SE, each with the fix one click away
@@ -20590,12 +20738,13 @@ PM.fixSlab=function(col){ const c=PM.colObj(col); if(!c) return; c.parPath='slab
 PM.fixOwnType=function(col){ PM.run(); const T=PM.forkType(col); PM.run(); PM.autoSize(T.mark); PM.toast(col+' now has its own type '+T.mark); };
 PM.renderIssues=function(){
   const P=PM.P, R=PM.R, el=$('pm-issues'); if(!el||!R) return;
+  const adBox=PM._ad&&Date.now()-PM._ad.t<30*60*1000?`<div class="pm-box ${PM._ad.left.length?'warm':''}"><div class="pm-box-h">${PM._ad.auto?'Auto-designed':'Design it for me'}<span class="note" style="margin:0;font-weight:500">${PM._ad.log.length} change${PM._ad.log.length===1?'':'s'} · Ctrl+Z undoes</span><span class="r"><button class="pm-btn small" onclick="PM._ad=null;PM.renderIssues()">×</button></span></div><div class="pm-box-b">${PM._ad.log.length?'<details'+(PM._ad.log.length<9?' open':'')+'><summary class="note" style="margin:0">What changed</summary><ul class="note" style="margin:4px 0 0 16px;padding:0">'+PM._ad.log.map(l=>'<li>'+esc(l)+'</li>').join('')+'</ul></details>':''}${PM._ad.left.length?'<p class="note" style="margin:6px 0 2px"><b>Still needs you</b> — no size change fixes these (see the flags below for the options):</p><ul class="note" style="margin:0 0 0 16px;padding:0">'+PM._ad.left.slice(0,14).map(l=>'<li>'+esc(l)+'</li>').join('')+(PM._ad.left.length>14?'<li>… '+(PM._ad.left.length-14)+' more</li>':'')+'</ul>':'<p class="note" style="margin:6px 0 0"><b>Every strength check passes.</b> Review the flags below (inputs to confirm, notes for the SE).</p>'}</div></div>`:'';
   const all=R.flags||[], ack=P.ackFlags||{}, notes=P.seNotes||[];
   const sent=f=>notes.some(n=>n.fromFlag && n.fromFlag.split('|')[0]===f.topic && PM.flagKey({topic:f.topic,msg:n.fromFlag.split('|').slice(1).join('|')})===PM.flagKey(f));
   const F=PM.issueFilter;
   const list=all.map((f,i)=>({f,i,k:PM.flagKey(f)})).filter(o=>F==='all'||(F==='ack'?ack[o.k]:(!ack[o.k]&&(F==='open'?o.f.sev!=='info':o.f.sev===F))));
   const cnt=k=>k==='all'?all.length:(k==='ack'?all.filter(f=>ack[PM.flagKey(f)]).length:all.filter(f=>!ack[PM.flagKey(f)]&&(k==='open'?f.sev!=='info':f.sev===k)).length);
-  el.innerHTML=`<div class="pm-box"><div class="pm-box-h">Review issues<span class="note" style="margin:0;font-weight:500">what a plan reviewer or the EOR will ask about</span></div><div class="pm-box-b">
+  el.innerHTML=adBox+`<div class="pm-box"><div class="pm-box-h">Review issues<span class="note" style="margin:0;font-weight:500">what a plan reviewer or the EOR will ask about</span></div><div class="pm-box-b">
     <div class="pm-issfilter">${[['open','Open'],['high','High'],['med','Check'],['info','Info'],['ack','Acknowledged'],['all','All']].map(([k,t])=>`<button data-if="${k}" class="${F===k?'on':''}">${t} ${cnt(k)}</button>`).join('')}</div>
     ${list.length?list.map(({f,i,k})=>{ const fx=PM.fixesFor(f), isS=sent(f); return `<div class="pm-issue ${f.sev} ${ack[k]?'ack':''}"><b>${esc(f.topic)}</b> — ${esc(f.msg).replace(/&lt;(\/?)sub&gt;/g,'<$1sub>')}${f.ref&&f.ref!=='—'?` <span class="note">(${esc(f.ref)})</span>`:''}
       <div class="acts">${f.go?`<button class="pm-btn small primary" data-igo="${i}">Go to →</button>`:''}${fx.map(([t,js])=>`<button class="pm-btn small" onclick="${js.replace(/"/g,'&quot;')}">${esc(t)}</button>`).join('')}
@@ -20736,8 +20885,11 @@ PM.revitJson=function(){
     centerline:(()=>{ let o=E.outline(P); let A=0; o.forEach((p,i)=>{ const q=o[(i+1)%o.length]; A+=p[0]*q[1]-q[0]*p[1]; }); if(A>0) o=o.slice().reverse(); return E.offsetPoly(o,sw).map(p=>p.map(v=>+v.toFixed(5))); })(),
     segments:(()=>{ const poly=E.outline(P); let A=0; poly.forEach((p,i)=>{ const q=poly[(i+1)%poly.length]; A+=p[0]*q[1]-q[0]*p[1]; }); const k=A>0?1:-1;
       return E.perimSegments(P).map(g=>{ const dx=g.p1[0]-g.p0[0], dy=g.p1[1]-g.p0[1], L=Math.hypot(dx,dy)||1, nx=-dy/L*k*sw, ny=dx/L*k*sw;
-        return {a:[+(g.p0[0]+nx).toFixed(5),+(g.p0[1]+ny).toFixed(5)],b:[+(g.p1[0]+nx).toFixed(5),+(g.p1[1]+ny).toFixed(5)],drop:+g.drop}; }); })(),
-    note:'Wall segments on the centreline, stemW/2 inside the steel line (face of concrete = steel line). Base at the footing level minus drop, top = level + top. Each wall gets its wall footing.'};
+        const typ=Math.abs(g.fw*12-(+per.ftgW||16))<1e-6&&Math.abs(g.fh*12-(+per.ftgT||8))<1e-6;
+        return {a:[+(g.p0[0]+nx).toFixed(5),+(g.p0[1]+ny).toFixed(5)],b:[+(g.p1[0]+nx).toFixed(5),+(g.p1[1]+ny).toFixed(5)],drop:+(g.drop+(g.dH||0)).toFixed(5),
+          stemH:+((g.sh0+g.drop)).toFixed(5),ftgW:+g.fw.toFixed(5),ftgT:+g.fh.toFixed(5),
+          foundationType:typ?rv.wallFtgType:(()=>{ const base=rv.wallFtgType||'PEMB Wall Footing', sz=E.fracIn(g.fw*12)+' x '+E.fracIn(g.fh*12); return /\d[\d\s\/]*"\s*[xX]\s*\d[\d\s\/]*"/.test(base)?base.replace(/\d[\d\s\/]*"\s*[xX]\s*\d[\d\s\/]*"/,sz):base+' '+sz; })()}; }); })(),
+    note:'Wall segments on the centreline, stemW/2 inside the steel line (face of concrete = steel line). Base at the footing level minus drop (drop includes any extra stem height on that run), top = level + top. Each wall gets its wall footing; foundationType per segment (created at ftgW x ftgT if missing).'};
   out.perimeter={stemW:per.stemW/12,stemH:per.stemH/12,ftgW:per.ftgW/12,ftgT:per.ftgT/12,outline:E.outline(P),note:'Outline = exterior face of concrete (steel line). Wall is inside the outline.'};
   return out;
 };
