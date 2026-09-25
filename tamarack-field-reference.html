@@ -16456,6 +16456,103 @@ if mode == 'check':
 counts = {'footings': 0, 'plinths': 0, 'plates': 0, 'door-jamb plates': 0, 'hairpins': 0, 'tags': 0, 'grids': 0, 'grade beams': 0, 'walls': 0}
 warnings = []
 
+
+# ------------------------------------------------------------------ anchor-bolt nut detail component
+# One small detail-item family per rod size: heavy hex nut (across flats F = 1.5d + 1/8", flats parallel
+# to the plate edges) with the rod circle and a centre cross. Built from the Detail Item template the
+# first time, then reused. Falls back to plain detail lines if the template cannot be found.
+def nut_fam_name(dia):
+    fr = {0.5: '1-2', 0.625: '5-8', 0.75: '3-4', 0.875: '7-8', 1.0: '1', 1.125: '1-1-8', 1.25: '1-1-4', 1.5: '1-1-2'}
+    return 'PEMB AB Heavy Hex Nut {} in'.format(fr.get(round(float(dia), 3), '{:.3f}'.format(float(dia)).replace('.', '_')))
+
+
+def nut_template():
+    try:
+        root = doc.Application.FamilyTemplatePath
+    except Exception:
+        root = ''
+    found = []
+    for base in [root, os.path.dirname(root or '.')]:
+        if not base or not os.path.isdir(base):
+            continue
+        for dp, dn, fn in os.walk(base):
+            for f in fn:
+                fl = f.lower()
+                if fl.endswith('.rft') and 'detail item' in fl and 'line based' not in fl and 'profile' not in fl:
+                    found.append(os.path.join(dp, f))
+        if found:
+            break
+    found.sort(key=lambda f: ('metric' in f.lower(), len(f)))
+    return found[0] if found else None
+
+
+def build_nut_rfa(dia):
+    import tempfile
+    tpl = nut_template()
+    if not tpl:
+        return None
+    fdoc = doc.Application.NewFamilyDocument(tpl)
+    try:
+        v = None
+        for vv in DB.FilteredElementCollector(fdoc).OfClass(DB.ViewPlan):
+            if not vv.IsTemplate:
+                v = vv
+                break
+        if v is None:
+            return None
+        t = DB.Transaction(fdoc, 'nut')
+        t.Start()
+        F = (1.5 * dia + 0.125) / 12.0
+        R = F / 2.0 / math.cos(math.pi / 6)          # corner radius
+        pts = [DB.XYZ(R * math.cos(k * math.pi / 3), R * math.sin(k * math.pi / 3), 0) for k in range(6)]
+        for k in range(6):
+            fdoc.FamilyCreate.NewDetailCurve(v, DB.Line.CreateBound(pts[k], pts[(k + 1) % 6]))
+        r = dia / 24.0
+        fdoc.FamilyCreate.NewDetailCurve(v, DB.Arc.Create(DB.XYZ(0, 0, 0), r, 0, 2 * math.pi, DB.XYZ.BasisX, DB.XYZ.BasisY))
+        for a_, b_ in ((DB.XYZ(-r * 1.4, 0, 0), DB.XYZ(r * 1.4, 0, 0)), (DB.XYZ(0, -r * 1.4, 0), DB.XYZ(0, r * 1.4, 0))):
+            fdoc.FamilyCreate.NewDetailCurve(v, DB.Line.CreateBound(a_, b_))
+        t.Commit()
+        path_ = os.path.join(tempfile.gettempdir(), nut_fam_name(dia) + '.rfa')
+        so = DB.SaveAsOptions()
+        so.OverwriteExistingFile = True
+        fdoc.SaveAs(path_, so)
+        return path_
+    finally:
+        try:
+            fdoc.Close(False)
+        except Exception:
+            pass
+
+
+def nut_symbol(dia, rfa=None):
+    nm = nut_fam_name(dia)
+    for sy in DB.FilteredElementCollector(doc).OfCategory(DB.BuiltInCategory.OST_DetailComponents).OfClass(DB.FamilySymbol):
+        if sy.Family and sy.Family.Name == nm:
+            return sy
+    if rfa and os.path.isfile(rfa):
+        try:
+            doc.LoadFamily(rfa)
+        except Exception as ex:
+            warnings.append('Nut detail component for {}" rods not loaded: {}'.format(dia, ex))
+            return None
+        for sy in DB.FilteredElementCollector(doc).OfCategory(DB.BuiltInCategory.OST_DetailComponents).OfClass(DB.FamilySymbol):
+            if sy.Family and sy.Family.Name == nm:
+                TYPE_WARN.append('Created detail component "{}" (heavy hex nut).'.format(nm))
+                return sy
+    return None
+
+
+NUT_RFA = {}
+for _d in sorted(set(float(b_.get('dia', 0.75)) for b_ in data.get('baseplates', []))):
+    have = any(sy.Family and sy.Family.Name == nut_fam_name(_d) for sy in
+               DB.FilteredElementCollector(doc).OfCategory(DB.BuiltInCategory.OST_DetailComponents).OfClass(DB.FamilySymbol))
+    if not have:
+        try:
+            NUT_RFA[_d] = build_nut_rfa(_d)
+        except Exception as ex:
+            warnings.append('Could not build the nut detail component for {}" rods ({}) - nuts drawn as lines.'.format(_d, ex))
+            NUT_RFA[_d] = None
+
 with revit.Transaction('Place PEMB foundations'):
     for i in old:
         try:
@@ -16679,6 +16776,14 @@ with revit.Transaction('Place PEMB foundations'):
         return json.dumps([[round(v, 4) for v in it] for it in items])
 
     group_cache = {}   # signature -> (group element, anchor point)
+    nut_cache = {}
+    for _d in sorted(set(float(b_.get('dia', 0.75)) for b_ in data.get('baseplates', []))):
+        _s = nut_symbol(_d, NUT_RFA.get(_d))
+        if _s is not None and not _s.IsActive:
+            _s.Activate()
+            doc.Regenerate()
+        nut_cache[_d] = _s
+    counts['anchor-bolt nuts (detail component)'] = sum(len(b_['bolts']) for b_ in data.get('baseplates', []) if nut_cache.get(float(b_.get('dia', 0.75))) is not None)
 
     def place_group(name, sig, anchor, build):
         """Create the group once, then copy it for each later instance with the same geometry."""
@@ -16720,12 +16825,23 @@ with revit.Transaction('Place PEMB foundations'):
             for i in range(4):
                 els.append(detail_line(c[i], c[(i + 1) % 4]))
             r = max(dia / 24.0, 0.02)
+            nsym = nut_cache.get(dia)
             for b in bolts:
                 ctr = W(b[0], b[1])
+                if nsym is not None:
+                    inst = doc.Create.NewFamilyInstance(ctr, nsym, view)
+                    rotate(inst, ctr)
+                    els.append(inst)
+                    continue
                 arc = DB.Arc.Create(ctr, r, 0, 2 * math.pi, ux, uy)
                 els.append(doc.Create.NewDetailCurve(view, arc))
                 els.append(detail_line(ctr - ux * r * 1.4, ctr + ux * r * 1.4))
                 els.append(detail_line(ctr - uy * r * 1.4, ctr + uy * r * 1.4))
+                # heavy hex nut outline (fallback when the nut detail component is unavailable)
+                R_ = (1.5 * dia + 0.125) / 12.0 / 2.0 / math.cos(math.pi / 6)
+                hx = [ctr + ux * (R_ * math.cos(k * math.pi / 3)) + uy * (R_ * math.sin(k * math.pi / 3)) for k in range(6)]
+                for k in range(6):
+                    els.append(detail_line(hx[k], hx[(k + 1) % 6]))
             return els
         g = place_group(bp['group'], sig, W(cx, cy), build)
         set_param(g, [DB.BuiltInParameter.ALL_MODEL_INSTANCE_COMMENTS], TAG + ':' + bp.get('col', '') + (' JAMB' if bp.get('jamb') else ''))
@@ -16788,6 +16904,8 @@ E.BOLTS = {
 E.AB_GRADES = { 'F1554-36':{fya:36,futa:58}, 'F1554-55':{fya:55,futa:75}, 'F1554-105':{fya:105,futa:125}, 'A307':{fya:36,futa:60} };
 E.REBAR = { 3:{d:0.375,A:0.11}, 4:{d:0.5,A:0.20}, 5:{d:0.625,A:0.31}, 6:{d:0.75,A:0.44}, 7:{d:0.875,A:0.60}, 8:{d:1.0,A:0.79} };
 E.abrg = da => { const b=E.BOLTS[da]; return b ? 0.866*b.F*b.F - Math.PI*da*da/4 : Math.PI*da*da/4*1.5; };
+// elevation callout, Cody's convention: finished floor / T.O. concrete = [100'-0"] (criteria.datum, ft); depth below it in ft
+E.elev = function(P, below){ const d=+((P.criteria||{}).datum); return '['+E.frac(((isFinite(d)&&d?d:100)-below)*12)+']'; };
 E.frac = function(v){ // inches -> 1'-2 1/2" style
   const neg=v<0; v=Math.abs(v); let ft=Math.floor(v/12+1e-9); let inch=v-ft*12; let n=Math.round(inch*8);
   if(n===96){ft++;n=0;} const whole=Math.floor(n/8), rem=n%8; let fr='';
@@ -17942,8 +18060,8 @@ D.plan = function(P, R, o){
       const key=q.edge+'|'+(+q.t0.toFixed(3)), on=o.selWall===key;
       if(on) g.push(ln(a,b,`pointer-events="none" stroke="#2f7cf6" stroke-width="${Math.max(8,q.fw*s+6)}" stroke-opacity=".28" stroke-linecap="round"`));
       if(q.drop>0) g.push(ln(a,b,`pointer-events="none" stroke="#d9822b" stroke-width="${o.print?Math.max(3,sw*s):4}" stroke-opacity=".75"`));
-      const lab=[]; if(q.drop>0) lab.push('WALL + FTG DN '+E().frac(q.drop*12));
-      if(q.custom){ if(Math.abs(q.dH)>1e-6) lab.push('STEM '+E().frac((q.sh0)*12)); if(Math.abs(q.fw-fw)>1e-6||Math.abs(q.fh-(+per.ftgT||8)/12)>1e-6) lab.push('FTG '+E().frac(q.fw*12)+' x '+E().frac(q.fh*12)); }
+      const lab=[]; if(q.drop>0||Math.abs(q.dH)>1e-6) lab.push('T.O. WALL FTG '+E().elev(P,q.sh0+q.drop));
+      if(q.custom){ if(Math.abs(q.fw-fw)>1e-6||Math.abs(q.fh-(+per.ftgT||8)/12)>1e-6) lab.push('FTG '+E().frac(q.fw*12)+' x '+E().frac(q.fh*12)); }
       if(lab.length && q.L>3){ const mx=(a[0]+b[0])/2+n.nx*2.2, my=(a[1]+b[1])/2+n.ny*2.2;
         g.push(`<text pointer-events="none" x="${X(mx)}" y="${Y(my)}" font-size="${fs*0.72}" text-anchor="middle" fill="${q.drop>0?'#a85a12':'#4b5563'}" font-weight="700">${lab.join(' · ')}</text>`); }
       if(!o.print){ const tip=`Wall ${q.drop>0?'(lowered '+E().frac(q.drop*12)+') ':''}· stem ${E().frac((q.sh0+q.drop)*12)} · footing ${E().frac(q.fw*12)} x ${E().frac(q.fh*12)} · ${E().frac(q.L*12)} long — click to edit`;
@@ -18019,7 +18137,7 @@ D.plan = function(P, R, o){
   });
   // ---- lowered footings
   cols.forEach(c=>{ const x=res[c.id]; if(!x||!E().colDrop||!E().colDrop(c)) return; const f=E().footingCenter(P,c,x.pl,x.ft);
-    g.push(`<text pointer-events="none" x="${Xi((f.x0+f.x1)/2)}" y="${Yi(f.y0)+fs*0.95}" font-size="${fs*0.68}" text-anchor="middle" fill="#a85a12" font-weight="700">B.O.F. −${E().frac((+P.criteria.Dbase+E().colDrop(c))*12)}</text>`); });
+    g.push(`<text pointer-events="none" x="${Xi((f.x0+f.x1)/2)}" y="${Yi(f.y0)+fs*0.95}" font-size="${fs*0.68}" text-anchor="middle" fill="#a85a12" font-weight="700">T.O.F. ${E().elev(P,(+x.pl.h||24)/12)}</text>`); });
   // ---- column ids
   if(Ly.colids) cols.forEach(c=>{ const x=res[c.id]; if(!x) return; const pr=E().plinthRect(P,c,x.pl);
     let nx=0, ny=0; if(c.face==='S') ny=1; if(c.face==='N') ny=-1; if(c.face==='W') nx=1; if(c.face==='E') nx=-1;
@@ -19054,9 +19172,9 @@ Rp.build=function(P,R){
       <table class="kv"><tr><td>Bearing q = w / b</td><td>${n(pm.q,3)} ksf</td></tr><tr><td>Allowable</td><td>${n(pm.qa,2)} ksf ${ok(pm.q<=pm.qa)}</td></tr>
         <tr><td>Longitudinal steel ${esc(P.perimeter.bars)}</td><td>${n(pm.As,2)} in²</td></tr><tr><td>0.0018 A<sub>g</sub></td><td>${n(pm.AsMin,3)} in² ${ok(pm.As>=pm.AsMin)}</td></tr>
         <tr><td>Frost / min. depth</td><td>${n(C.Dbase*12,0)}" below grade</td></tr></table></div>
-      ${(pm.segs||[]).some(g=>g.drop)?`<h2>Lowered wall zones (loading dock / step in grade)</h2><table><tr><th class="l">Wall</th><th>Length (ft)</th><th>Lowered (ft)</th><th>Stem height</th><th>w (klf)</th><th>q (ksf)</th><th></th></tr>
-        ${pm.segs.filter(g=>g.drop).map(g=>`<tr><td class="l">(${n(g.p0[0],1)}, ${n(g.p0[1],1)}) → (${n(g.p1[0],1)}, ${n(g.p1[1],1)})</td><td>${n(g.L,1)}</td><td>${n(g.drop,2)}</td><td>${n(g.sh*12,0)}"</td><td>${n(g.w,3)}</td><td>${n(g.q,3)}</td><td>${ok(g.q<=pm.qa)}</td></tr>`).join('')}</table>`:''}
-      ${(P.columns||[]).some(c=>+c.drop>0)?`<p class="note">Lowered column footings: ${(P.columns||[]).filter(c=>+c.drop>0).map(c=>esc(c.id)+' −'+e.frac(+c.drop*12)).join(', ')}. Each plinth is lengthened by the same amount so the top of concrete is unchanged; the lower footing depth is used in that column's checks.</p>`:''}
+      ${(pm.segs||[]).some(g=>g.drop)?`<h2>Lowered wall zones (loading dock / step in grade)</h2><table><tr><th class="l">Wall</th><th>Length (ft)</th><th>Lowered (ft)</th><th>T.O. wall footing</th><th>Stem height</th><th>w (klf)</th><th>q (ksf)</th><th></th></tr>
+        ${pm.segs.filter(g=>g.drop).map(g=>`<tr><td class="l">(${n(g.p0[0],1)}, ${n(g.p0[1],1)}) → (${n(g.p1[0],1)}, ${n(g.p1[1],1)})</td><td>${n(g.L,1)}</td><td>${n(g.drop,2)}</td><td>${e.elev(P,g.sh)}</td><td>${n(g.sh*12,0)}"</td><td>${n(g.w,3)}</td><td>${n(g.q,3)}</td><td>${ok(g.q<=pm.qa)}</td></tr>`).join('')}</table>`:''}
+      ${(P.columns||[]).some(c=>+c.drop>0)?`<p class="note">Lowered column footings: ${(P.columns||[]).filter(c=>+c.drop>0).map(c=>{ const x=R.cols[c.id]; return esc(c.id)+' T.O.F. '+e.elev(P,x?(+x.pl.h||24)/12:(24/12+(+c.drop)))+' (−'+e.frac(+c.drop*12)+')'; }).join(', ')}. Each plinth is lengthened by the same amount so the top of concrete is unchanged; the lower footing depth is used in that column's checks.</p>`:''}
       <p class="note">Door jambs (${(P.jambs||[]).length}) bear on the stemwall. The PEMB manufacturer publishes no jamb reactions. The jamb anchor bolts are placed per the anchor bolt plan and drawn on the plan. Provide the thickened edge at openings per the typical detail.</p>`);
   }
   // ------------------------------------------------ results matrix
@@ -19285,7 +19403,7 @@ PM.defaults = function(){
     project:{name:'',number:'',client:'',address:'',city:'',county:'',firm:'Tamarack Drafting & Design, LLC',preparedBy:'',eor:'',date:'',rev:'P1'},
     pemb:{mfr:'',job:'',dwg:'',software:'MBS',width:40,length:80,eave:20,slope:'',basis:{},loadCombos:[],maxTables:null,boltSummary:[],notes:[]},
     criteria:{code:'IBC 2021',asce:'ASCE 7-16',aci:'ACI 318-19',V:110,exposure:'C',riskCat:'II',Ss:0,S1:0,SDS:0,SD1:0,SDC:'D',R:3.25,Omega0:2.5,rho:1.0,Ie:1.0,pg:0,pf:0,
-      qa:1.5,gammaSoil:0.120,gammaConc:0.150,passive:0.200,mu:0.40,fc:2.5,fcSpec:3.0,fy:60,cover:3.0,Dbase:2.0,slab:6.0,slabReinf:'#4 @ 18" o.c. E.W.',abGrade:'F1554-36',hef:12},
+      qa:1.5,gammaSoil:0.120,gammaConc:0.150,passive:0.200,mu:0.40,fc:2.5,fcSpec:3.0,fy:60,cover:3.0,Dbase:2.0,slab:6.0,slabReinf:'#4 @ 18" o.c. E.W.',abGrade:'F1554-36',hef:12,datum:100},
     options:{braceAdd:'H',collInMin:false,pedWtBearing:true,slabUplift:true,perimUplift:true,stemPassive:true,stemPassiveLen:20,lateral:'hairpin',omegaAnchors:true,
       hairpinBar:5,hairpinLeg:7,anchorReinf:true,ksSubgrade:0.1,frSlab:2.9,slabEdgeRed:0.5,slabWidthFactor:0.666,inplaneToStem:true,tieBar:6,tieN:2,tieElongLimit:0.5,tieTransferN:0,tieTransferBar:5,loadAt:'plate',edgeMin:5,plateClear:3,plinthMin:12,otFS:1.0,slFS:1.0,ftgPlace:'column'},
     perimeter:{stemW:8,stemH:20,ftgW:16,ftgT:8,bars:'(2) #4 bot',wallDL:0.002,eave:20},
@@ -19605,7 +19723,7 @@ PM.CRIT_GROUPS=[
   ['Code & loads',[['criteria.code','Building code'],['criteria.asce','Loads standard'],['criteria.aci','Concrete standard'],['criteria.V','Wind speed V (mph)',1],['criteria.exposure','Exposure',0,['B','C','D']],['criteria.riskCat','Risk category (wind/snow)',0,['I','II','III','IV']],['criteria.pg','Ground snow pg (psf)',1],['criteria.pf','Roof snow pf (psf)',1]]],
   ['Seismic',[['criteria.riskCatSeis','Seismic risk category',0,['','I','II','III','IV']],['criteria.Ie','Importance Ie',1],['criteria.Ss','Ss',1],['criteria.S1','S1',1],['criteria.SDS','SDS',1],['criteria.SD1','SD1',1],['criteria.SDC','Seismic design category',0,['A','B','C','D','E','F']],['criteria.R','R',1],['criteria.Omega0','Ω0 (anchors)',1],['criteria.rho','ρ (redundancy)',1]]],
   ['Soil (geotech report)',[['criteria.qa','Allowable bearing (ksf)',1],['criteria.passive','Passive pressure (kcf/ft)',1],['criteria.mu','Friction μ',1],['criteria.gammaSoil','Soil unit weight (kcf)',1],['criteria.Dbase','Footing base below grade (ft)',1],['criteria.frost','Frost depth (in)',1]]],
-  ['Concrete, steel & slab',[['criteria.fc',"f'c used in design (ksi)",1],['criteria.fcSpec',"f'c specified (ksi)",1],['criteria.gammaConc','Concrete unit weight (kcf)',1],['criteria.fy','fy (ksi)',1],['criteria.cover','Bottom cover, clear (in)',1],['criteria.coverTop','Top cover, clear (in)',1],['criteria.slab','Slab thickness (in)',1],['criteria.slabReinf','Slab reinforcing'],['criteria.abGrade','Anchor rod grade',0,null,'ab'],['criteria.hef','Anchor embedment hef (in)',1]]]];
+  ['Concrete, steel & slab',[['criteria.fc',"f'c used in design (ksi)",1],['criteria.fcSpec',"f'c specified (ksi)",1],['criteria.gammaConc','Concrete unit weight (kcf)',1],['criteria.fy','fy (ksi)',1],['criteria.cover','Bottom cover, clear (in)',1],['criteria.coverTop','Top cover, clear (in)',1],['criteria.datum','Finished floor / T.O. concrete elevation (ft) — callouts are relative to this',1],['criteria.slab','Slab thickness (in)',1],['criteria.slabReinf','Slab reinforcing'],['criteria.abGrade','Anchor rod grade',0,null,'ab'],['criteria.hef','Anchor embedment hef (in)',1]]]];
 PM.GEOTECH=['criteria.qa','criteria.passive','criteria.mu','criteria.gammaSoil'];
 PM.critSt=function(path){ const m=(PM.P.critMeta||{})[path]||{}; if(m.st) return m.st; return PM.GEOTECH.includes(path)?'assumed':''; };
 PM.assumedList=function(){ const out=[]; PM.CRIT_GROUPS.forEach(([g,rows])=>rows.forEach(r=>{ if(PM.critSt(r[0])==='assumed') out.push({path:r[0],label:r[1],v:get(PM.P,r[0])}); })); return out; };
@@ -20422,7 +20540,7 @@ PM.ftBoxHtml=function(id,x,cls,fails){
     <label class="pm-wb-l">Depth <span class="note" style="margin:0;text-transform:none;font-weight:400">— this column only (loading dock, step in grade)</span></label>
     <div class="pm-steps-in"><div class="pm-step-in"><span>Lower by</span><button class="pm-btn small" data-drop="-1">−</button><b>${E.frac((x.drop||0)*12)}</b><button class="pm-btn small" data-drop="1">+</button></div>
       <input class="w-s" id="pm-in-drop" value="${x.drop||''}" placeholder="0" style="width:52px" title="feet below the typical footing depth"><span class="note" style="margin:0">ft</span></div>
-    <div class="note" style="margin:4px 0 0">Bottom of footing ${E.frac(((+P.criteria.Dbase)+(x.drop||0))*12)} below grade${x.drop?` (typical ${E.frac(+P.criteria.Dbase*12)}) · plinth ${x.pl.hBase}" → <b>${E.fracIn(x.pl.h)}</b> tall so the top of concrete stays put`:''}.</div>
+    <div class="note" style="margin:4px 0 0">T.O. footing <b>${E.elev(P,(+x.pl.h||24)/12)}</b>${x.drop?` (typical ${E.elev(P,(+x.pl.hBase||24)/12)}) · plinth ${x.pl.hBase}" → <b>${E.fracIn(x.pl.h)}</b> tall so T.O. plinth stays at ${E.elev(P,0)}`:''}.</div>
   </div></div>`; };
 // ---- anchor bolts: what governs, in plain words, and the levers that fix each mode
 PM.ancModes=function(x){ const a=x.a, g=a.gov||{}, sf=g.sf||1, P=PM.P, ar=!!P.options.anchorReinf; if(!(g.ratio>=0)) return [];
@@ -20799,7 +20917,7 @@ PM.renderWalls=function(){
   const est=(k,lbl,val,tip)=>`<div class="pm-step-in" title="${tip||''}"><span>${lbl}</span><button class="pm-btn small" data-we="${k}|-1">−</button><input class="n" data-wei="${k}" value="${val}" style="width:44px;height:24px;padding:1px 3px;text-align:center;font-weight:700"><button class="pm-btn small" data-we="${k}|1">+</button></div>`;
   const insp=q?`<div class="pm-box ${qd&&qd.ratio>1.0001?'hot':'warm'}" id="pm-wallsel"><div class="pm-box-h">Selected wall<span class="note" style="margin:0;font-weight:500">${esc(PM.wallName(q.edge))} · ${f2(q.t0,1)}–${f2(q.t1,1)} ft${z?' · lowered zone '+(q.zone+1):''}</span><span class="r">${qd?chip(qd.ratio):''}</span></div><div class="pm-box-b">
       <div class="pm-steps-in">${est('stemH','Stem h (in)',+((q.sh0+q.drop)*12).toFixed(2),'Top of wall to top of footing. A taller stem puts the footing deeper.')}${est('ftgW','Ftg W (in)',+(q.fw*12).toFixed(2))}${est('ftgT','Ftg T (in)',+(q.fh*12).toFixed(2))}</div>
-      <p class="note" style="margin:6px 0 0">${z?'Changes apply to this lowered zone only (stem height changes how far it is lowered).':'Changes apply to the whole wall run '+esc(PM.wallName(q.edge))+'.'} Bottom of footing ${E.frac((q.sh0+q.drop+q.fh)*12)} below top of wall${qd?' · q = '+f2(qd.q,2)+' ksf':''}.</p>
+      <p class="note" style="margin:6px 0 0">${z?'Changes apply to this lowered zone only (stem height changes how far it is lowered).':'Changes apply to the whole wall run '+esc(PM.wallName(q.edge))+'.'} T.O. wall footing <b>${E.elev(P,q.sh0+q.drop)}</b> (T.O. wall ${E.elev(P,0)})${qd?' · q = '+f2(qd.q,2)+' ksf':''}.</p>
       <div class="row" style="gap:6px;margin-top:6px;flex-wrap:wrap">${!z?`<button class="pm-btn small" id="pm-wpart" title="Make a separate zone on this run you can size on its own">Edit only part of this run</button>`:''}${(z?(z.ftgW||z.ftgT||z.drop):q.custom)?`<button class="pm-btn small" id="pm-wreset">${z?'Remove this zone':'Reset run to typical'}</button>`:''}<button class="pm-btn small" id="pm-wdesel">Done</button></div>
     </div></div>`:'';
   const runs=o.map((_,i)=>{ const sg=(pm.segs||[]).filter(g=>g.edge===i); if(!sg.length) return ''; const r=Math.max(...sg.map(g=>g.ratio)), g0=sg.find(g=>g.zone==null)||sg[0];
