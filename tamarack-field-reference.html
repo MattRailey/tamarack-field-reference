@@ -718,7 +718,7 @@
   #pemb .pm-srcbar select{ width:auto; min-height:0; padding:2px 4px; }
   #pemb .pm-srcview{ overflow:auto; max-height:62vh; background:#f3f4f6; flex:1; }
   #pemb .pm-srcview canvas{ display:block; margin:0 auto; }
-  #pemb .pm-crit-row{ display:grid; grid-template-columns:minmax(0,1.4fr) 110px 150px minmax(0,1fr); gap:8px; align-items:center; padding:5px 0; border-bottom:1px solid var(--line); font-size:.8rem; }
+  #pemb .pm-crit-row{ display:grid; grid-template-columns:var(--crit-cols,minmax(0,1.4fr) 110px 150px minmax(0,1fr)); gap:8px; align-items:center; padding:5px 0; border-bottom:1px solid var(--line); font-size:.8rem; }
   #pemb .pm-crit-row input, #pemb .pm-crit-row select{ min-height:0; padding:4px 6px; margin:0; }
   #pemb .pm-crit-row.assumed{ background:rgba(251,227,180,.35); }
   #pemb .pm-crit-h{ font-size:.68rem; font-weight:700; text-transform:uppercase; color:var(--steel); border-bottom:1.5px solid var(--line); }
@@ -826,6 +826,15 @@
 
 #pemb .pm-hl{background:#fff3bf!important;box-shadow:inset 0 0 0 2px #e0a800;border-radius:4px}
 #pemb tr.pm-hl td{background:#fff3bf!important}
+
+#pemb .pm-planwrap.pm-grab{ cursor:grab; }
+#pemb .pm-pkgtools{ display:flex; gap:6px; align-items:center; flex-wrap:wrap; margin:0 0 6px; }
+#pemb .pm-pkgtools .z{ min-width:46px; text-align:center; font-variant-numeric:tabular-nums; font-weight:700; font-size:.78rem; }
+
+#pemb .pm-crit-h > span{ position:relative; }
+#pemb .pm-colrs{ position:absolute; top:-4px; bottom:-4px; right:-7px; width:10px; cursor:col-resize; z-index:2; }
+#pemb .pm-colrs::after{ content:''; position:absolute; left:4px; top:3px; bottom:3px; width:2px; background:var(--line,#dfe3ea); border-radius:1px; }
+#pemb .pm-colrs:hover::after{ background:var(--blueprint,#2f7cf6); }
   /* ---- end PEMB Foundations tab ---- */
 </style>
 </head>
@@ -3590,7 +3599,7 @@
         <!-- 3 DESIGN -->
         <div class="pm-step" data-step="design" hidden>
           <div class="pm-ws">
-            <section class="pm-area pm-area-plan"><div class="pm-area-h"><span class="pm-area-n">A</span><h3>Foundation</h3><div class="pm-viewseg" id="pm-viewseg"><button data-view="plan" class="on">Plan</button><button data-view="3d">3D</button></div><span class="pm-area-sub" id="pm-viewhint">scroll to zoom &middot; drag to pan &middot; click a footing &middot; shift-click or shift-drag to pick several</span><button class="pm-btn small primary" id="pm-autodesign" style="margin-left:auto" title="Size footings, plinths, anchors embedment, grade beams and the wall footing so every check passes where there is a clear fix. Ctrl+Z undoes it.">Design it for me</button></div>
+            <section class="pm-area pm-area-plan"><div class="pm-area-h"><span class="pm-area-n">A</span><h3>Foundation</h3><div class="pm-viewseg" id="pm-viewseg"><button data-view="plan" class="on">Plan</button><button data-view="3d">3D</button></div><span class="pm-area-sub" id="pm-viewhint">wheel to zoom &middot; hold the wheel (or Space) and drag to pan &middot; double-click the wheel to fit &middot; drag a box to pick several</span><button class="pm-btn small primary" id="pm-autodesign" style="margin-left:auto" title="Size footings, plinths, anchors embedment, grade beams and the wall footing so every check passes where there is a clear fix. Ctrl+Z undoes it.">Design it for me</button></div>
               <div class="pm-ptools" id="pm-ptools"></div>
               <div id="pm-plan" class="pm-planwrap"></div>
               <div id="pm-3d" class="pm-planwrap pm-3dwrap" hidden></div>
@@ -3615,7 +3624,7 @@
         <!-- 4 DELIVER -->
         <div class="pm-step" data-step="deliver" hidden>
           <section class="pm-area " ><div class="pm-area-h"><span class="pm-area-n">A</span><h3>Before you issue</h3><span class="pm-area-sub">what is still open &mdash; each item links to where to fix it</span></div><div class="pm-area-b"><div id="pm-ready"></div></div></section>
-          <section class="pm-area " ><div class="pm-area-h"><span class="pm-area-n">B</span><h3>Calc package</h3><span class="pm-area-sub">preliminary calcs for the EOR &mdash; print to PDF</span></div><div class="pm-area-b"><div id="pm-pkgset"></div><div class="pm-pkgbox"><iframe id="pm-pkgframe" class="pm-pkgframe" title="Calc package preview"></iframe></div></div></section>
+          <section class="pm-area " ><div class="pm-area-h"><span class="pm-area-n">B</span><h3>Calc package</h3><span class="pm-area-sub">preliminary calcs for the EOR &mdash; print to PDF</span></div><div class="pm-area-b"><div id="pm-pkgset"></div><div class="pm-pkgtools" id="pm-pkgtools"><button class="pm-btn small" data-pz="out" title="Zoom out">－</button><span class="z" id="pm-pkgz">100%</span><button class="pm-btn small" data-pz="in" title="Zoom in">＋</button><button class="pm-btn small" data-pz="width">Fit width</button><button class="pm-btn small" data-pz="page">Fit page</button><button class="pm-btn small" data-pz="100">100%</button><span class="note" style="margin:0">wheel to zoom at the cursor &middot; hold the wheel (or Space) and drag to pan &middot; double-click the wheel to fit the width</span></div><div class="pm-pkgbox"><iframe id="pm-pkgframe" class="pm-pkgframe" title="Calc package preview"></iframe></div></div></section>
           <section class="pm-area " ><div class="pm-area-h"><span class="pm-area-n">C</span><h3>Revit</h3><span class="pm-area-sub">placement file for the Place PEMB Foundations button (QA tab &rarr; PEMB panel)</span></div><div class="pm-area-b"><div id="pm-revit"></div></div></section>
           <details class="pm-more pm-area-d"><summary>Method check against ENERCALC (QA)</summary><div id="pm-valid"></div></details>
         </div>
@@ -15974,6 +15983,10 @@ __author__ = 'Tamarack Drafting & Design'
 
 import json
 import math
+try:
+    basestring
+except NameError:      # CPython engine
+    basestring = str
 
 from pyrevit import revit, DB, forms, script
 from System.Collections.Generic import List
@@ -16043,7 +16056,11 @@ def set_param(el, names, value):
                 elif p.StorageType == DB.StorageType.ElementId:
                     p.Set(value)
                 else:
-                    p.Set(str(value))
+                    # office standard: displayed text is ALL CAPS (the Comments key used by the model check is left as is)
+                    txt = value if isinstance(value, basestring) else str(value)
+                    if n != DB.BuiltInParameter.ALL_MODEL_INSTANCE_COMMENTS:
+                        txt = txt.upper()
+                    p.Set(txt)
                 return True
             except Exception:
                 pass
@@ -17295,6 +17312,7 @@ E.frac = function(v){ // inches -> 1'-2 1/2" style
   if(rem){ let a=rem,b=8; while(a%2===0){a/=2;b/=2;} fr=' '+a+'/'+b; }
   return (neg?'-':'')+(ft?ft+"'-":"")+whole+fr+'"';
 };
+E.fracIn16 = function(v){ const n=Math.round(v*16), w=Math.floor(n/16), r=n%16; if(!r) return w+'"'; let a=r,b=16; while(a%2===0){a/=2;b/=2;} return (w?w+' ':'')+a+'/'+b+'"'; };
 E.fracIn = function(v){ const n=Math.round(v*8), w=Math.floor(n/8), r=n%8; if(!r) return w+'"'; let a=r,b=8; while(a%2===0){a/=2;b/=2;} return (w?w+' ':'')+a+'/'+b+'"'; };
 E.fracDia = function(v){ const m={0.5:'1/2',0.625:'5/8',0.75:'3/4',0.875:'7/8',1:'1',1.125:'1 1/8',1.25:'1 1/4',1.5:'1 1/2'}; return (m[v]||v)+'"'; };
 
@@ -17320,7 +17338,8 @@ E.combos = function(P, method, o){
   const nm = id => (P.cases.find(c=>c.id===id)||{}).name||id;
   const SDS = +C.SDS||0, rho = +C.rho||1, Om0 = o.omega ? (+C.Omega0||1) : 1;
   // per-case overstrength (e.g. braced-frame bracing cases Ω0 = 2 vs moment-frame Ω0 = 3)
-  const OmOf = e => o.omega ? (+((cs.find(c=>c.id===e)||{}).omega)||Om0) : 1;
+  // ASCE 7-16 Table 12.2-1 note g: Ω0 ≥ 2.5 may be reduced by 0.5 for a flexible diaphragm (options.flexDiaphragm)
+  const OmOf = e => { if(!o.omega) return 1; const v=(+((cs.find(c=>c.id===e)||{}).omega)||Om0); return (opt.flexDiaphragm && v>=2.5) ? v-0.5 : v; };
   const out=[]; let n=0;
   function add(eq, parts, dF, cF, kind, extra){
     const f={}; D.forEach(d=>f[d]=(f[d]||0)+dF); Co.forEach(c=>f[c]=(f[c]||0)+cF);
@@ -17338,8 +17357,8 @@ E.combos = function(P, method, o){
     Wsets.forEach(ws=>roof.forEach(r=>add('2.4.1-6a',wp(ws,.45).concat([[r,.75]]).concat(L.map(l=>[l,.75])),1,cMax,'wind',{wCase:ws[0]})));
     Wsets.forEach(ws=>add('2.4.1-7',wp(ws,.6),.6,.6*cMin,'wind',{wCase:ws[0], stab:true}));
     Eq.forEach(e=>[1,-1].forEach(s=>{ const Om=OmOf(e);
-      add('2.4.5-8',[[e,.7*rho*s*Om]],1+.14*SDS,cMax,'seis',{eCase:e,sign:s});
-      snowBal.forEach(sn=>add('2.4.5-9',[[e,.525*rho*s*Om],[sn,.75]].concat(L.map(l=>[l,.75])),1+.105*SDS,cMax,'seis',{eCase:e,sign:s}));
+      add('2.4.5-8',[[e,.7*rho*s*Om]],1+.14*SDS,(1+.14*SDS)*cMax,'seis',{eCase:e,sign:s});
+      snowBal.forEach(sn=>add('2.4.5-9',[[e,.525*rho*s*Om],[sn,.75]].concat(L.map(l=>[l,.75])),1+.105*SDS,(1+.105*SDS)*cMax,'seis',{eCase:e,sign:s}));
       add('2.4.5-10',[[e,.7*rho*s*Om]],.6-.14*SDS,(.6-.14*SDS)*cMin,'seis',{eCase:e,sign:s, stab:true});
     }));
   } else {
@@ -17556,7 +17575,8 @@ E.designColumn = function(P, col, ft, pl, opts){
   const effH = F => ({hx: zero('x')?0:F.Hx, hy: zero('y')?0:F.Hy, hxd: zero('x')?0:F.Hxd, hyd: zero('y')?0:F.Hyd});
   const hb=E.REBAR[+opt.hairpinBar||5];
   // ASD capacity of the restraint (fy·As / 2, the SE's hairpin sheet uses SF = 2)
-  const lateralCap = tie ? (+C.fy)*E.tieAs(tie)/2 : (lat0==='hairpin' ? (+C.fy)*2*hb.A/2 : 0);
+  const nHp=Math.max(1,+opt.hairpinN||1);
+  const lateralCap = tie ? (+C.fy)*E.tieAs(tie)/2 : (lat0==='hairpin' ? (+C.fy)*2*hb.A*nHp/2 : 0);
   const perimW = extras.perimRaw||0;
   // wall-parallel shear path chosen for this column (column panel): slab dowels and/or along-wall grade beams
   const slabOn = col.parPath==='slab', sl0 = col.slab||{};
@@ -17636,6 +17656,13 @@ E.designColumn = function(P, col, ft, pl, opts){
           Hg=Math.abs(Hs); sw+=swS;
           st={ids:g.cols.map(c=>c.id), ties:g.ties.map(t=>t.id), L:g.L, Hsum:Hg, Rm, swS, parts}; }
         let R=fr+pp, R2=R+spp+lat+sw+(st?st.Rm:0);
+        // thrust ⟂ wall with a steel restraint: the hairpin / tie carries 100% of it (MBMA practice). Friction and
+        // passive need movement to develop and are not added to a much stiffer steel tie (displacement compatibility).
+        if(isPerp && restrainPerp){
+          if(tie){ row['SL'+ax]={H,Hcol:H,fr,pp,spp,lat:0,sw:0,slab:0,R,R2:Infinity,fs:Infinity,path:'tie',tie:tie.id}; return; }
+          R2=lat;
+          row['SL'+ax]={H,Hcol:H,fr,pp,spp,lat,sw:0,slab:0,R,R2,fs:R2/Math.max(H,1e-9),path:'hairpin'};
+          return; }   // checked as 'Hairpin, thrust ⟂ wall' (E.designLateral)
         // slab dowels: the slab resists by friction over the area it engages
         let slabR=0, Aeng=0;
         if(slabOn && stemAx(ax) && Hg>1e-6){
@@ -17713,7 +17740,8 @@ E.designColumn = function(P, col, ft, pl, opts){
       res.lrfd.push(row);
     });
   });
-  if(slabOn){
+  if(slabOn && slabAreq<=1e-6 && !(+sl0.A>0)) res.slab={notNeeded:true};   // pad + stemwall carry it: no slab path, no dowels
+  else if(slabOn){
     let Hu=0, HuLab='';
     lrfd.forEach(cb=>E.forces(P,col,cb).forEach(F=>{ const h=Math.hypot(stemAx('x')?F.Hx:0, stemAx('y')?F.Hy:0); if(h>Hu){ Hu=h; HuLab=cb.label+(F.brace?' + bracing('+F.brace+')':''); } }));
     const per1=0.75*muSf*dBar.A*fy, nAuto=Math.max(2,Math.ceil(Hu/per1-1e-9)), nD=+sl0.n>0?+sl0.n:nAuto;
@@ -17734,16 +17762,22 @@ E.designColumn = function(P, col, ft, pl, opts){
   // cantilever (> d); sides where the plinth nearly reaches the footing edge carry no flexure
   const sides=[B/2-fxr, B/2+fxl, L/2-fyr, L/2+fyl].map(v=>v*12).filter(v=>v>dAvg);
   const cant=(sides.length?Math.min(...sides):Infinity)-(+C.cover||3);
-  const ldBase=Math.max(12, fy*1000/(25*sqfc)*bar.d*(ft.bar>=7?1.25:1));
+  // ACI 25.4.2.4: ld = (3/40)(fy/λ√f'c)(ψtψeψsψg / ((cb+Ktr)/db)) db, Ktr = 0, (cb+Ktr)/db ≤ 2.5; bottom bars ψt = 1,
+  // uncoated ψe = 1, ψs = 0.8 for #6 and smaller, ψg = 1.0 (Gr 60)
+  const cbD=Math.min((+C.cover||3)+bar.d/2, ((L*12-2*(+C.cover||3))/Math.max(nb-1,1))/2);
+  const ktrR=Math.min(2.5, cbD/bar.d), psiS=(ft.bar||5)<=6?0.8:1.0, psiG=fy<=60?1.0:(fy<=80?1.15:1.3);
+  const ldBase=Math.max(12, 3/40*fy*1000/sqfc*psiS*psiG/ktrR*bar.d);
+  // excess-reinforcement reduction (25.4.10.1) is not permitted in the seismic-force-resisting system of SDC D-F (25.4.10.2(e))
+  const noRed=E.noExcessRed(P,col);
   const maxMbot=Math.max((byItem['Flexure X (bottom)']||{}).applied||0,(byItem['Flexure Y (bottom)']||{}).applied||0);
   const AsReqStr=E.asReq(maxMbot,dAvg,fc,fy);
-  const redn=Math.min(1,Math.max(AsReqStr/Math.min(AsX,AsY),0));
+  const redn=noRed?1:Math.min(1,Math.max(AsReqStr/Math.min(AsX,AsY),0));
   const ldReq=Math.max(12, ldBase*redn);
   const ldhBase=E.ldh(ft.bar||5, fc, fy), ldhReq=Math.max(8*bar.d, 6, ldhBase*redn);
   const hooks = isFinite(cant) && ldReq>cant+1e-6;
   if(!isFinite(cant)) {}
-  else if(!hooks) keep('Bar development (straight)', ldReq/cant, ldReq, cant, 'ACI 25.4.2.4 × As,req/As,prov (25.4.10.1)', {units:'in', ldBase});
-  else keep('Bar development (std 90° hooks req\'d)', ldhReq/cant, ldhReq, cant, 'Straight ld = '+ldReq.toFixed(1)+'" > '+cant.toFixed(1)+'" avail. → hooks; ACI 25.4.3.1 × As,req/As,prov', {units:'in', ldBase, detailing:true});
+  else if(!hooks) keep('Bar development (straight)', ldReq/cant, ldReq, cant, noRed?'ACI 25.4.2.4 (no As,req/As,prov reduction, 25.4.10.2(e) SDC '+C.SDC+')':'ACI 25.4.2.4 × As,req/As,prov (25.4.10.1)', {units:'in', ldBase});
+  else keep('Bar development (std 90° hooks req\'d)', ldhReq/cant, ldhReq, cant, 'Straight ld = '+ldReq.toFixed(1)+'" > '+cant.toFixed(1)+'" avail. → hooks; ACI 25.4.3.1'+(noRed?' (no excess-reinf. reduction, SDC '+C.SDC+')':' × As,req/As,prov'), {units:'in', ldBase, detailing:true});
   res.hooks=hooks; res.ldhReq=ldhReq;
   res.summary=Object.values(byItem);
   res.ok=res.summary.every(s=>s.ratio<=1.0001);
@@ -17758,10 +17792,13 @@ E.asReq = function(Mu,d,fc,fy){ // in2/ft for Mu k-ft/ft
   const t=1-2*m*Rn/fy; if(t<0) return Infinity; return (1/m)*(1-Math.sqrt(t))*b*d;
 };
 
+E.frSlab = C => 0.6*Math.sqrt((+C.fc||2.5)*6.894757);   // MPa, Temple et al. (1991) with the design f'c
+// options.frSlab overrides; 2.9 was the old default (the SE sheet's value for 3,000 psi) and is treated as 'auto'
+E.frUsed = P => { const v=+((P.options||{}).frSlab); return (v>0 && Math.abs(v-2.9)>1e-9) ? v : E.frSlab(P.criteria||{}); };
 // SE's supplemental uplift resistance (Cody Cox standard sheet) - slab and perimeter footing
 E.upliftExtras = function(P, col, ft){
   const C=P.criteria, opt=P.options||{}, per=P.perimeter||{};
-  const ks=+opt.ksSubgrade||0.1, hmm=(+C.slab||6)*25.4, Bmm=ft.B*12*25.4*(+opt.slabWidthFactor||0.666), fr=+opt.frSlab||2.9;
+  const ks=+opt.ksSubgrade||0.1, hmm=(+C.slab||6)*25.4, Bmm=ft.B*12*25.4*(+opt.slabWidthFactor||0.666), fr=E.frUsed(P);
   const PskN=0.6*Math.pow(ks,0.2)*Math.pow(hmm,1.4)*Math.pow(Bmm,0.56)*fr/1000;
   const slab=PskN/4.448*(+opt.slabEdgeRed||0.5);
   const Lw = col.tribWall!=null ? col.tribWall : (+opt.stemPassiveLen||20);
@@ -17830,9 +17867,20 @@ E.designAnchors = function(P, col, pl, ft){
     const lcx=pg.cx, lcy=pg.cy, dpth=lug.h-1, hPl=+pl.h||24;
     const brk=(c1,wid)=>{ const w2=Math.min(wid,lug.w+2*1.5*c1), d2=Math.min(hPl,dpth+1.5*c1); return 0.75*4*sq*Math.max(0,w2*d2-lug.w*dpth)/1000; };
     const phiX=Math.min(brk(pr.x1-lcx,pr.y1-pr.y0),brk(lcx-pr.x0,pr.y1-pr.y0)), phiY=Math.min(brk(pr.y1-lcy,pr.x1-pr.x0),brk(lcy-pr.y0,pr.x1-pr.x0));
-    lugCap={Aef,phiBrg,phiX,phiY,w:lug.w,h:lug.h}; }
+    // lug plate (cantilever from the base plate) and its fillet welds, AISC Design Guide 1 (2nd ed.) 3.5
+    const G=+opt.groutT||1, lfy=+opt.lugFy||36, arm=G+dpth/2;
+    // plate thickness and weld size: as given on the column, else sized here for the largest base shear
+    let Vmx=0; E.combos(P,'LRFD',{omega:!!opt.omegaAnchors && /[CDEF]/.test(C.SDC||'')}).forEach(cb=>E.forces(P,col,cb).forEach(F=>{ Vmx=Math.max(Vmx,Math.hypot(F.Hx,F.Hy)); }));
+    const lt=+col.lug.t||Math.max(0.75,Math.ceil(Math.sqrt(4*Vmx*arm/(0.9*lfy*lug.w))*4-1e-9)/4);
+    const awReq=Math.hypot(Vmx/(2*lug.w), Vmx*arm/(lt*lug.w))/(0.75*0.6*70*0.707);
+    const aw=+col.lug.weld||Math.max(0.3125,Math.ceil(awReq*16-1e-9)/16);
+    const phiMp=0.9*lfy*lug.w*lt*lt/4;                                   // k-in, plastic, Z = w t²/4
+    const phiRw=0.75*0.6*70*0.707*aw;                                   // k/in per fillet (E70)
+    lugCap={Aef,phiBrg,phiX,phiY,w:lug.w,h:lug.h,t:lt,fy:lfy,weld:aw,G,arm,phiMp,phiRw,Vmx,tAuto:!+col.lug.t,wAuto:!+col.lug.weld,
+      tReq:Vu=>Math.sqrt(4*Vu*arm/(0.9*lfy*lug.w)),
+      weldR:Vu=>{ const fv=Vu/(2*lug.w), ft=Vu*arm/(lt*lug.w); return Math.hypot(fv,ft)/phiRw; }}; }
   const combos=E.combos(P,'LRFD',{omega:!!opt.omegaAnchors && /[CDEF]/.test(C.SDC||'')});
-  const rows=[]; let gov={ratio:-1};
+  const rows=[]; let gov={ratio:-1}, govN=null, govV=null, govL=null;
   combos.forEach(cb=>E.forces(P,col,cb).forEach(F=>{
     const N=Math.max(0,-F.P), V=Math.hypot(F.Hx,F.Hy);
     if(N<=0 && V<=0) return;
@@ -17852,18 +17900,22 @@ E.designAnchors = function(P, col, pl, ft){
     const bN = Math.max(Tmax/phiNsa, Tmax/(phiNpn*sf), opt.anchorReinf ? N/phiNar : N/phiNcbg, N>0&&phiNsb<Infinity? Tmax/(phiNsb*sf):0);
     const edge = opt.anchorReinf ? V/phiVar : Math.max(Math.abs(F.Hx)/phiVx, Math.abs(F.Hy)/phiVy);
     let bV = Math.max(vi/phiVsa, V/phiVcpg, edge), lugR=null;
-    if(lugCap){ lugR={brg:V/(lugCap.phiBrg*sf), bx:Math.abs(F.Hx)/(lugCap.phiX*sf||1e-9), by:Math.abs(F.Hy)/(lugCap.phiY*sf||1e-9)}; bV=0; }
+    if(lugCap){ lugR={brg:V/(lugCap.phiBrg*sf), bx:Math.abs(F.Hx)/(lugCap.phiX*sf||1e-9), by:Math.abs(F.Hy)/(lugCap.phiY*sf||1e-9), plate:V*lugCap.arm/lugCap.phiMp, weld:lugCap.weldR(V)}; bV=0; }
     // ACI 17.8.1/17.8.2: full strength in one direction when the other ratio is <= 0.2
     const inter = (bN<=0.2||bV<=0.2) ? Math.max(bN,bV) : Math.pow(bN,5/3)+Math.pow(bV,5/3);
-    const pry = lugCap?0:V/phiVcpg, lugMax=lugR?Math.max(lugR.brg,lugR.bx,lugR.by):0;
+    const pry = lugCap?0:V/phiVcpg, lugMax=lugR?Math.max(lugR.brg,lugR.bx,lugR.by,lugR.plate,lugR.weld):0;
     const r={id:cb.id,label:cb.label+(F.brace?' + bracing('+F.brace+')':''),brace:F.brace,P:F.P,Hx:F.Hx,Hy:F.Hy,N,V,Ti,exi,eyi,Ix,Iy,Tmax,vi:lugCap?0:vi,phiNcbg,psiEc,phiVcpg,phiVx,phiVy,bN,bV,inter,pry,seis,sf,lugR};
     rows.push(r); const ratio=Math.max(bN,bV,inter,lugMax); if(ratio>gov.ratio) gov=Object.assign({ratio},r);
+    if(!govN||bN>govN.bN) govN=r; if(!govV||bV>govV.bV||(!lugCap&&bV===govV.bV&&V>govV.V)) govV=r; if(lugR&&(!govL||lugMax>govL.lugMax)) govL=Object.assign({lugMax},r);
   }));
   const ldh = E.ldh(4, +C.fc, +C.fy);
   return {xc, yc, bs, pg, da, grade:C.abGrade, Ase, futa, Abrg, n, hef0, hef, sx, sy, ca:{cxm,cxp,cym,cyp}, camin, ANc, ANco, psiEd, Nb, Ncbg0,
-          Np, phiNsa, phiVsa, phiNpn, phiNsb, vcb, psiCV, AsAR, legs, phiNar, tieAs, phiVar, arSrc, rows, gov, lug:lugCap, ok:gov.ratio<=1.0001, ldh, pr, ha,
+          Np, phiNsa, phiVsa, phiNpn, phiNsb, vcb, psiCV, AsAR, legs, phiNar, tieAs, phiVar, arSrc, rows, gov, govN:govN||gov, govV:govV||gov, govL, lug:lugCap, ok:gov.ratio<=1.0001, ldh, pr, ha,
           omega: !!opt.omegaAnchors && /[CDEF]/.test(C.SDC||''), Om:+C.Omega0};
 };
+// ACI 25.4.10.2(e): no As,req/As,prov reduction of ld / ldh for the seismic-force-resisting system in SDC D-F.
+// Every PEMB column footing is treated as part of it (frames, braced bays and endwall frames all carry lateral load).
+E.noExcessRed = function(P,col){ const o=P.options||{}; return /[DEF]/.test((P.criteria||{}).SDC||'') && !o.ldExcessRedSDCD; };
 // hooked bar development ACI 25.4.3.1 (psi_e=1, psi_r=1.6, psi_o=1.0, psi_c per f'c)
 E.ldh = function(bar, fcKsi, fy){
   const db=E.REBAR[bar].d, fc=fcKsi*1000, psic = fc<6000 ? fc/15000+0.6 : 1.0;
@@ -17879,7 +17931,7 @@ E.designPlinth = function(P, col, pl, ft, anc){
   const phiTn=0.9*As*(+C.fy);
   const avail=ft.T-(+C.cover||3)-2*E.REBAR[ft.bar||5].d;
   const ldhFull=E.ldh((pl.vert||{}).bar||4,+C.fc,+C.fy);
-  const red=Math.min(1,Math.max(Tu/(0.9*(+C.fy))/As, AsMin>As?1:0));
+  const red=E.noExcessRed(P,col)?1:Math.min(1,Math.max(Tu/(0.9*(+C.fy))/As, AsMin>As?1:0));
   const ldhReq=Math.max(8*vb.d,6,ldhFull*Math.max(red, 0));
   return {legs, As, Ag, AsMin, Tu, phiTn, avail, ldhFull, ldhReq,
           items:[
@@ -17891,34 +17943,30 @@ E.designPlinth = function(P, col, pl, ft, anc){
 
 // ---------------------------------------------------------------- lateral thrust (hairpins / tie)
 E.designLateral = function(P, col, dres){
+  // Hairpins take 100% of the frame thrust perpendicular to the wall (MBMA / SE practice); the footing's
+  // friction and passive are reported as backup only. ASD: fy·As / 2 (SE's hairpin sheet, SF = 2).
+  // LRFD: Hu ≤ φ·As·fy. The slab is the tie that carries the hairpin force across the building.
   const C=P.criteria, opt=P.options||{};
-  const hb=E.REBAR[+opt.hairpinBar||5], As=2*hb.A;
-  const out={mode:opt.lateral||'hairpin', As, bar:+opt.hairpinBar||5, leg:+opt.hairpinLeg||7, cases:[]};
-  // thrust perpendicular to the wall the column sits on
+  const nHp=Math.max(1,+opt.hairpinN||1), bar=+opt.hairpinBar||5, hb=E.REBAR[bar], As=2*hb.A*nHp;
+  const out={mode:opt.lateral||'hairpin', As, n:nHp, bar, leg:+opt.hairpinLeg||7, cases:[], items:[]};
   const ax=(col.face==='N'||col.face==='S')?'y':'x';
-  let govMax=null, govMin=null;
-  dres.asd.forEach(r=>{
-    const s=r['SL'+ax]; if(!s) return;
-    const rec={label:r.label,H:s.H,footR:s.R,stemPP:s.spp,P:r.P};
-    if(r.P>=0){ if(!govMax||rec.H-rec.footR>govMax.H-govMax.footR) govMax=rec; }
-    else { if(!govMin||rec.H-rec.footR>govMin.H-govMin.footR) govMin=rec; }
-  });
-  const capASD=(+C.fy)*As/2; // SF = 2 (SE's sheet)
-  [['Max. vertical load',govMax],['Min. vertical load',govMin]].forEach(([k,g])=>{
-    if(!g) return;
-    const need=Math.max(0,g.H-g.footR);
-    const Lft=+opt.hairpinLeg*2||14;
-    out.cases.push({k, H:g.H, R:g.footR, need, cap:capASD, elong:need*Lft*12/(As*29000), ok:capASD>=need, label:g.label, stemPP:g.stemPP, fsFooting:(g.footR+g.stemPP)/g.H});
-  });
-  // LRFD full-thrust check (hairpin carries all)
+  let gov=null;
+  dres.asd.forEach(r=>{ const s=r['SL'+ax]; if(!s) return; if(!gov||s.H>gov.H) gov={label:r.label,H:s.H,footR:s.R,stemPP:s.spp,P:r.P}; });
+  const capASD=(+C.fy)*As/2, Lft=(+opt.hairpinLeg||7)*2;
+  if(gov) out.cases.push({k:'Governing thrust', H:gov.H, R:gov.footR, need:gov.H, cap:capASD, elong:gov.H*Lft*12/(As*29000), ok:capASD>=gov.H-1e-9, label:gov.label, stemPP:gov.stemPP, backup:gov.footR+gov.stemPP});
   let Hu=0, HuLab='';
   (dres.lrfdH||[]).forEach(x=>{ if(x.H>Hu){Hu=x.H;HuLab=x.label;} });
-  out.Hu=Hu; out.HuLab=HuLab; out.phiTn=0.9*As*(+C.fy);
-  const ld=Math.max(12,(+C.fy)*1000/(25*Math.sqrt(+C.fc*1000))*hb.d*(out.bar>=7?1.25:1));
+  out.Hu=Hu; out.HuLab=HuLab; out.phiTn=0.9*As*(+C.fy); out.capASD=capASD; out.Ha=gov?gov.H:0; out.HaLab=gov?gov.label:'';
+  const ld=Math.max(12,(+C.fy)*1000/(25*Math.sqrt(+C.fc*1000))*hb.d*(bar>=7?1.25:1));
   out.ld=ld; out.legIn=(+opt.hairpinLeg||7)*12;
-  // tie alternative (grade beam / tie across the building)
+  // the slab has to carry the hairpin force across the building: steel in the slab strip at the hairpin
+  out.slabAs=Hu/(0.9*(+C.fy));
+  if(gov){ out.items.push({item:'Hairpin, thrust ⟂ wall (ASD, SF 2)', ratio:gov.H/capASD, applied:gov.H, cap:capASD, combo:gov.label, units:'k'});
+    if(Hu>0) out.items.push({item:'Hairpin tension (LRFD, φAsfy)', ratio:Hu/out.phiTn, applied:Hu, cap:out.phiTn, combo:HuLab, units:'k'});
+    out.items.push({item:'Hairpin leg development', ratio:ld/out.legIn, applied:ld, cap:out.legIn, combo:'ACI 25.4.2.3', units:'in'}); }
+  // tie alternative (grade beam / tie across the building), sized for this column's thrust
   const Wd=(P.pemb.width||40);
-  out.tie={L:Wd, AsReq:Hu/(0.9*(+C.fy)), AsHalfInch: (Math.max(...out.cases.map(c=>c.H),0))*Wd*12/(0.5*29000)};
+  out.tie={L:Wd, AsReq:Hu/(0.9*(+C.fy)), AsHalfInch:(out.Ha||0)*Wd*12/(0.5*29000)};
   return out;
 };
 
@@ -18011,6 +18059,10 @@ E.run = function(P){
     const a=E.designAnchors(P,col,pl,ft);
     const p=E.designPlinth(P,col,pl,ft,a);
     const lat=E.designLateral(P,col,d);
+    { const pax=E.perpAxis(col); let Vpar=0; if(pax) E.combos(P,'LRFD').forEach(cb=>E.forces(P,col,cb).forEach(F=>{ Vpar=Math.max(Vpar,Math.abs(pax==='x'?F.Hy:F.Hx)); }));
+      const sw=E.stemwallCheck(P,col,d.restrainPar?Vpar:0); d.stem=sw; if(sw&&sw.items.length){ sw.items.forEach(it=>d.summary.push(it)); d.ok=d.summary.every(q=>q.ratio<=1.0001); d.gov=d.summary.reduce((m,q)=>q.ratio>m.ratio?q:m,{ratio:0}); } }
+    if(d.restrainPerp && !d.tie && lat.items.length){ lat.items.forEach(it=>d.summary.push(it));
+      d.ok=d.summary.every(q=>q.ratio<=1.0001); d.gov=d.summary.reduce((m,q)=>q.ratio>m.ratio?q:m,{ratio:0}); }
     const reqPl=E.plinthRequired(P,col);
     P=P0;
     out.cols[col.id]={col, ft, pl, d, a, p, lat, reqPl, drop:E.colDrop(col)};
@@ -18096,6 +18148,14 @@ E.fixAnchors = function(P, pl, us, o){
   if(pl.bx!==s0.bx||pl.hef!==s0.hef) log.push('Plinth '+pl.mark+' '+pl.bx+'" × '+pl.by+'"'+(pl.hef!==s0.hef?', anchor embedment '+pl.hef+'"':'')+' for anchor breakout / pryout');
   return {changed:true,log,left:[]};
 };
+// grade-beam ties across the building at the given rigid-frame lines (first to last frame column on the line)
+E.autoFrameTies = function(P, lines){
+  P.ties=P.ties||[]; const O=P.options||{}, added=[];
+  E.frames(P).filter(f=>f.kind==='frame' && (!lines||lines.includes(f.line))).forEach(f=>{ const cs=f.cols.filter(c=>c.kind==='frame').sort((a,b)=>a.y-b.y); if(cs.length<2) return;
+    const id='GB-'+f.line; if(P.ties.some(t=>t.id===id||((t.from===cs[0].id||t.to===cs[0].id)&&!E.tieIsStrut(P,t,cs[0])))) return;
+    P.ties.push({id,role:'frame',from:cs[0].id,to:cs[cs.length-1].id,b:12,h:12,n:+O.tieN||2,bar:+O.tieBar||5}); added.push(id); });
+  return added;
+};
 E.autoDesign = function(P, o){
   o=o||{}; const log=[], MAXPL=48, MAXT=36;
   const ok=r=>r<=1.0001, note=m=>{ if(!log.includes(m)) log.push(m); };
@@ -18128,11 +18188,29 @@ E.autoDesign = function(P, o){
         if(!done){ v.n=n0; v.bar=b0; r=ev(); } else { changed=true; note('Plinth '+pl.mark+' verticals ('+v.n+') #'+v.bar+(v.shape==='U'?' U-bars':'')); } }
       if(bad(r,'Hook')){ const Ts=[...new Set(us.map(c=>E.groupOf(P,c)))]; let g=0; while(bad(r,'Hook') && g++<12){ Ts.forEach(T=>{ if((+T.T||12)<MAXT) T.T=(+T.T||12)+2; }); r=ev(); }
         changed=true; note('Footing '+Ts.map(T=>T.mark+' '+T.T+'"').join(', ')+' deep for the plinth dowel hooks'); } });
+    // 3b. frame thrust ⟂ wall: hairpins carry 100%. Smallest hairpin set that works; frame lines whose thrust is
+    //     beyond a single #6 hairpin get a grade-beam tie across the building instead.
+    { const hpFail=R=>Object.values(R.cols).filter(x=>x.d.summary.some(q=>/^Hairpin/.test(q.item)&&!ok(q.ratio)));
+      const O=P.options=P.options||{}; R=E.run(P);
+      if(hpFail(R).length && o.hairpin!=='flag'){
+        const cands=[[5,1],[6,1],[7,1],[5,2],[6,2]], b0=[O.hairpinBar,O.hairpinN], nt0=(P.ties||[]).length;
+        const tryC=list=>{ for(const [b,nn] of list){ O.hairpinBar=b; O.hairpinN=nn; if(!hpFail(E.run(P)).length) return true; } return false; };
+        if(!tryC(cands.slice(0,2))){
+          const lines=[...new Set(hpFail(E.run(P)).filter(x=>x.col.kind==='frame').map(x=>x.col.grid[0]))];
+          if(lines.length){ const add=E.autoFrameTies(P,lines); if(add.length){ note('Frame thrust beyond a #6 hairpin → grade-beam tie across the building at line(s) '+lines.join(', ')+' ('+add.join(', ')+')'); } }
+          if(!tryC(cands)){ O.hairpinBar=b0[0]; O.hairpinN=b0[1]; }
+        }
+        if((O.hairpinBar||5)!==(b0[0]||5)||(O.hairpinN||1)!==(b0[1]||1)){ changed=true; note('Hairpins: '+(O.hairpinN>1?'('+O.hairpinN+') ':'')+'#'+O.hairpinBar+' at each column'); }
+        if((P.ties||[]).length!==nt0) changed=true;
+      } }
     // 4. grade beams
     (P.ties||[]).forEach(t=>{ const r=E.autoTie(P,t.id); if(r&&(r.n!==t.n||r.bar!==t.bar||r.transferN!==t.transferN)){ Object.assign(t,r); changed=true; note('Grade beam '+t.id+' ('+r.n+') #'+r.bar); } });
     // 5. perimeter wall footing
     const pm=E.designPerimeter(P), per=P.perimeter=P.perimeter||{};
-    if(!ok(pm.ratio) && (+per.ftgW||16)<48){ per.ftgW=(+per.ftgW||16)+2; changed=true; note('Wall footing widened to '+per.ftgW+'"'); }
+    if(!ok(pm.bearingRatio) && (+per.ftgW||16)<48){ per.ftgW=(+per.ftgW||16)+2; changed=true; note('Wall footing widened to '+per.ftgW+'"'); }
+    if(pm.depth && !pm.depth.plain && !ok(pm.depth.ratio) && (+per.ftgT||8)<24){ per.ftgT=(+per.ftgT||8)+2; changed=true; note('Wall footing '+per.ftgT+'" deep (6" of concrete above the bottom bars, ACI 13.3.1.2)'); }
+    { const R2=E.run(P); const bad=Object.values(R2.cols).some(x=>x.d.summary.some(q=>/^Stemwall as uplift/.test(q.item)&&!ok(q.ratio)));
+      if(bad){ const st=per.stemTop=Object.assign({n:2,bar:4},per.stemTop||{}); if(st.bar<6) st.bar++; else st.n++; changed=true; note('Stemwall top bars ('+st.n+') #'+st.bar+' continuous (stemwall spans to pick up its weight for uplift)'); } }
     if(!changed){ if(useLug||o.lug===false) break; useLug=true; }
   }
   const R=E.run(P), left=[];
@@ -18208,18 +18286,44 @@ E.flags = function(P, R){
     (P.jambs||[]).forEach(c=>cnt.Jamb+=(c.bolts||[]).length);
     bsum.forEach(b=>{ const k=b.loc; if(cnt[k]!=null && cnt[k]!==b.qty) add('med','Anchor bolts',k+' bolts modeled = '+cnt[k]+', PEMB anchor bolt summary = '+b.qty+'. '+(k==='Jamb'?'(Expected if openings were revised after the PEMB drawings were issued.)':''),'PEMB F2'); });
   }
+  // ---- reviewer items (PE review 9/25/2026)
+  const O=P.options||{}, M=P.critMeta||{}, srcOf=k=>((M['criteria.'+k]||{}).src||'');
+  // soil values vs IBC Table 1806.2 presumptive classes, unless they come from a geotech report
+  if(!/geotech|report|soils/i.test(srcOf('qa')+srcOf('mu')+srcOf('passive'))){
+    const cls=[{c:'1',q:12,lat:1.2,mu:0.70},{c:'2',q:5,lat:0.4,mu:0.70},{c:'3',q:3,lat:0.2,mu:0.35},{c:'4',q:2,lat:0.15,mu:0.25},{c:'5',q:1.5,lat:0.1,mu:null}];
+    const one=cls.find(k=>(+C.qa)<=k.q+1e-9 && (+C.passive)<=k.lat+1e-9 && (k.mu==null?false:(+C.mu)<=k.mu+1e-9) && !cls.some(j=>j!==k && j.q<k.q && (+C.qa)<=j.q+1e-9));
+    const fit=cls.filter(k=>(+C.qa)<=k.q+1e-9 && (+C.passive)<=k.lat+1e-9 && k.mu!=null && (+C.mu)<=k.mu+1e-9);
+    if(!fit.length || (+C.mu)>0.35) add('high','Design basis','Soil values (q = '+(+C.qa*1000)+' psf, passive '+(+C.passive*1000)+' pcf/ft, μ = '+C.mu+') do not all fit one IBC Table 1806.2 class (Class 3 gravel: 3,000 / 200 / 0.35; Class 4 sand/silty sand: 2,000 / 150 / 0.25; Class 5 clay/silt: 1,500 / 100 / cohesion 130 psf). Without a geotech report a plan reviewer will hold the design to one presumptive class. Provide the geotech report (Pasco loess/silts: also collapse potential and sulfates) or use one consistent class.','IBC 1806.2'); }
+  // seismic system per direction
+  add('info','Design basis','Seismic force-resisting systems: transverse rigid frames = steel ordinary moment frame (ASCE 7-16 Table 12.2-1: R = 3.5, Ω0 = 3); longitudinal / endwall bracing = steel ordinary concentrically braced frame (R = 3.25, Ω0 = 2). The PEMB lists R = '+(C.R||'—')+'. Anchors use Ω0 = 3 for the frame seismic cases and 2 for the bracing seismic cases.'+(O.flexDiaphragm?' Frame Ω0 reduced by 0.5 for a flexible diaphragm (Table 12.2-1 note g).':' With a flexible (metal deck) roof diaphragm, Table 12.2-1 note g allows the frame Ω0 of 3 to be reduced by 0.5 (EOR option).'),'ASCE 7-16 12.2');
+  if(/[CDEF]/.test(C.SDC||'')) add('med','Design basis','Confirm with the PEMB manufacturer whether their seismic reactions already include vertical seismic Ev = 0.2SDS·D. This package applies Ev to D (and collateral) in the seismic combinations.','ASCE 7-16 12.4.2.2');
+  if(!C.siteClass && !pb.site) add('med','Design basis','Site Class not listed on the criteria or the PEMB drawings (ASCE 7 default D). If the geotech report gives Site Class E or F, IBC 1809.13 requires the isolated footings to be tied together.','IBC 1809.13 / ASCE 7-16 20.3');
+  else if(/[EF]/.test(C.siteClass||pb.site||'')) add('high','Design basis','Site Class '+(C.siteClass||pb.site)+': IBC 1809.13 requires the individual spread footings in SDC D-F to be interconnected by ties.','IBC 1809.13');
+  // exposure: exterior stemwall and plinths in a freezing climate
+  const expF=(C.exposureF||'F1'), fcs=(+C.fcSpec||+C.fc)*1000;
+  if(/F[1-3]/.test(expF) && fcs<({F1:3500,F2:4500,F3:5000}[expF]||3500)) add('med','Design basis','Exterior stemwall and plinths exposed to freezing are Exposure '+expF+' (ACI 318-19 Table 19.3.1.1): min. f\'c '+({F1:3500,F2:4500,F3:5000}[expF])+' psi, air-entrained (Table 19.3.3.1). Specified f\'c = '+fcs+' psi. Footings below frost depth are F0.','ACI 19.3.2.1');
+  // hairpins: the slab is the tie across the building
+  const hpCols=Object.values(R.cols||{}).filter(x=>x.d.restrainPerp && !x.d.tie && x.lat && x.lat.Hu>0);
+  if(hpCols.length){ const frH=hpCols.filter(x=>x.col.kind==='frame'); const w=(frH.length?frH:hpCols).reduce((m,x)=>x.lat.Hu>m.lat.Hu?x:m); add((frH.length&&/TBD|^$/i.test(String(C.slabReinf||'')))?'high':'med','Slab as tie','Hairpins deliver '+(frH.length?'the frame thrust':'the endwall column reactions')+' into the slab, so the slab reinforcing is part of the lateral load path: As ≥ Hu / (0.9 fy) = '+w.lat.Hu.toFixed(1)+' / (0.9 × '+C.fy+') = '+w.lat.slabAs.toFixed(2)+' in² through the slab strip at '+w.col.id+(frH.length?', continuous to the opposite frame column across control and construction joints.':' within the hairpin length.')+' Slab reinforcing is currently "'+(C.slabReinf||'—')+'".','MBMA / ACI 22.4'); }
+  // SE-method uplift (0.6 TDL vs. full unfactored uplift) that fails while ASCE 7 combination 7 passes
+  Object.values(R.cols||{}).forEach(x=>{ const se=E.seUplift?E.seUplift(P,x):null; if(se && se.fs<1-1e-9) add('med','Uplift (SE method) @ '+x.col.id,'SE standard sheet: 0.6 × TDL = '+se.res.toFixed(1)+' k < unfactored uplift '+se.up.toFixed(1)+' k ('+se.lab+'). ASCE 7-16 combination 7 (0.6D + 0.6W) passes at '+se.asceRatio.toFixed(2)+'. EOR to confirm which method governs.','ASCE 7-16 2.4.1'); });
+  // zero-margin results on reactions that are not final
+  const tight=Object.values(R.cols||{}).filter(x=>x.d.gov && x.d.gov.ratio>0.97 && x.d.gov.ratio<=1.0001 && !/Min\. steel|spacing/.test(x.d.gov.item));
+  if(tight.length) add('info','Reserve','Governing checks at '+tight.map(x=>x.col.id).join(', ')+' are at 0.97-1.00 on the manufacturer\'s current reaction package. Consider rounding sizes up for 5-10% reserve until the PEMB reactions are final.'+((+O.pedWtBearing||1)&&(+C.gammaSoil)>0?' Bearing counts the backfill over the footing as load; ask the geotech whether net allowable bearing applies.':''),'—');
+  // perimeter footing depth
+  if(R.perim && R.perim.depth && !R.perim.depth.plain && R.perim.depth.ratio>1.0001) add('high','Perimeter wall footing','Wall footing '+(R.perim.fh*12).toFixed(0)+'" deep with #4 bottom bars at '+(+C.cover||3)+'" cover leaves '+R.perim.depth.above.toFixed(1)+'" above the steel; ACI 13.3.1.2 requires 6". Go to '+Math.ceil((6+(+C.cover||3)+0.5)/2)*2+'" or design it as plain concrete (ACI 14).','ACI 13.3.1.2');
   // ACI Ω0 note
   if(/[CDEF]/.test(C.SDC||'') && !(P.options||{}).omegaAnchors) add('med','Anchors','SDC '+C.SDC+': ACI 318-19 17.10.5.3(d) requires anchor design forces from combinations with E to include Ω0 when ductile steel failure does not govern.','ACI 17.10.5.3');
   // results
   Object.values(R.cols||{}).forEach(x=>{
-    x.d.summary.filter(s=>s.ratio>1.0001).forEach(s=>add((s.detailing||s.ratio<=1.10)?'med':'high','Footing '+x.ft.mark+' @ '+x.col.id, s.item+' ratio '+s.ratio.toFixed(2)+' ('+s.combo+').'+
+    x.d.summary.filter(s=>s.ratio>1.0001&&/^Hairpin/.test(s.item)).forEach(s=>add('high','Hairpin @ '+x.col.id, s.item+' ratio '+s.ratio.toFixed(2)+': '+(+s.applied).toFixed(1)+' > '+(+s.cap).toFixed(1)+' '+s.units+' ('+s.combo+'). The hairpin carries 100% of the thrust. Use a larger or second hairpin, or a grade-beam tie across the building (Layout → ties).','MBMA / ACI 22.4'));
+    x.d.summary.filter(s=>s.ratio>1.0001&&!/^Hairpin/.test(s.item)).forEach(s=>add((s.detailing||s.ratio<=1.10)?'med':'high','Footing '+x.ft.mark+' @ '+x.col.id, s.item+' ratio '+s.ratio.toFixed(2)+' ('+s.combo+').'+
       (s.item==='Sliding ∥ wall'?(x.col.parPath==='slab'||(s.strut)?' The chosen wall-parallel path is still short — add dowels / slab area or extend the along-wall grade beam.':' The pad cannot carry this (net uplift, no friction). In the column panel set "Load along the wall" to slab dowels, or add an along-wall grade beam to the other column of the braced bay.'):''),''));
-    if(x.d.slab){ const sb=x.d.slab; add('med','Slab tie-in @ '+x.col.id,'Wall-parallel shear goes into the slab: ('+sb.n+') #'+sb.bar+' dowels, shear friction μ = '+sb.mu+' (V<sub>u</sub> = '+sb.Hu.toFixed(1)+' k, φV<sub>n</sub> = '+sb.phiVn.toFixed(1)+' k); slab friction over ≈ '+Math.round(sb.A)+' sf of '+(+C.slab||6)+'" slab (μ = '+C.mu+', 0.6D). EOR to confirm the slab as part of the lateral load path, that the slab reinforcement carries this shear across control/construction joints, and the dowel embedment each side (ld).','ACI 22.9 / 25.4'); }
+    if(x.d.slab && !x.d.slab.notNeeded){ const sb=x.d.slab; add('med','Slab tie-in @ '+x.col.id,'Wall-parallel shear beyond what the pad and stemwall carry goes into the slab: ('+sb.n+') #'+sb.bar+' dowels sized for the full factored shear, shear friction μ = '+sb.mu+' (Vu = '+sb.Hu.toFixed(1)+' k, φVn = '+sb.phiVn.toFixed(1)+' k); slab friction over ≈ '+Math.round(sb.A)+' sf of '+(+C.slab||6)+'" slab (μ = '+C.mu+', 0.6D). EOR to confirm the slab as part of the lateral load path, that the slab reinforcement carries this shear across control/construction joints, and the dowel embedment each side (ld).','ACI 22.9 / 25.4'); }
     const sx=x.d.struts||{}; ['x','y'].forEach(a=>{ if(sx[a]) add('info','Along-wall grade beam @ '+x.col.id,'Pads '+sx[a].join(', ')+' are joined by along-wall grade beam(s); their wall-parallel shear is checked together (summed shear vs. friction + passive of all joined pads + stemwall friction along the beam). EOR to confirm.','—'); });
     if(x.a.gov.ratio>1.0001){ const g=x.a.gov; const pryG = g.pry && g.pry>=Math.max(g.vi/x.a.phiVsa, g.bN)-1e-9 && g.bV<=g.pry+1e-9;
       add('high','Anchors @ '+x.col.id,'Anchor interaction/strength ratio '+g.ratio.toFixed(2)+' ('+g.label+').'+(pryG?' Governed by pryout (ACI 17.7.3, V = '+g.V.toFixed(1)+'k vs φVcpg = '+g.phiVcpg.toFixed(1)+'k) — the plinth width limits the breakout area. Pryout is not relieved by anchor reinforcement under ACI 318-19'+(E.tieAt(P,x.col)?'; EOR to decide whether the tie U-bar load path governs instead.':(g.seis?'; the seismic case includes Ω0 = '+x.a.Om+' (ACI 17.10.6.3(c)) — deeper embedment, a larger plinth or a ductile-attachment design (17.10.6.3(a)/(b)) are the alternatives.':'.')):''),'ACI 17'); }
     x.p.items.filter(s=>s.ratio>1.0001).forEach(s=>add('med','Plinth '+x.pl.mark+' @ '+x.col.id, s.item+': '+(+s.applied).toFixed(2)+' > '+(+s.cap).toFixed(2)+' '+s.units,''));
-    if(!x.d.tie && (x.col.restrain||(P.options||{}).lateral||'hairpin')==='hairpin') x.lat.cases.filter(c=>!c.ok).forEach(c=>add('high','Hairpin @ '+x.col.id,'Hairpin capacity '+c.cap.toFixed(1)+'k < required '+c.need.toFixed(1)+'k.',''));
     const rp=x.reqPl; if(rp && (rp.bx>x.pl.bx+0.01||rp.by>x.pl.by+0.01)) add('med','Plinth '+x.pl.mark+' @ '+x.col.id,'Base plate/bolt layout needs ≈ '+rp.bx+'" × '+rp.by+'" (X × Y) for '+((P.options||{}).edgeMin||5)+'" bolt edge distance; plinth is '+x.pl.bx+'" × '+x.pl.by+'".','ACI 17.9');
   });
   // where each flag points in the tab (clickable in the flag list and in the calc package)
@@ -18232,7 +18336,7 @@ E.flags = function(P, R){
     else if(/^Anchors/.test(f.topic)) f.go={step:'criteria'};
     else f.go={step:'design'}; });
   // de-duplicate identical messages across columns of the same type
-  const seen={}; return F.filter(f=>{ const k=f.sev+f.msg.replace(/@ \S+/,''); if(seen[k]) return false; seen[k]=1; return true; });
+  const seen={}; return F.filter(f=>{ const k=f.sev+(/^(Stepped footing|Hairpin|Stemwall|Plinth)/.test(f.topic)?f.topic:'')+f.msg.replace(/@ \S+/,''); if(seen[k]) return false; seen[k]=1; return true; });
 };
 
 // ---------------------------------------------------------------- perimeter strip footing
@@ -18355,7 +18459,42 @@ E.designPerimeter = function(P){
   const segs=E.perimSegments(P).map(g=>Object.assign({},g,one(g.drop,g)));
   const worst=segs.reduce((m,g)=>g.ratio>m.ratio?g:m,base);
   const As=2*E.REBAR[4].A, AsMin=0.0018*fw*12*(fh*12);
-  return Object.assign({sw,fw,fh,wWall,wKnee,wSlab,qa:+C.qa,As,AsMin,segs,worst,totalL:segs.reduce((a,g)=>a+g.L,0)},base,{ratio:Math.max(base.ratio,worst.ratio)});
+  // ACI 13.3.1.2: depth of footing above the bottom reinforcement ≥ 6 in (else design it as plain concrete, ACI 14)
+  const fhMin=Math.min(fh,...segs.map(g=>g.fh||fh)), above=fhMin*12-(+C.cover||3)-E.REBAR[4].d;
+  const depth={above, req:6, ratio:6/Math.max(above,0.01), plain:!!per.plain};
+  const ratio=Math.max(base.ratio,worst.ratio, per.plain?0:depth.ratio);
+  return Object.assign({sw,fw,fh,wWall,wKnee,wSlab,qa:+C.qa,As,AsMin,segs,worst,depth,totalL:segs.reduce((a,g)=>a+g.L,0)},base,{ratio, bearingRatio:Math.max(base.ratio,worst.ratio)});
+};
+
+// ---------------------------------------------------------------- SE standard-sheet uplift (0.6 × TDL vs. full unfactored wind uplift)
+E.seUplift = function(P, x){
+  const O=P.options||{}, d=x.d, ex=d.extras||{}, col=x.col;
+  const wc=P.cases.filter(c=>c.type==='W'); let up=0, lab='';
+  wc.forEach(c=>{ const r=col.rxn[c.id]; if(r && -r.V>up){ up=-r.V; lab=c.name; } });
+  if(up<=0) return null;
+  const Dcol=P.cases.filter(c=>c.type==='D').reduce((a,c)=>a+((col.rxn[c.id]||{}).V||0),0);
+  const TDL=(O.slabUplift?ex.slab:0)+d.Wf+d.Wp+d.Ws+(O.perimUplift?ex.perim:0)+Dcol, res=0.6*TDL;
+  const u=d.summary.find(s=>s.item==='Uplift');
+  return {up, lab, TDL, res, fs:res/up, asceRatio:u?u.ratio:0};
+};
+
+// ---------------------------------------------------------------- stemwall at a column
+// The uplift check credits the stemwall + wall footing over Lw (default 20 ft, i.e. 10 ft each side of the column): the wall
+// has to cantilever that far from the column to pick its weight up. Top bars: per.stemTop {n, bar} (default (2) #4 cont.).
+// Wall-parallel shear delivered to the stemwall is checked in-plane (ACI 11.5.4.3, φVc = 0.75·2√f'c·h·0.8lw over Lw).
+E.stemwallCheck = function(P, col, lrfdPar){
+  const C=P.criteria, per=P.perimeter||{}, opt=P.options||{}; if(!['frame','endwall','corner'].includes(col.kind)) return null;
+  const ex=E.upliftExtras(P,col,E.groupOf(P,col)||{B:4}), Lw=ex.Lw, a=Lw/2;
+  const sw=(+per.stemW||8), sh=(+per.stemH||20)+E.colDrop(col)*12, fwI=(+per.ftgW||16), fhI=(+per.ftgT||8);
+  const w=ex.perimRaw/Math.max(Lw,1e-9);                     // k/ft credited
+  const Mu=1.2*w*a*a/2, st=per.stemTop||{n:2,bar:4}, tb=E.REBAR[+st.bar||4], AsP=(+st.n||2)*tb.A;
+  const d=sh-2-tb.d/2, fy=+C.fy, fc=+C.fc, aBl=AsP*fy/(0.85*fc*sw), phiMn=0.9*AsP*fy*(d-aBl/2)/12;
+  const AsReq=E.asReqB?E.asReqB(Mu,d,fc,fy,sw):Mu*12/(0.9*fy*0.9*d);
+  const Vu=lrfdPar||0, phiVc=0.75*2*Math.sqrt(fc*1000)*sw*0.8*Lw*12/1000;
+  const items=[];
+  if(opt.perimUplift) items.push({item:'Stemwall as uplift beam (top bars)', ratio:Mu/phiMn, applied:Mu, cap:phiMn, units:'k-ft', combo:'1.2 × stemwall + footing weight, cantilever '+a.toFixed(1)+' ft each side'});
+  if(Vu>0) items.push({item:'Stemwall in-plane shear', ratio:Vu/phiVc, applied:Vu, cap:phiVc, units:'k', combo:'ACI 11.5.4.3, lw = '+Lw.toFixed(0)+' ft'});
+  return {Lw, a, w, sw, sh, fwI, fhI, Mu, AsP, AsReq, d, phiMn, bars:'('+(+st.n||2)+') #'+(+st.bar||4)+' top cont.', Vu, phiVc, items};
 };
 
 // ---------------------------------------------------------------- method validation
@@ -18387,6 +18526,25 @@ E.frames = function(P){
   return out;
 };
 
+// Anchor module benchmark: the SE's Hilti PROFIS Engineering 3.1.28 run in the Crook package (26-011, "Main Frame Columns",
+// p. 24-30): (4) 3/4" F1554 Gr 36 heavy hex, hef 12", 14" x 24" x 24" pedestal, cracked f'c 2,500 psi, bolts 3.5" x 4",
+// edges 5.25 / 5.25 / 7.5 / 12.5". The same geometry is run through E.designAnchors and compared value by value.
+E.validateAnchor = function(){
+  const P={criteria:{fc:2.5,fy:60,abGrade:'F1554-36',hef:12,SDC:'D',Omega0:1,rho:1,SDS:0},options:{},cases:[],columns:[],pemb:{width:40,length:40},details:{}};
+  const col={id:'BM',kind:'interior',x:20,y:20,face:null,faces:[],dia:0.75,bolts:[[-1.75,-4.5],[1.75,-4.5],[-1.75,-0.5],[1.75,-0.5]],plate:{w:11,l:6,cx:0,cy:-2.5},rxn:{}};
+  P.columns=[col];
+  let a; try{ a=E.designAnchors(P,col,{mark:'BM',bx:14,by:24,h:24,hef:12,vert:{n:4,bar:4,shape:'U'}},{T:12,bar:5,B:4,L:4}); }catch(err){ return [{what:'benchmark failed to run', ener:'—', ours:String(err)}]; }
+  const f=(v,d)=>(+v).toFixed(d);
+  return [
+    {what:"h'ef, 3+ edges < 1.5hef (17.6.2.1.2)", ener:'8.333 in', ours:f(a.hef,3)+' in'},
+    {what:'ANc / ANco', ener:'336.0 / 625.0 in²', ours:f(a.ANc,1)+' / '+f(a.ANco,1)+' in²'},
+    {what:'ψed,N', ener:'0.826', ours:f(a.psiEd,3)},
+    {what:'Nb = 24√f\'c hef^1.5', ener:'28,868 lb', ours:Math.round(a.Nb*1000).toLocaleString()+' lb'},
+    {what:'φVcpg pryout (kcp = 2, φ 0.70)', ener:'17,946 lb', ours:Math.round(0.70*2*a.Ncbg0*1000).toLocaleString()+' lb'},
+    {what:'φNsa steel tension', ener:'14,529 lb', ours:Math.round(a.phiNsa*1000).toLocaleString()+' lb'},
+    {what:'φNpn pullout × 0.75 seismic', ener:'9,565 lb', ours:Math.round(a.phiNpn*0.75*1000).toLocaleString()+' lb'},
+    {what:'φVsa steel shear', ener:'7,555 lb', ours:Math.round(a.phiVsa*1000).toLocaleString()+' lb'}];
+};
 // per-case build-up of one combination at one column (for hand-calc traces)
 E.trace = function(P, col, cb, brace){
   const lines=[]; let Ps=0,Hx=0,Hy=0;
@@ -18600,9 +18758,14 @@ D.plan = function(P, R, o){
     g.push(`<text class="pm-hit" data-col="${esc(c.id)}" x="${X(tx)}" y="${Y(ty)+fs*0.3}" font-size="${fs*0.78}" text-anchor="middle" fill="#2f5fb8" font-weight="700">${esc(c.id)}</text>`);
   });
   // ---- frame-line labels (tap to review a frame's reactions)
+  // labels: short form on print; stagger into two rows where neighbours would overlap
+  const frLbl=f=>{ const sw=((P.pemb||{}).software||'MBS'), grp=(f.same&&f.same.length>1&&f.kind==='frame')?(sw==='MBS'?' ('+sw+' '+f.same[0]+'*)':' ('+sw+' '+f.same[0]+'-'+f.same[f.same.length-1]+')'):'';
+    return o.print?((f.kind==='frame'?'RF ':'EW ')+f.line+grp):((f.kind==='frame'?'RIGID FRAME ':'ENDWALL ')+f.line+grp); };
+  const frW=f=>Math.max(frLbl(f).length*fs*0.58, s*5)+6; const frRow={}; let lastEnd=[-1e9,-1e9];
+  FR.slice().sort((a,b)=>a.x-b.x).forEach(f=>{ const cx=X(f.x), w=frW(f); const r=(cx-w/2>lastEnd[0])?0:((cx-w/2>lastEnd[1])?1:0); frRow[f.line]=r; lastEnd[r]=cx+w/2; });
   if(Ly.frames) FR.forEach(f=>{
-    const lbl=(f.kind==='frame'?'RIGID FRAME ':'ENDWALL ')+f.line+(f.same&&f.same.length>1&&f.kind==='frame'?' ('+((P.pemb||{}).software||'MBS')+' '+f.same[0]+(((P.pemb||{}).software||'MBS')==='MBS'?'*':'-'+f.same[f.same.length-1])+')':'');
-    const w=Math.max(lbl.length*fs*0.58, s*5), h=fs*1.55, cx=X(f.x), cy=Y(Wd+2.3);
+    const lbl=frLbl(f);
+    const w=Math.max(lbl.length*fs*0.58, s*5), h=fs*1.55, cx=X(f.x), cy=Y(Wd+2.3)-(frRow[f.line]||0)*h*1.15;
     const on=o.selFrame!=null && String(o.selFrame)===String(f.line);
     g.push(`<g class="pm-frame" data-frame="${esc(f.line)}" style="cursor:pointer"><rect x="${cx-w/2}" y="${cy-h/2}" width="${w}" height="${h}" rx="${h/2}" fill="${on?'#2f7cf6':'#fff'}" stroke="#2f7cf6" stroke-width="1.2"/>
       <text x="${cx}" y="${cy+fs*0.33}" font-size="${fs*0.8}" text-anchor="middle" fill="${on?'#fff':'#2f5fb8'}" font-weight="700" letter-spacing=".3">${esc(lbl)}</text></g>`);
@@ -18858,21 +19021,34 @@ V.draw=function(st){
 function pick(st,x,y){ const P=st.polys||[]; for(let i=P.length-1;i>=0;i--){ const q=P[i]; if(q.alpha!=null||!q.it.tag) continue; let inside=false; const pp=q.pp;
   for(let a=0,b=pp.length-1;a<pp.length;b=a++){ if(((pp[a][1]>y)!==(pp[b][1]>y)) && (x<(pp[b][0]-pp[a][0])*(y-pp[a][1])/(pp[b][1]-pp[a][1])+pp[a][0])) inside=!inside; }
   if(inside) return q.it; } return null; }
+// navigation like the PDF viewer / Revit: wheel zooms toward the cursor, hold the wheel (or Space) and drag to pan,
+// left-drag (or Shift + wheel-drag) orbits, right-drag pans, double-click the wheel fits
 V.hook=function(el,st){
-  let d=null;
+  let d=null, space=false, lastMid=0;
+  const onKey=e=>{ if(e.code!=='Space') return; const tag=(e.target&&e.target.tagName||'').toLowerCase(); if(tag==='input'||tag==='textarea'||tag==='select') return;
+    if(e.type==='keydown'){ if(el.matches(':hover')){ space=true; e.preventDefault(); } } else space=false; };
+  document.addEventListener('keydown',onKey); document.addEventListener('keyup',onKey);
   el.addEventListener('contextmenu',e=>e.preventDefault());
-  el.addEventListener('pointerdown',e=>{ d={x:e.clientX,y:e.clientY,b:e.button,shift:e.shiftKey,moved:false,cam:Object.assign({},st.cam)}; try{ el.setPointerCapture(e.pointerId); }catch(_){} });
+  el.addEventListener('mousedown',e=>{ if(e.button===1) e.preventDefault(); });
+  el.addEventListener('pointerdown',e=>{
+    if(e.button===1){ const now=Date.now(); if(now-lastMid<350){ lastMid=0; V.view(st,'iso'); return; } lastMid=now; e.preventDefault(); }
+    const pan=(e.button===1&&!e.shiftKey)||e.button===2||(e.button===0&&space);
+    d={x:e.clientX,y:e.clientY,b:e.button,pan,moved:false,cam:Object.assign({},st.cam)}; try{ el.setPointerCapture(e.pointerId); }catch(_){} if(pan) el.style.cursor='grabbing'; });
   el.addEventListener('pointermove',e=>{ const r=el.getBoundingClientRect();
-    if(!d){ const it=pick(st,e.clientX-r.left,e.clientY-r.top); const t=st.tip; if(it&&it.tag&&st.o.tipFor){ t.innerHTML=st.o.tipFor(it); t.style.display='block'; t.style.left=(e.clientX-r.left+14)+'px'; t.style.top=(e.clientY-r.top+10)+'px'; el.style.cursor='pointer'; } else { t.style.display='none'; el.style.cursor='grab'; } return; }
-    const dx=e.clientX-d.x, dy=e.clientY-d.y; if(!d.moved && Math.hypot(dx,dy)<4) return; d.moved=true; st.tip.style.display='none';
+    if(!d){ const it=pick(st,e.clientX-r.left,e.clientY-r.top); const t=st.tip; if(it&&it.tag&&st.o.tipFor){ t.innerHTML=st.o.tipFor(it); t.style.display='block'; t.style.left=(e.clientX-r.left+14)+'px'; t.style.top=(e.clientY-r.top+10)+'px'; el.style.cursor='pointer'; } else { t.style.display='none'; el.style.cursor=space?'grab':'default'; } return; }
+    const dx=e.clientX-d.x, dy=e.clientY-d.y; if(!d.moved && Math.hypot(dx,dy)<3) return; d.moved=true; st.tip.style.display='none';
     const c=st.cam;
-    if(d.b===2||d.b===1||d.shift){ const B=basis(d.cam), k=d.cam.dist/ (Math.min(el.clientWidth,el.clientHeight)*1.1);
+    if(d.pan){ const B=basis(d.cam), k=d.cam.dist/ (Math.min(el.clientWidth,el.clientHeight)*1.1);
       c.tx=d.cam.tx-(B.right[0]*dx-B.up[0]*dy)*k; c.ty=d.cam.ty-(B.right[1]*dx-B.up[1]*dy)*k; c.tz=d.cam.tz-(B.right[2]*dx-B.up[2]*dy)*k; }
     else { c.yaw=d.cam.yaw-dx*0.008; c.pitch=Math.max(-1.45,Math.min(1.55,d.cam.pitch+dy*0.008)); }
     V.draw(st); });
-  el.addEventListener('pointerup',e=>{ const was=d; d=null; if(!was||was.moved) return; const r=el.getBoundingClientRect(); const it=pick(st,e.clientX-r.left,e.clientY-r.top);
+  el.addEventListener('pointerup',e=>{ const was=d; d=null; el.style.cursor=''; if(!was||was.moved||was.b!==0) return; const r=el.getBoundingClientRect(); const it=pick(st,e.clientX-r.left,e.clientY-r.top);
     if(st.o.onPick) st.o.onPick(it,e); });
-  el.addEventListener('wheel',e=>{ e.preventDefault(); st.cam.dist=Math.max(4,Math.min(2000,st.cam.dist*Math.exp(e.deltaY*0.0012))); V.draw(st); },{passive:false});
+  el.addEventListener('wheel',e=>{ e.preventDefault(); const dy=e.deltaMode===1?e.deltaY*33:(e.deltaMode===2?e.deltaY*400:e.deltaY);
+    const f=Math.exp(dy*0.0015), c=st.cam, nd=Math.max(4,Math.min(2000,c.dist*f)), ff=nd/c.dist;
+    // keep the point under the cursor still: slide the target toward it by (1 - f)
+    const r=el.getBoundingClientRect(), ox=e.clientX-r.left-el.clientWidth/2, oy=e.clientY-r.top-el.clientHeight/2, B=basis(c), k=c.dist/(Math.min(el.clientWidth,el.clientHeight)*1.1)*(1-ff);
+    c.tx+= (B.right[0]*ox-B.up[0]*oy)*k; c.ty+=(B.right[1]*ox-B.up[1]*oy)*k; c.tz+=(B.right[2]*ox-B.up[2]*oy)*k; c.dist=nd; V.draw(st); },{passive:false});
 };
 root.PEMB3D=V;
 if(typeof module!=='undefined') module.exports=V;
@@ -19154,15 +19330,16 @@ const Rp={};
 const E=()=>root.PEMBEngine, D=()=>root.PEMBDraw;
 const esc=s=>String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const n=(v,d)=>(v==null||!isFinite(v))?'—':(+v).toFixed(d==null?2:d);
+const c2=r=>`<span class="${r>1.0001?'fail':''}">${n(r,2)}</span>`;
 const pf=r=>r>1.0001?'<span class="fail">FAIL</span>':'<span class="pass">PASS</span>';
 const ok=b=>b?'<span class="pass">OK</span>':'<span class="fail">NG</span>';
 
 const CSS=`
-@page{ size:letter portrait; margin:0.4in 0.45in; }
+@page{ size:letter portrait; margin:0; }
 *{ box-sizing:border-box; }
 body{ margin:0; background:#dfe2e7; font-family:Arial,Helvetica,sans-serif; color:#111; font-size:8.6pt; line-height:1.35; }
 .page{ width:8.5in; min-height:11in; margin:14px auto; background:#fff; padding:0.42in 0.5in 0.5in; position:relative; box-shadow:0 2px 10px rgba(0,0,0,.18); display:flex; flex-direction:column; }
-@media print{ body{ background:#fff; } .page{ width:auto; min-height:0; height:10.15in; margin:0; padding:0; box-shadow:none; page-break-after:always; break-after:page; } .page:last-child{ page-break-after:auto; } }
+@media print{ body{ background:#fff; } .page{ width:8.5in; min-height:0; height:11in; margin:0; padding:0.42in 0.5in 0.45in; box-shadow:none; page-break-after:always; break-after:page; overflow:hidden; } .page:last-child{ page-break-after:auto; } }
 .ph{ display:grid; grid-template-columns:1.35fr 1.6fr 1fr; border:1.3px solid #111; font-size:7.6pt; }
 .ph > div{ padding:4px 7px; border-right:1px solid #111; } .ph > div:last-child{ border-right:0; }
 .ph .firm b{ font-size:9.4pt; letter-spacing:.2px; } .ph .sheet{ text-align:right; }
@@ -19300,14 +19477,17 @@ Rp.build=function(P,R){
           <tr><td>Building code</td><td>${esc(C.code)}</td></tr><tr><td>Loads</td><td>${esc(C.asce)}</td></tr><tr><td>Concrete / anchoring</td><td>${esc(C.aci)}</td></tr>
           <tr><td>Risk category</td><td>${esc(C.riskCat)}</td></tr></table>
         <h2>Seismic</h2><table class="kv"><tr><td>S<sub>s</sub> / S<sub>1</sub></td><td>${n(C.Ss,3)} / ${n(C.S1,3)}</td></tr><tr><td>S<sub>DS</sub> / S<sub>D1</sub></td><td>${n(C.SDS,3)} / ${n(C.SD1,3)}</td></tr>
-          <tr><td>Seismic design category</td><td>${esc(C.SDC)}</td></tr><tr><td>I<sub>e</sub> · R · Ω<sub>0</sub> · ρ</td><td>${n(C.Ie,2)} · ${n(C.R,2)} · ${n(C.Omega0,2)} · ${n(C.rho,2)}</td></tr></table>
+          <tr><td>Seismic design category</td><td>${esc(C.SDC)}</td></tr><tr><td>Site class</td><td>${esc(C.siteClass||(((P.pemb||{}).basis||{}).site?P.pemb.basis.site+' (PEMB drawings)':'D (default — confirm)'))}</td></tr><tr><td>I<sub>e</sub> · ρ</td><td>${n(C.Ie,2)} · ${n(C.rho,2)}</td></tr>
+          <tr><td>Transverse: steel OMF (rigid frames)</td><td>R 3.5 · Ω<sub>0</sub> ${O.flexDiaphragm?'2.5 (note g)':'3.0'}</td></tr><tr><td>Longitudinal / endwall: steel OCBF (bracing)</td><td>R 3.25 · Ω<sub>0</sub> 2.0</td></tr>
+          <tr><td>R used by the PEMB manufacturer</td><td>${n(C.R,2)}</td></tr></table>
         <h2>Wind &amp; snow</h2><table class="kv"><tr><td>Basic wind speed V (3-s gust)</td><td>${esc(C.V)} mph, Exp. ${esc(C.exposure)}</td></tr><tr><td>Ground / roof snow</td><td>${n(C.pg,1)} / ${n(C.pf,1)} psf</td></tr></table>
       </div><div>
         <h2>Materials &amp; soil</h2><table class="kv">
           <tr><td>Allowable soil bearing (assumed)</td><td>${n(C.qa*1000,0)} psf</td></tr><tr><td>Soil unit weight</td><td>${n(C.gammaSoil*1000,0)} pcf</td></tr>
           <tr><td>Passive pressure / friction μ</td><td>${n(C.passive*1000,0)} pcf/ft · ${n(C.mu,2)}</td></tr><tr><td>Footing base below grade</td><td>${n(C.Dbase,2)} ft</td></tr>
           <tr><td>f'c specified / used in design</td><td>${n(C.fcSpec*1000,0)} / ${n(C.fc*1000,0)} psi</td></tr><tr><td>Reinforcing</td><td>ASTM A615 Gr ${esc(C.fy)}</td></tr>
-          <tr><td>Anchor rods</td><td>ASTM ${esc(C.abGrade)}</td></tr><tr><td>Slab on grade</td><td>${n(C.slab,0)}" w/ ${esc(C.slabReinf)}</td></tr></table>
+          <tr><td>Anchor rods</td><td>ASTM ${esc(C.abGrade)}</td></tr><tr><td>Slab on grade</td><td>${n(C.slab,0)}"${/TBD|^\s*$/i.test(C.slabReinf||'')?' — reinforcing <span class="fail">by EOR (open item)</span>':' w/ '+esc(C.slabReinf)}</td></tr>
+          <tr><td>Exposure (ACI 19.3.1)</td><td>stemwall &amp; plinths ${esc(C.exposureF||'F1')}, footings below frost F0</td></tr></table>
         <h2>Project description</h2>
         <p>Foundation design for a ${n(P.pemb.width,0)}' × ${n(P.pemb.length,0)}' pre-engineered metal building, ${n(P.pemb.eave,0)}' eave, by ${esc(P.pemb.mfr||'the PEMB manufacturer')} (job ${esc(P.pemb.job||'—')}). Metal building design by others. Column reactions provided by the PEMB manufacturer (${esc(P.pemb.dwg||'')}) were used to design the isolated footings, plinths, anchor rods and hairpins.</p>
         <div class="sig">Engineer of record review / stamp</div>
@@ -19328,12 +19508,21 @@ Rp.build=function(P,R){
       ${(P.seNotes||[]).length?`<div class="flag high golink" data-go='{"senotes":1}'><b>Start here · Notes to the SE (${(P.seNotes||[]).filter(n=>n.status!=='resolved').length} open)</b> — the preparer's list of items for you to decide or confirm, each linked to where it is. <span class="note">[${PG('senotes')}]</span> <span class="gol">open in tab →</span></div>`:''}
       <table><tr><th class="c" style="width:22px"></th><th class="l">Step</th><th class="l">What to confirm</th><th class="c">Result</th><th class="c">Page</th></tr>
         <tr><td class="c">${box}</td><td class="l"><b>1 · Reactions</b></td><td class="l">Reactions by frame line match the manufacturer's tables. Each frame page shows the MBS table layout and the key plan.</td><td class="c">${P.verified?'verified '+esc(P.verifiedBy||''):'<span class="fail">not verified</span>'}</td><td class="c">${fpages.map(f=>esc(f.t)+' '+PG(f.k)).join('<br>')}</td></tr>
-        <tr><td class="c">${box}</td><td class="l"><b>2 · Transcription</b></td><td class="l">The manufacturer's printed maximum reactions, recomputed from the basic reactions with their own combination list.</td><td class="c">${x?`<span class="${x.pass===x.total?'pass':'fail'}">${x.pass} / ${x.total}</span>`:'—'}</td><td class="c">${PG('xcheck')}</td></tr>
+        <tr><td class="c">${box}</td><td class="l"><b>2 · Transcription</b></td><td class="l">The manufacturer's printed maximum reactions, recomputed from the basic reactions with their own combination list.</td><td class="c">${x?`<span class="${x.pass===x.total?'pass':'fail'}">${x.pass} / ${x.total}</span>`:'n/a — no max. tables printed'}</td><td class="c">${PG('xcheck')}</td></tr>
         <tr><td class="c">${box}</td><td class="l"><b>3 · Design basis</b></td><td class="l">Wind, snow and seismic the PEMB was designed for vs. the site criteria; assumptions list.</td><td class="c">${hi?`<span class="fail">${hi} to resolve</span>`:'<span class="pass">OK</span>'}${md?`<br>${md} to check`:''}</td><td class="c">${PG('basis')}</td></tr>
         <tr><td class="c">${box}</td><td class="l"><b>4 · Governing results</b></td><td class="l">One line per footing type and anchor group below. Every column is on the results page.</td><td class="c">see below</td><td class="c">${PG('results')}</td></tr>
         <tr><td class="c">${box}</td><td class="l"><b>5 · Spot check by hand</b></td><td class="l">Governing column of each footing type, every number substituted into its equation.</td><td class="c">—</td><td class="c">${Object.keys(R.types).map(m=>esc(m)+' '+PG('hc'+m)).join('<br>')}</td></tr>
-        <tr><td class="c">${box}</td><td class="l"><b>6 · Method</b></td><td class="l">Engine rebuilt against the SE's ENERCALC runs (${V.length} values) and the Temple et al. slab example / SE sheet (${VS.length} values).</td><td class="c"><span class="pass">match</span></td><td class="c">${PG('valid')}</td></tr>
+        <tr><td class="c">${box}</td><td class="l"><b>6 · Method</b></td><td class="l">Engine rebuilt against the SE's ENERCALC runs (${V.length} values), the Temple et al. slab example / SE sheet (${VS.length} values) and the SE's PROFIS anchor run (${e.validateAnchor().length} values).</td><td class="c"><span class="pass">match</span></td><td class="c">${PG('valid')}</td></tr>
       </table>
+      ${(()=>{ const bad=[]; cols.forEach(x=>{ x.d.summary.filter(q=>q.ratio>1.0001).forEach(q=>bad.push(x.col.id+' '+q.item+' '+n(q.ratio,2))); if(x.a.gov.ratio>1.0001) bad.push(x.col.id+' anchors '+n(x.a.gov.ratio,2)); x.p.items.filter(q=>q.ratio>1.0001).forEach(q=>bad.push(x.col.id+' plinth '+q.item+' '+n(q.ratio,2))); });
+        (R.ties||[]).forEach(t=>{ if(t.gov.ratio>1.0001) bad.push(t.id+' '+t.gov.item+' '+n(t.gov.ratio,2)); }); if(R.perim&&R.perim.ratio>1.0001) bad.push('wall footing '+n(R.perim.ratio,2));
+        const se=cols.map(x=>e.seUplift(P,x)).filter(q=>q&&q.fs<1);
+        return `<div class="flag ${bad.length?'high':'info'}"><b>${bad.length?bad.length+' check'+(bad.length>1?'s':'')+' exceed 1.00':'Every check in this package is at or below 1.00'}</b>${bad.length?': '+esc(bad.slice(0,12).join(' · '))+(bad.length>12?' …':''):' (footings, hairpins/ties, stemwall, anchors, plinths, wall footing).'}${se.length?`<br>SE standard-sheet uplift (0.6 TDL vs. unfactored W) is short at ${se.length} column(s) while ASCE 7 combination 7 passes — listed in the review items for the EOR's call.`:''}</div>`; })()}
+      <h2>Lateral load path</h2>
+      <table class="tight"><tr><th class="l">Load</th><th class="l">Carried by</th><th class="l">Design</th><th class="c">Page</th></tr>
+        <tr><td class="l">Frame thrust ⟂ sidewall</td><td class="l">${(R.ties||[]).some(t=>t.role==='frame')?'Grade-beam ties across the building (100%)':'Hairpins into the slab (100%); slab reinforcing is the tie'}</td><td class="l">${(R.ties||[]).filter(t=>t.role==='frame').map(t=>esc(t.id)+' ('+t.n+') #'+t.bar).join(', ')||('#'+(O.hairpinBar||5)+' hairpin'+((+O.hairpinN||1)>1?' × '+O.hairpinN:''))}</td><td class="c">${(R.ties||[]).length?PG('ties'):PG('hp')}</td></tr>
+        <tr><td class="l">Endwall column thrust ⟂ endwall</td><td class="l">${(R.ties||[]).some(t=>t.role!=='frame')?'Ties back to the frame line':'Hairpins into the slab (100%)'}</td><td class="l">#${O.hairpinBar||5} hairpin${(+O.hairpinN||1)>1?' × '+O.hairpinN:''}</td><td class="c">${PG('hp')}</td></tr>
+        <tr><td class="l">Shear ∥ wall (bracing, wind, seismic)</td><td class="l">Pad friction + integral stemwall${cols.some(x=>x.d.slab&&!x.d.slab.notNeeded)?'; slab dowels where noted':''}</td><td class="l">Stemwall in-plane shear checked</td><td class="c">${PG('perim')}</td></tr></table>
       <h2>Governing footing results</h2>
       <table class="tight"><tr><th class="c">Type</th><th class="c">Qty</th><th class="l">Size / reinf.</th><th class="l">Governing check</th><th>Ratio</th><th class="l">Combination</th><th class="c">Page</th></tr>${govRows}</table>
       <h2>Governing anchor results</h2>
@@ -19395,15 +19584,17 @@ Rp.build=function(P,R){
       <p class="note">${{none:'Taken as already included in the basic column reactions.',H:'The longitudinal horizontal is added at braced rigid-frame columns only; vertical bracing effects are taken as included in the basic reactions (the frame tables list Seismic_Long / Wind_Long verticals of the same size as the bracing verticals). Confirm with the manufacturer.',HV:'H and V are added at every braced-bay column.'}[O.braceAdd||'none']}</p>`;
     const x=R.xcheck;
     if(x) html+=`<h2>Transcription check — summary</h2><p>All of the manufacturer's printed maximum/minimum reactions were recomputed from the basic reactions with the manufacturer's own combination list: <b>${x.pass} of ${x.total}</b> agree within ±0.15 k (table rounding).${x.pass<x.total?' <span class="fail">Mismatches must be resolved before issue.</span>':''}</p>`;
+    if(!x) html+=`<h2>Transcription check</h2><p>The manufacturer's reaction reports for this job (${esc(P.pemb.mfr||'')}) print basic load cases only, with no maximum/minimum combination tables, so there is nothing to recompute against. The reactions were read by the parser from the manufacturer's reports and must be checked by eye against them (Step 1 — each frame page shows the table layout).</p>`;
     html+=`<p class="note">Reactions ${P.verified?`verified against the PEMB drawings by ${esc(P.verifiedBy||'—')} on ${esc(P.verifiedOn||'—')}`:'<b>NOT YET VERIFIED</b> against the PEMB drawings'}.</p>`;
-    if(html) page('Bracing reactions &amp; transcription check',html,undefined,'xcheck');
+    if(html) page(x?'Bracing reactions &amp; transcription check':'Bracing reactions',html,undefined,'xcheck');
   }
   // ------------------------------------------------ plan + schedules
   if(S.plan!==0){
     const fsch=P.types.map(t=>{ const q=cols.filter(x=>x.ft.mark===t.mark).length; if(!q) return ''; const v=t.B*t.L*t.T/12/27*q;
       return `<tr><td class="c">${esc(t.mark)}</td><td class="c">${q}</td><td>${n(v,2)} CY</td><td class="l">${e.frac(t.B*12)} × ${e.frac(t.L*12)} × ${t.T}" DP</td><td class="l">${(t.top&&+t.top.n)?((+t.top.n===+t.n&&+t.top.bar===+t.bar)?`(${t.n}) #${t.bar} E.W. @ TOP &amp; BOT`:`(${t.n}) #${t.bar} E.W. BOT + (${t.top.n}) #${t.top.bar} E.W. TOP`):`(${t.n}) #${t.bar} EA WAY BOT`}${R.cols[Object.keys(R.cols).find(k=>R.cols[k].ft.mark===t.mark)].d.hooks?', STD 90° HOOKS':''}</td></tr>`; }).join('');
-    const psch=P.plinths.map(p=>{ const xs=cols.filter(x=>x.pl.mark===p.mark); if(!xs.length) return ''; const c=xs[0].col, det=(P.details||{})[c.detail]||{};
-      return `<tr><td class="c">${esc(p.mark)}</td><td class="l">${e.frac(p.bx)} W × ${e.frac(p.by)} D</td><td class="c">${xs.length}</td><td>${n(p.bx*p.by*p.h/46656*xs.length,2)} CY</td><td class="l">(${p.vert.n}) U-SHAPED #${p.vert.bar}</td><td class="l">${esc(p.ties)}</td><td class="l">${esc(C.abGrade)} ${e.fracDia(+(c.dia||det.dia||0.75))} Ø × ${p.hef||12}" EMBED${p.washer?' W/ '+p.washer+'" SQ PL WASHER':''}</td><td class="c">${e.fracIn(+(det.proj||2))}</td></tr>`; }).join('');
+    const psch=P.plinths.map(p=>{ const all=cols.filter(x=>x.pl.mark===p.mark); if(!all.length) return ''; const hs=[...new Set(all.map(x=>+x.pl.h||+p.h||24))].sort((a,b)=>a-b);
+      return hs.map((h,hi)=>{ const xs=all.filter(x=>(+x.pl.h||+p.h||24)===h); const c=xs[0].col, det=(P.details||{})[c.detail]||{}; const mk=hs.length>1&&hi>0?p.mark+hi:p.mark;
+      return `<tr><td class="c">${esc(mk)}</td><td class="l">${e.frac(p.bx)} W × ${e.frac(p.by)} D × ${e.frac(h)} H${hs.length>1?' <span class="note">('+xs.map(x=>esc(x.col.id)).join(', ')+')</span>':''}</td><td class="c">${xs.length}</td><td>${n(p.bx*p.by*h/46656*xs.length,2)} CY</td><td class="l">(${p.vert.n}) U-SHAPED #${p.vert.bar}</td><td class="l">${esc(p.ties)}</td><td class="l">${esc(C.abGrade)} ${e.fracDia(+(c.dia||det.dia||0.75))} Ø × ${p.hef||12}" EMBED${p.washer?' W/ '+p.washer+'" SQ PL WASHER':''}</td><td class="c">${e.fracIn(+(det.proj||2))}</td></tr>`; }).join(''); }).join('');
     page('Foundation plan &amp; schedules',`
       <div class="svgwrap">${D().plan(P,R,{w:1000,print:true,layers:{util:false},id:'rp-plan',title:'PRELIMINARY FOUNDATION PLAN'})}</div>
       <h2>Footing schedule</h2><table><tr><th class="c">Mark</th><th class="c">Qty</th><th>Volume</th><th class="l">Size</th><th class="l">Reinforcement</th></tr>${fsch}</table>
@@ -19460,7 +19651,7 @@ Rp.build=function(P,R){
     // detail page
     const topB=d.asd.slice().filter(r=>r.qmax>0).sort((a,b)=>b.qmax-a.qmax).slice(0,9);
     const topO=d.asd.filter(r=>r.OTx||r.OTy).map(r=>({r,ot:[r.OTx,r.OTy].filter(Boolean).sort((a,b)=>a.fs-b.fs)[0]})).sort((a,b)=>a.ot.fs-b.ot.fs).slice(0,6);
-    const topS=d.asd.filter(r=>r.SLx||r.SLy).map(r=>({r,sl:[r.SLx,r.SLy].filter(Boolean).sort((a,b)=>a.fs-b.fs)[0]})).sort((a,b)=>a.sl.fs-b.sl.fs).slice(0,6);
+    const topS=d.asd.map(r=>({r,sl:[r.SLx,r.SLy].filter(q=>q&&!q.path).sort((a,b)=>a.fs-b.fs)[0]})).filter(o=>o.sl).sort((a,b)=>a.sl.fs-b.sl.fs).slice(0,6);
     const topU=d.asd.filter(r=>r.UP).sort((a,b)=>a.UP.fs-b.UP.fs).slice(0,5);
     const topM=d.lrfd.map(r=>({r,m:Math.max(r.Mx?r.Mx.Mbot:0,r.My?r.My.Mbot:0),v:Math.max(r.Mx?r.Mx.V:0,r.My?r.My.V:0)})).sort((a,b)=>b.m-a.m).slice(0,6);
     const half=Math.ceil(usedCases.length/2), lt=cs=>`<table class="tight"><tr><th class="l">Case</th><th class="c">Type</th><th>P (k)</th><th>V<sub>x</sub> (k)</th><th>V<sub>y</sub> (k)</th></tr>
@@ -19475,8 +19666,8 @@ Rp.build=function(P,R){
       ${topO.map(o=>`<tr><td class="l">${esc(o.r.label)}</td><td>${n(o.ot.Mo,3)}</td><td>${n(o.ot.Mr,3)}</td><td>${n(o.ot.fs,3)}</td><td class="c">${ok(o.ot.fs>=O.otFS)}</td></tr>`).join('')}</table>`:''}
 `,false);
     page(`General footing — ${esc(mark)} (stability &amp; strength, col. ${esc(gov.col.id)})`,`
-      ${topS.length?`<h2>Sliding stability (ASD) — lowest safety factors</h2><table class="tight"><tr><th class="l">Load combination</th><th>Sliding force (k)</th><th>Friction (k)</th><th>Passive, ftg (k)</th><th>Stemwall P<sub>p</sub> (k)</th><th>${O.lateral==='tie'?'Tie':'Hairpin'} (k)</th><th>Resisting (k)</th><th>Ratio</th><th class="c">Status</th></tr>
-      ${topS.map(o=>`<tr><td class="l">${esc(o.r.label)}</td><td>${n(o.sl.H,3)}</td><td>${n(o.sl.fr,3)}</td><td>${n(o.sl.pp,3)}</td><td>${n(o.sl.spp,2)}</td><td>${n((o.sl.lat||0)+(o.sl.sw||0),2)}</td><td>${n(o.sl.R2,3)}</td><td>${n(o.sl.fs,2)}</td><td class="c">${ok(o.sl.fs>=O.slFS)}</td></tr>`).join('')}</table>`:''}
+      ${topS.length?`<h2>Sliding stability (ASD) — lowest safety factors</h2><table class="tight"><tr><th class="l">Load combination</th><th>Sliding force (k)</th><th>Friction (k)</th><th>Passive, ftg (k)</th><th>Stemwall P<sub>p</sub> (k)</th><th>Stemwall friction (k)</th><th>Slab / grade beam (k)</th><th>Resisting (k)</th><th>Ratio</th><th class="c">Status</th></tr>
+      ${topS.map(o=>`<tr><td class="l">${esc(o.r.label)}</td><td>${n(o.sl.H,3)}</td><td>${n(o.sl.fr,3)}</td><td>${n(o.sl.pp,3)}</td><td>${n(o.sl.spp,2)}</td><td>${n(o.sl.sw||0,2)}</td><td>${n((o.sl.slab||0)+((o.sl.strut||{}).Rm||0),2)}</td><td>${n(o.sl.R2,3)}</td><td>${n(o.sl.fs,2)}</td><td class="c">${ok(o.sl.fs>=O.slFS)}</td></tr>`).join('')}</table>${d.restrainPerp?`<p class="note">Thrust ⟂ wall: 100% to the ${d.tie?'grade-beam tie':'hairpin'} (see ${d.tie?'Grade-beam ties':'Hairpins'}); only shear ∥ wall is resisted here.</p>`:''}`:''}
       ${topU.length?`<h2>Uplift (ASD)</h2><table class="tight"><tr><th class="l">Load combination</th><th>Uplift (k)</th><th>Resisting (k)</th><th>SF</th><th class="c">Status</th></tr>
       ${topU.map(r=>`<tr><td class="l">${esc(r.label)}</td><td>${n(r.UP.up,3)}</td><td>${n(r.UP.resist,3)}</td><td>${n(r.UP.fs,2)}</td><td class="c">${ok(r.UP.fs>=1)}</td></tr>`).join('')}</table>`:''}
       <h2>Footing flexure &amp; one-way shear (LRFD) — highest demands</h2>
@@ -19516,25 +19707,26 @@ Rp.build=function(P,R){
         <h2>Slab component</h2>
         <div class="box"><span class="eq">P<sub>s</sub> = 0.6 k<sub>s</sub><sup>0.2</sup> h<sup>1.4</sup> B<sup>0.56</sup> f<sub>r</sub></span> (SI units → kN)
         <table class="kv"><tr><td>k<sub>s</sub> modulus of subgrade reaction</td><td>${n(O.ksSubgrade,2)} N/mm³</td></tr><tr><td>h slab thickness</td><td>${n(C.slab,1)} in = ${n(C.slab*25.4,0)} mm</td></tr>
-        <tr><td>B width (${n(ft.B,2)} ft × ${n(O.slabWidthFactor,3)})</td><td>${n(ft.B*12*25.4*O.slabWidthFactor,0)} mm</td></tr><tr><td>f<sub>r</sub> modulus of rupture</td><td>${n(O.frSlab,2)} MPa</td></tr>
+        <tr><td>B width (${n(ft.B,2)} ft × ${n(O.slabWidthFactor,3)})</td><td>${n(ft.B*12*25.4*O.slabWidthFactor,0)} mm</td></tr><tr><td>f<sub>r</sub> = 0.6√f'c (design f'c ${n(C.fc*1000,0)} psi)</td><td>${n(e.frUsed(P),2)} MPa</td></tr>
         <tr><td>P<sub>s</sub> at first crack</td><td>${n(ex.slabKN,1)} kN</td></tr><tr><td>× edge reduction ${n(O.slabEdgeRed,2)} → P<sub>s</sub></td><td><b>${n(ex.slab,2)} k</b></td></tr></table>
-        <p class="note" style="margin:3px 0 0">Temple, Loong &amp; Monforton (1991), <i>Uplift resistance of interior footings of low-rise buildings</i>, Can. J. Civ. Eng. 18:378–387. First-crack load of a continuous slab over an <b>interior</b> footing; the paper's f<sub>r</sub> = 0.6√f'c = ${n(0.6*Math.sqrt(C.fcSpec*6.894757),2)} MPa for f'c = ${n(C.fcSpec*1000,0)} psi. The ${n(O.slabWidthFactor,3)} width factor and ${n(O.slabEdgeRed,2)} edge reduction for perimeter columns are the SE's. Keep slab sawcuts and construction joints away from the columns.</p></div>
+        <p class="note" style="margin:3px 0 0">Temple, Loong &amp; Monforton (1991), <i>Uplift resistance of interior footings of low-rise buildings</i>, Can. J. Civ. Eng. 18:378–387. First-crack load of a continuous slab over an <b>interior</b> footing; f<sub>r</sub> = 0.6√f'c as in the paper, taken with the design f'c (${n(C.fc*1000,0)} psi, not the specified ${n(C.fcSpec*1000,0)} psi). The ${n(O.slabWidthFactor,3)} width factor and ${n(O.slabEdgeRed,2)} edge reduction for perimeter columns are the SE's. Keep slab sawcuts and construction joints away from the columns.</p></div>
         <h2>Footing component</h2><table class="kv"><tr><td>Pier ${pl.bx}" × ${pl.by}" × ${pl.h}" + footing ${e.frac(ft.B*12)} × ${e.frac(ft.L*12)} × ${ft.T}"</td><td>${n(d.Wf+d.Wp,2)} k</td></tr></table>
         <h2>Soil component</h2><table class="kv"><tr><td>${n((C.Dbase-ft.T/12)*12,0)}" soil at ${n(C.gammaSoil*1000,0)} pcf over footing</td><td>${n(d.Ws,2)} k</td></tr></table>
-        <h2>Perimeter footing component</h2><table class="kv"><tr><td>Stemwall ${per.stemW}" × ${per.stemH}", footing ${per.ftgW}" × ${per.ftgT}", L = ${n(ex.Lw,1)} ft</td><td>${n(ex.perim,2)} k</td></tr></table>
+        <h2>Perimeter footing component</h2><table class="kv"><tr><td>Stemwall ${per.stemW}" × ${n(+per.stemH+12*(g.drop||0),0)}"${g.drop?' (lowered '+n(g.drop,2)+' ft)':''}, footing ${per.ftgW}" × ${per.ftgT}", L = ${n(ex.Lw,1)} ft (${n(ex.Lw/2,1)} ft each side — stemwall design on the Perimeter page)</td><td>${n(ex.perim,2)} k</td></tr></table>
       </div><div>
         <h2>Uplift — with hairpins or grade beams</h2>
         <table><tr><th class="l">Component</th><th>P (k)</th></tr>${comps.map(c=>`<tr><td class="l">${c[0]}</td><td>${n(c[1],2)}</td></tr>`).join('')}
           <tr><td class="l"><b>TDL</b></td><td><b>${n(TDL,2)}</b></td></tr><tr><td class="l">0.6 TDL</td><td>${n(0.6*TDL,2)}</td></tr>
-          <tr><td class="l">T<sub>uplift</sub> (${esc(Tlab)}, unfactored)</td><td>${n(Tup,2)}</td></tr><tr><td class="l">Uplift resistance</td><td>${ok(0.6*TDL>=Tup)}</td></tr></table>
+          <tr><td class="l">T<sub>uplift</sub> (${esc(Tlab)}, unfactored)</td><td>${n(Tup,2)}</td></tr><tr><td class="l">Uplift resistance (SE method)</td><td>${0.6*TDL>=Tup?ok(true):'<span class="fail">NG — short '+n(Tup-0.6*TDL,2)+' k; see review items</span>'}</td></tr></table>
         <p class="note">ASCE 7-16 combination 7 (0.6D + 0.6W${O.braceAdd==='HV'?' + bracing':''}): uplift ${n(up?up.applied:0,2)} k vs. resistance ${n(up?up.cap:0,2)} k → ratio ${n(up?up.ratio:0,3)} ${up?pf(up.ratio):''}.</p>
         <h2>Overturning — only needed when no hairpins or ties</h2>
         <table><tr><th class="l">Location</th><th>M<sub>R</sub> (k-ft)</th></tr>${MR.map(m=>`<tr><td class="l">${m[0]}</td><td>${n(m[1],2)}</td></tr>`).join('')}
           <tr><td class="l">Uplift (${n(Tup,1)} k × ${n(Bd/2,2)} ft)</td><td>${n(-Tup*Bd/2,2)}</td></tr><tr><td class="l"><b>Total</b></td><td><b>${n(MRt-Tup*Bd/2,2)}</b></td></tr>
-          <tr><td class="l">0.6 M<sub>R</sub> vs. M<sub>o</sub> = ${n(HW,2)} k × ${n(d.arm,2)} ft = ${n(Mo,2)}</td><td>${n(0.6*(MRt-Tup*Bd/2),2)} ${O.lateral==='none'?ok(0.6*(MRt-Tup*Bd/2)>=Mo):(0.6*(MRt-Tup*Bd/2)>=Mo?ok(true):'<span class="note">n/a — '+(O.lateral==='tie'?'tie':'hairpins')+'</span>')}</td></tr></table>
+          <tr><td class="l">0.6 M<sub>R</sub> vs. M<sub>o</sub> = ${n(HW,2)} k × ${n(d.arm,2)} ft = ${n(Mo,2)}</td><td>${n(0.6*(MRt-Tup*Bd/2),2)} ${O.lateral==='none'?ok(0.6*(MRt-Tup*Bd/2)>=Mo):(0.6*(MRt-Tup*Bd/2)>=Mo?ok(true):'<span class="note">n/a — '+(g.d.tie?'tie':(g.d.restrainPerp?'hairpins':'none'))+'</span>')}</td></tr></table>
         <h2>Sliding — ⟂ wall</h2>
+        ${g.d.restrainPerp?`<p>Thrust ⟂ wall is carried <b>100% by the ${g.d.tie?'grade-beam tie '+esc(g.d.tie)+' (page '+PG('ties')+')':'hairpin (page '+PG('hp')+')'}</b>; footing friction and passive are not counted with it.</p>`:`
         <table class="tight"><tr><th>V<sub>applied</sub> (k)</th><th>V<sub>footing</sub> (k)</th><th>Stemwall P<sub>p</sub> (k)</th><th>V<sub>capacity</sub> (k)</th><th>SF</th></tr>
-        ${sl?`<tr><td>${n(sl.applied,2)}</td><td>${n(sl.footOnly,3)}</td><td>${n(sl.spp,2)}</td><td>${n((sl.footOnly||0)+(sl.spp||0),2)}</td><td>${n(((sl.footOnly||0)+(sl.spp||0))/Math.max(sl.applied,1e-6),2)}</td></tr>`:''}</table>
+        ${sl?`<tr><td>${n(sl.applied,2)}</td><td>${n(sl.footOnly,3)}</td><td>${n(sl.spp,2)}</td><td>${n((sl.footOnly||0)+(sl.spp||0),2)}</td><td>${n(((sl.footOnly||0)+(sl.spp||0))/Math.max(sl.applied,1e-6),2)}</td></tr>`:''}</table>`}
         <p class="note">Stemwall passive P<sub>p</sub> = ½ · ${n(C.passive*1000,0)} pcf · (${per.stemH}+${per.ftgT} in)² · ${n(O.stemPassiveLen,1)} ft. V<sub>footing</sub> = μN + passive on the footing face — computed here in place of an ENERCALC sliding run (see Method validation).</p>
       </div></div>`,undefined,'se'+mark);
   });
@@ -19559,24 +19751,31 @@ Rp.build=function(P,R){
       ${T.map(t=>`<tr><td class="l">${esc(t.id)}</td><td class="l">${esc(t.from)} → ${esc(t.to||t.p1.map(v=>n(v,1)).join(', '))}</td><td>${n(t.L,1)}</td><td class="l">(${t.n}) #${t.bar}</td><td>${n(t.Hu,2)}</td><td>${n(t.items[0].ratio,2)}</td><td>${n(t.elong,3)}</td><td>${t.trN?n((t.items.find(i=>/Transfer/.test(i.item))||{}).ratio,2):'—'}</td></tr>`).join('')}</table>
       <p class="note">The tie centroid is below the base plate, so the thrust and the tie force form a couple on the plinth; this package takes it into the slab bearing on the plinth and does not add it to the footing checks — see the review flags for its size.</p>`,undefined,'ties');
   }
-  // ------------------------------------------------ hairpins
-  if(S.hairpin!==0 && O.lateral!=='none' && O.lateral!=='tie'){
-    const hb=e.REBAR[+O.hairpinBar||5];
-    const rows=[]; Object.keys(R.types).forEach(mark=>{ const xs=R.types[mark].cols.map(id=>R.cols[id]);
-      ['Max. vertical load','Min. vertical load'].forEach(k=>{ let best=null; xs.forEach(x=>x.lat.cases.filter(c=>c.k===k).forEach(c=>{ if(!best||c.need>best.need||(c.need===best.need&&c.H>best.H)) best=Object.assign({col:x.col.id},c); }));
-        if(best) rows.push(Object.assign({mark},best)); }); });
-    const lat0=Object.values(R.cols)[0].lat;
-    const HuMax=Math.max(...Object.values(R.cols).map(x=>x.lat.Hu||0));
-    page(O.lateral==='tie'?'Sliding resistance — tie across building':'Sliding resistance — hairpins',`
-      <p>Hairpins carry the part of the horizontal thrust that the footing cannot resist through friction and passive pressure.</p>
-      <div class="three"><table class="kv"><tr><td>Grade</td><td>${n(C.fy,0)} ksi</td></tr><tr><td>Bar</td><td>#${O.hairpinBar} (${n(hb.d,3)}")</td></tr><tr><td>Legs</td><td>2</td></tr><tr><td>Total area</td><td>${n(2*hb.A,2)} in²</td></tr></table>
-      <table class="kv"><tr><td>Capacity (SF = 2)</td><td>${n(C.fy*2*hb.A/2,1)} k</td></tr><tr><td>Leg length</td><td>${n(O.hairpinLeg,1)} ft</td></tr><tr><td>l<sub>d</sub> required (#${O.hairpinBar})</td><td>${n(lat0.ld,1)} in</td></tr><tr><td>Leg provided</td><td>${n(lat0.legIn,0)} in ${ok(lat0.legIn>=lat0.ld)}</td></tr></table>
-      <table class="kv"><tr><td>Max. factored thrust H<sub>u</sub></td><td>${n(HuMax,2)} k</td></tr><tr><td>φT<sub>n</sub> = 0.9 A<sub>s</sub> f<sub>y</sub></td><td>${n(lat0.phiTn,1)} k</td></tr><tr><td>LRFD check</td><td>${ok(lat0.phiTn>=HuMax)}</td></tr></table></div>
-      <table><tr><th class="l">Foundation</th><th class="l">Case</th><th class="c">Col.</th><th>V<sub>applied</sub> (k)</th><th>V<sub>resistance</sub> (k)</th><th>V<sub>add'l needed</sub> (k)</th><th>Hairpin cap. SF=2 (k)</th><th>Hairpin length (ft)</th><th>Elongation (in)</th><th class="c">Adequate</th></tr>
-      ${rows.map(r=>`<tr><td class="l">${esc(r.mark)}</td><td class="l">${esc(r.k)}</td><td class="c">${esc(r.col)}</td><td>${n(r.H,2)}</td><td>${n(r.R,3)}</td><td>${n(r.need,2)}</td><td>${n(r.cap,1)}</td><td>${n(2*O.hairpinLeg,1)}</td><td>${n(r.elong,3)}</td><td class="c">${ok(r.ok)}</td></tr>`).join('')}</table>
-      <p class="note">V<sub>resistance</sub> = μN + passive on the footing face (ENERCALC method, reproduced here). Elongation δ = T L / (A<sub>s</sub> E<sub>s</sub>) with L = both legs. The hairpin is centred in the slab and the slab must carry the tie force across to the opposite frame column or into the subgrade. The slab reinforcing (${esc(C.slabReinf)}) is not checked for this tie force in this package.</p>
-      <h2>Alternative — tension tie / grade beam across the building (${n(lat0.tie.L,0)} ft)</h2>
-      <table class="kv" style="max-width:60%"><tr><td>A<sub>s</sub> required = H<sub>u</sub> / (0.9 f<sub>y</sub>)</td><td>${n(HuMax/(0.9*C.fy),3)} in²</td></tr><tr><td>A<sub>s</sub> for ½" elongation (ASD thrust)</td><td>${n(lat0.tie.AsHalfInch,3)} in²</td></tr></table>`,undefined,'hp');
+  // ------------------------------------------------ hairpins (100% of the thrust ⟂ wall)
+  const hpX=cols.filter(x=>x.d.restrainPerp && !x.d.tie && x.lat && x.lat.cases.length);
+  if(S.hairpin!==0 && hpX.length){
+    const hb=e.REBAR[+O.hairpinBar||5], nH=+O.hairpinN||1, L0=hpX[0].lat;
+    const govA=hpX.reduce((m,x)=>(x.lat.Ha||0)>(m.lat.Ha||0)?x:m), govU=hpX.reduce((m,x)=>(x.lat.Hu||0)>(m.lat.Hu||0)?x:m);
+    const it=(x,k)=>(x.lat.items.find(q=>q.item.startsWith(k))||{});
+    page('Hairpins — thrust ⟂ wall',`
+      <p>The hairpin carries <b>100%</b> of the column thrust perpendicular to the wall (MBMA practice; the SE's standard hairpin sheet). Footing friction and passive pressure need movement to develop and are <b>not added</b> to a much stiffer steel tie; they are listed as backup only. The hairpin delivers the force into the slab, so the slab reinforcing is the tie across the building (below).</p>
+      <div class="three"><table class="kv"><tr><td>Grade</td><td>${n(C.fy,0)} ksi</td></tr><tr><td>Hairpin</td><td>${nH>1?'('+nH+') ':''}#${O.hairpinBar||5} (${n(hb.d,3)}"), 2 legs each</td></tr><tr><td>A<sub>s</sub></td><td>${n(L0.As,2)} in²</td></tr></table>
+      <table class="kv"><tr><td>ASD capacity f<sub>y</sub>A<sub>s</sub>/2</td><td>${n(L0.capASD,1)} k</td></tr><tr><td>LRFD φT<sub>n</sub> = 0.9 A<sub>s</sub> f<sub>y</sub></td><td>${n(L0.phiTn,1)} k</td></tr><tr><td>Leg ${n(O.hairpinLeg,1)} ft vs l<sub>d</sub> ${n(L0.ld,1)}"</td><td>${ok(L0.legIn>=L0.ld)}</td></tr></table>
+      <table class="kv"><tr><td>Max. ASD thrust H<sub>a</sub></td><td>${n(govA.lat.Ha,2)} k @ ${esc(govA.col.id)}</td></tr><tr><td>Max. LRFD thrust H<sub>u</sub></td><td>${n(govU.lat.Hu,2)} k @ ${esc(govU.col.id)}</td></tr><tr><td>Worst ratio</td><td>${n(Math.max(...hpX.map(x=>Math.max(...x.lat.items.map(q=>q.ratio)))),2)} ${pf(Math.max(...hpX.map(x=>Math.max(...x.lat.items.map(q=>q.ratio)))))}</td></tr></table></div>
+      <table class="tight"><tr><th class="c">Col.</th><th class="c">Ftg</th><th>H<sub>a</sub> (k)</th><th>f<sub>y</sub>A<sub>s</sub>/2 (k)</th><th>Ratio</th><th>H<sub>u</sub> (k)</th><th>φT<sub>n</sub> (k)</th><th>Ratio</th><th>δ both legs (in)</th><th>Backup: friction + passive + stemwall P<sub>p</sub> (k)</th><th class="c">Status</th></tr>
+      ${hpX.map(x=>{ const a=it(x,'Hairpin, thrust'), u=it(x,'Hairpin tension'), c=x.lat.cases[0]; const r=Math.max(a.ratio||0,u.ratio||0);
+        return `<tr><td class="c">${esc(x.col.id)}</td><td class="c">${esc(x.ft.mark)}</td><td>${n(x.lat.Ha,2)}</td><td>${n(x.lat.capASD,1)}</td><td>${n(a.ratio,2)}</td><td>${n(x.lat.Hu,2)}</td><td>${n(x.lat.phiTn,1)}</td><td>${n(u.ratio,2)}</td><td>${n(c.elong,3)}</td><td>${n(c.backup,2)}</td><td class="c">${pf(r)}</td></tr>`; }).join('')}</table>
+      ${(()=>{ const fr=hpX.filter(x=>x.col.kind==='frame'); const gu=(fr.length?fr:hpX).reduce((m,x)=>(x.lat.Hu||0)>(m.lat.Hu||0)?x:m), ga=(fr.length?fr:hpX).reduce((m,x)=>(x.lat.Ha||0)>(m.lat.Ha||0)?x:m);
+        const reinf=/TBD|^\s*$/i.test(C.slabReinf||'')?'<span class="fail">TBD — open item for the EOR</span>':esc(C.slabReinf);
+        return fr.length?`<h2>Slab as the tie across the building</h2>
+      <table class="kv" style="max-width:78%"><tr><td>Slab steel through the hairpin strip, A<sub>s</sub> ≥ H<sub>u</sub> / (0.9 f<sub>y</sub>) = ${n(gu.lat.Hu,2)} / (0.9 · ${n(C.fy,0)}) @ ${esc(gu.col.id)}</td><td><b>${n(gu.lat.slabAs,2)} in²</b></td></tr>
+        <tr><td>A<sub>s</sub> for ½" frame spread over ${n(P.pemb.width,0)} ft at H<sub>a</sub> = ${n(ga.lat.Ha,2)} k: A<sub>s</sub> = H<sub>a</sub>L / (0.5 E<sub>s</sub>)</td><td><b>${n(ga.lat.tie.AsHalfInch,2)} in²</b></td></tr>
+        <tr><td>Slab reinforcing specified</td><td>${reinf}</td></tr></table>
+      <p class="note">The slab steel must be continuous (lapped) from the hairpin at one frame column to the one opposite, across control and construction joints, or the thrust must go to a grade-beam tie instead. Hairpin elongation in the table is over its own two legs only; frame spread is governed by the slab or tie steel over the full width.</p>`
+        :`<h2>Hairpin force into the slab</h2>
+      <table class="kv" style="max-width:78%"><tr><td>Slab steel through the hairpin strip, A<sub>s</sub> ≥ H<sub>u</sub> / (0.9 f<sub>y</sub>) = ${n(gu.lat.Hu,2)} / (0.9 · ${n(C.fy,0)}) @ ${esc(gu.col.id)}</td><td><b>${n(gu.lat.slabAs,2)} in²</b></td></tr>
+        <tr><td>Slab reinforcing specified</td><td>${reinf}</td></tr></table>
+      <p class="note">Only endwall / wind columns use hairpins here (the frame thrust goes to grade-beam ties). Their out-of-plane wind reaction is spread into the slab-on-grade by the hairpin; the slab reinforcing within the hairpin length has to develop that force.</p>`; })()}`,undefined,'hp');
   }
   // ------------------------------------------------ anchors
   if(S.anchors!==0){
@@ -19584,14 +19783,26 @@ Rp.build=function(P,R){
     Object.entries(groups).forEach(([k,xs])=>{
       const g=xs.reduce((a,b)=>b.a.gov.ratio>a.a.gov.ratio?b:a); const a=g.a, c=g.col, pl=g.pl;
       const det=(P.details||{})[c.detail]||{};
-      const top=a.rows.slice().sort((p,q)=>Math.max(q.bN,q.bV,q.inter)-Math.max(p.bN,p.bV,p.inter)).slice(0,4);
-      const G=a.gov; const sf=G.seis?0.75:1;
+      const lr=r=>r.lugR?Math.max(r.lugR.brg,r.lugR.bx,r.lugR.by,r.lugR.plate,r.lugR.weld):0;
+      const top=a.rows.slice().sort((p,q)=>Math.max(q.bN,q.bV,q.inter,lr(q))-Math.max(p.bN,p.bV,p.inter,lr(p))).slice(0,4);
+      const G=a.govN||a.gov, GV=a.govV||a.gov, GL=a.govL; const sf=G.seis?0.75:1, sfV=GV.seis?0.75:1;
       const tens=[['Steel strength (17.6.1)','φN<sub>sa</sub> = 0.75 A<sub>se,N</sub> f<sub>uta</sub>',G.Tmax,a.phiNsa],
         ['Pullout (17.6.3)','φN<sub>pn</sub> = 0.70 · 8 A<sub>brg</sub> f\'c'+(G.seis?' × 0.75':''),G.Tmax,a.phiNpn*sf],
         O.anchorReinf?['Anchor reinforcement (17.5.2.1a)','φN<sub>n</sub> = 0.75 A<sub>s</sub> f<sub>y</sub>, '+a.legs+' legs #'+((pl.vert||{}).bar||4),G.N,a.phiNar]:['Concrete breakout (17.6.2)','φN<sub>cbg</sub> = 0.70 (A<sub>Nc</sub>/A<sub>Nco</sub>) ψ<sub>ec</sub>ψ<sub>ed</sub>ψ<sub>c</sub>ψ<sub>cp</sub> N<sub>b</sub>',G.N,G.phiNcbg]];
       if(isFinite(a.phiNsb)) tens.push(['Side-face blowout (17.6.4)','φN<sub>sb</sub> = 0.70 · 160 c<sub>a1</sub> √A<sub>brg</sub> √f\'c',G.Tmax,a.phiNsb*sf]);
-      const shear=[['Steel strength (17.7.1)','φV<sub>sa</sub> = 0.65 · 0.6 A<sub>se,V</sub> f<sub>uta</sub>',G.vi,a.phiVsa],['Pryout (17.7.3)','φV<sub>cpg</sub> = 0.70 k<sub>cp</sub> N<sub>cpg</sub>'+(G.seis?' × 0.75':''),G.V,G.phiVcpg],
-        O.anchorReinf?['Anchor reinforcement (17.5.2.1b)','φV<sub>n</sub> = 0.75 A<sub>s</sub> f<sub>y</sub>, (3) #3 top ties, 2 legs',G.V,a.phiVar]:['Concrete edge breakout (17.7.2)','φV<sub>cbg</sub>, row nearest edge',G.V,Math.min(...Object.values(a.vcb).map(v=>v.phiVcbg))*sf]];
+      const shear=[['Steel strength (17.7.1)','φV<sub>sa</sub> = 0.65 · 0.6 A<sub>se,V</sub> f<sub>uta</sub>',GV.vi,a.phiVsa],['Pryout (17.7.3)','φV<sub>cpg</sub> = 0.70 k<sub>cp</sub> N<sub>cpg</sub>'+(GV.seis?' × 0.75':''),GV.V,GV.phiVcpg],
+        O.anchorReinf?['Anchor reinforcement (17.5.2.1b)','φV<sub>n</sub> = 0.75 A<sub>s</sub> f<sub>y</sub>, '+esc(a.arSrc),GV.V,a.phiVar]:['Concrete edge breakout (17.7.2)','φV<sub>cbg</sub>, row nearest edge',GV.V,Math.min(...Object.values(a.vcb).map(v=>v.phiVcbg))*sfV]];
+      const L=a.lug, lugHtml=L&&GL?(()=>{ const V=GL.V, sfL=GL.seis?0.75:1, rr=GL.lugR;
+        const rows=[['Bearing on concrete (17.11.2)','φ 0.65 · 1.7 f\'c · A<sub>ef</sub>, A<sub>ef</sub> = '+n(L.w,1)+' × ('+n(L.h,1)+' − '+n(L.G,2)+' grout) = '+n(L.Aef,1)+' in²'+(GL.seis?' × 0.75':''),V,L.phiBrg*sfL,rr.brg],
+          ['Concrete breakout, X (DG1 3.5)','φ 0.75 · 4√f\'c · A<sub>V</sub>, limited by the plinth'+(GL.seis?' × 0.75':''),Math.abs(GL.Hx),L.phiX*sfL,rr.bx],
+          ['Concrete breakout, Y (DG1 3.5)','same, Y face',Math.abs(GL.Hy),L.phiY*sfL,rr.by],
+          ['Lug plate bending (DG1 3.5.2)','M<sub>u</sub> = V (G + d/2) = '+n(V,2)+' · '+n(L.arm,2)+'; φM<sub>p</sub> = 0.9 F<sub>y</sub> w t²/4, t = '+e.fracIn(L.t)+', F<sub>y</sub> '+n(L.fy,0)+' ksi',V*L.arm,L.phiMp,rr.plate],
+          ['Lug-to-plate fillet welds, both faces','f = √[(V/2w)² + (M<sub>u</sub>/(t·w))²] vs φ0.6·70·0.707a, a = '+e.fracIn16(L.weld)+' E70',Math.hypot(V/(2*L.w),V*L.arm/(L.t*L.w)),L.phiRw,rr.weld]];
+        return `<h2>4 Shear — shear lug ${n(L.w,0)}" × ${n(L.h,0)}" × ${e.fracIn(L.t)} plate, ${e.fracIn16(L.weld)} fillet welds both faces (governing: ${esc(GL.label)})</h2>
+        <p>All base shear goes to the lug; the anchor rods take <b>tension only</b>, so rod steel shear, pryout and edge breakout do not apply (β<sub>V</sub> = 0 in 17.8).</p>
+        <table class="tight"><tr><th class="l">Check</th><th class="l">Equation</th><th>Demand</th><th>Capacity</th><th>Utilization</th><th class="c">Status</th></tr>
+        ${rows.map(t=>`<tr><td class="l">${t[0]}</td><td class="l">${t[1]}</td><td>${n(t[2],2)}</td><td>${n(t[3],2)}</td><td>${n(t[4]*100,0)}%</td><td class="c">${ok(t[4]<=1.0001)}</td></tr>`).join('')}</table>
+        <p class="note">Load path: lug → plinth concrete (bearing and breakout above) → ${g.d.tie?'grade-beam tie '+esc(g.d.tie)+' U-bars around the plinth':(g.d.restrainPerp?'hairpin wrapped around the plinth, into the slab':'plinth and footing (friction + passive)')} for thrust ⟂ wall; integral stemwall for shear ∥ wall. Lug in a grout pocket; lug and welds by the PEMB manufacturer or the steel detailer to these sizes.</p>`; })():'';
       page(`Anchor bolt design — ${esc(c.detail?('detail '+c.detail):c.kind)} / plinth ${esc(pl.mark)}`,`
         <div class="two"><div>
           <h2>1 Input data</h2><table class="kv">
@@ -19604,17 +19815,18 @@ Rp.build=function(P,R){
             <tr><td>Seismic (SDC ${esc(C.SDC)})</td><td>${a.omega?'Loads with E × Ω<sub>0</sub> = '+n(a.Om,2)+' (17.10.5.3d / 17.10.6.3c); 0.75 on concrete modes':'No Ω<sub>0</sub> amplification'}</td></tr></table>
         </div><div style="text-align:center">${D().anchorDetail(P,c,pl,{w:250})}<p class="note">Rigid plate assumed. Bolt forces are for a load at the plate centre (elastic bolt group).</p></div></div>
         <h2>2 Load combinations — highest utilizations (LRFD)</h2>
-        <table class="tight"><tr><th class="l">Combination</th><th>N<sub>ua</sub> group (k)</th><th>T max bolt (k)</th><th>V<sub>ua</sub> (k)</th><th>β<sub>N</sub></th><th>β<sub>V</sub></th><th>β<sub>N</sub><sup>5/3</sup>+β<sub>V</sub><sup>5/3</sup></th></tr>
-        ${top.map(r=>`<tr><td class="l">${esc(r.label)}</td><td>${n(r.N,2)}</td><td>${n(r.Tmax,2)}</td><td>${n(r.V,2)}</td><td>${n(r.bN,3)}</td><td>${n(r.bV,3)}</td><td>${n(r.inter,3)}</td></tr>`).join('')}</table>
-        <h2>3 Tension — governing: ${esc(G.label||'—')}</h2>
+        <table class="tight"><tr><th class="l">Combination</th><th>N<sub>ua</sub> group (k)</th><th>T max bolt (k)</th><th>V<sub>ua</sub> (k)</th><th>β<sub>N</sub></th><th>β<sub>V</sub></th><th>β<sub>N</sub><sup>5/3</sup>+β<sub>V</sub><sup>5/3</sup></th>${a.lug?'<th>Lug</th>':''}</tr>
+        ${top.map(r=>`<tr><td class="l">${esc(r.label)}</td><td>${n(r.N,2)}</td><td>${n(r.Tmax,2)}</td><td>${n(r.V,2)}</td><td>${n(r.bN,3)}</td><td>${n(r.bV,3)}</td><td>${n(r.inter,3)}</td>${a.lug?`<td>${n(r.lugR?Math.max(r.lugR.brg,r.lugR.bx,r.lugR.by,r.lugR.plate,r.lugR.weld):0,3)}</td>`:''}</tr>`).join('')}</table>
+        <h2>3 Tension — governing: ${esc(G.N>0?G.label:'no tension in any combination')}</h2>
         <table class="tight"><tr><th class="l">Mode</th><th class="l">Equation</th><th>Load (k)</th><th>Capacity (k)</th><th>Utilization</th><th class="c">Status</th></tr>
         ${tens.map(t=>`<tr><td class="l">${t[0]}</td><td class="l">${t[1]}</td><td>${n(t[2],3)}</td><td>${n(t[3],3)}</td><td>${n(t[2]/t[3]*100,0)}%</td><td class="c">${ok(t[2]<=t[3]+1e-9)}</td></tr>`).join('')}</table>
         <p class="note">Plain-concrete breakout for reference: A<sub>Nc</sub> = ${n(a.ANc,1)} in², A<sub>Nco</sub> = ${n(a.ANco,1)} in², ψ<sub>ed,N</sub> = ${n(a.psiEd,3)}, N<sub>b</sub> = 24√f'c h<sub>ef</sub><sup>1.5</sup> = ${n(a.Nb,2)} k, N<sub>cbg</sub> (ψ<sub>ec</sub>=1) = ${n(a.Ncbg0,2)} k.</p>
-        <h2>4 Shear</h2>
+        ${lugHtml||`<h2>4 Shear — governing: ${esc(GV.label||'—')}</h2>
         <table class="tight"><tr><th class="l">Mode</th><th class="l">Equation</th><th>Load (k)</th><th>Capacity (k)</th><th>Utilization</th><th class="c">Status</th></tr>
-        ${shear.map(t=>`<tr><td class="l">${t[0]}</td><td class="l">${t[1]}</td><td>${n(t[2],3)}</td><td>${n(t[3],3)}</td><td>${n(t[2]/t[3]*100,0)}%</td><td class="c">${ok(t[2]<=t[3]+1e-9)}</td></tr>`).join('')}</table>
+        ${shear.map(t=>`<tr><td class="l">${t[0]}</td><td class="l">${t[1]}</td><td>${n(t[2],3)}</td><td>${n(t[3],3)}</td><td>${n(t[2]/t[3]*100,0)}%</td><td class="c">${ok(t[2]<=t[3]+1e-9)}</td></tr>`).join('')}</table>`}
         <h2>5 Combined tension and shear (17.8)</h2>
-        <p class="eq">β<sub>N</sub><sup>5/3</sup> + β<sub>V</sub><sup>5/3</sup> = ${n(G.bN,3)}<sup>5/3</sup> + ${n(G.bV,3)}<sup>5/3</sup> = <b>${n(G.inter,3)}</b> ≤ 1.0 ${ok(G.inter<=1.0001)}</p>
+        ${(()=>{ const GI=a.rows.reduce((m,r)=>r.inter>m.inter?r:m,a.rows[0]||G); return `<p class="eq">${esc(GI.label||'')}: β<sub>N</sub> = ${n(GI.bN,3)}, β<sub>V</sub> = ${n(GI.bV,3)}${L?' (shear to lug)':''} → ${(GI.bN<=0.2||GI.bV<=0.2)?'one ratio ≤ 0.2, 17.8.1/17.8.2: '+n(GI.inter,3):'β<sub>N</sub><sup>5/3</sup> + β<sub>V</sub><sup>5/3</sup> = '+n(GI.inter,3)} ≤ 1.0 ${ok(GI.inter<=1.0001)}</p>`; })()}
+        <p class="note">Anchor group ratio (worst of tension, shear${L?', lug':''} and interaction over all combinations) = <b>${n(a.gov.ratio,2)}</b> — the value on the review guide.</p>
         <p class="note">Anchor reinforcement must be developed on both sides of the breakout surface (17.5.2.1). Plinth ties: at least (3) #3 or (2) #4 within 5" of the top (ACI 10.7.6.1.6). Anchor rods: heavy hex nut or head, with a template tying them in place before the pour.</p>`,undefined,'anc'+(ancK++));
     });
   }
@@ -19639,19 +19851,26 @@ Rp.build=function(P,R){
         <tr><td class="l"><b>Total</b></td><td><b>${n(pm.w,3)}</b></td></tr></table>
       <table class="kv"><tr><td>Bearing q = w / b</td><td>${n(pm.q,3)} ksf</td></tr><tr><td>Allowable</td><td>${n(pm.qa,2)} ksf ${ok(pm.q<=pm.qa)}</td></tr>
         <tr><td>Longitudinal steel ${esc(P.perimeter.bars)}</td><td>${n(pm.As,2)} in²</td></tr><tr><td>0.0018 A<sub>g</sub></td><td>${n(pm.AsMin,3)} in² ${ok(pm.As>=pm.AsMin)}</td></tr>
-        <tr><td>Frost / min. depth</td><td>${n(C.Dbase*12,0)}" below grade</td></tr></table></div>
+        <tr><td>Frost / min. depth</td><td>${n(C.Dbase*12,0)}" below grade</td></tr>
+        ${pm.depth?`<tr><td>Concrete above bottom bars (ACI 13.3.1.2)</td><td>${n(pm.depth.above,1)}" vs 6" ${pm.depth.plain?'<span class="note">plain concrete (ACI 14)</span>':ok(pm.depth.above>=6-1e-9)}</td></tr>`:''}</table></div>
       ${(pm.segs||[]).some(g=>g.drop)?`<h2>Lowered wall zones (loading dock / step in grade)</h2><table><tr><th class="l">Wall</th><th>Length (ft)</th><th>Lowered (ft)</th><th>T.O. wall footing</th><th>Stem height</th><th>w (klf)</th><th>q (ksf)</th><th></th></tr>
         ${pm.segs.filter(g=>g.drop).map(g=>`<tr><td class="l">(${n(g.p0[0],1)}, ${n(g.p0[1],1)}) → (${n(g.p1[0],1)}, ${n(g.p1[1],1)})</td><td>${n(g.L,1)}</td><td>${n(g.drop,2)}</td><td>${e.elev(P,g.sh)}</td><td>${n(g.sh*12,0)}"</td><td>${n(g.w,3)}</td><td>${n(g.q,3)}</td><td>${ok(g.q<=pm.qa)}</td></tr>`).join('')}</table>`:''}
       ${(P.columns||[]).some(c=>+c.drop>0)?`<p class="note">Lowered column footings: ${(P.columns||[]).filter(c=>+c.drop>0).map(c=>{ const x=R.cols[c.id]; return esc(c.id)+' T.O.F. '+e.elev(P,x?(+x.pl.h||24)/12:(24/12+(+c.drop)))+' (−'+e.frac(+c.drop*12)+')'; }).join(', ')}. Each plinth is lengthened by the same amount so the top of concrete is unchanged; the lower footing depth is used in that column's checks.</p>`:''}
-      <p class="note">Door jambs (${(P.jambs||[]).length}) bear on the stemwall. The PEMB manufacturer publishes no jamb reactions. The jamb anchor bolts are placed per the anchor bolt plan and drawn on the plan. Provide the thickened edge at openings per the typical detail.</p>`);
+      ${(()=>{ const sx=cols.filter(x=>x.d.stem); if(!sx.length) return ''; const s0=sx[0].d.stem;
+        return `<h2>Stemwall at the columns</h2>
+        <p>The uplift check credits the stemwall and wall footing over L<sub>w</sub> at each perimeter column, so the wall has to cantilever L<sub>w</sub>/2 each side of the column to pick up its own weight (top bars in tension over the column). Shear parallel to the wall is delivered to the integral stemwall and checked in-plane over the same length. Top bars: <b>${esc(s0.bars)}</b>, d = stem height − 2" − d<sub>b</sub>/2 (stem only; no composite action with the wall footing assumed).</p>
+        <table class="tight"><tr><th class="c">Col.</th><th>Stem (in)</th><th>L<sub>w</sub>/2 (ft)</th><th>w (klf)</th><th>M<sub>u</sub> = 1.2w(L<sub>w</sub>/2)²/2 (k-ft)</th><th>A<sub>s,req</sub> (in²)</th><th>φM<sub>n</sub> (k-ft)</th><th>Ratio</th><th>V<sub>u</sub> ∥ (k)</th><th>φV<sub>c</sub> (k)</th><th>Ratio</th></tr>
+        ${sx.map(x=>{ const t=x.d.stem; return `<tr><td class="c">${esc(x.col.id)}</td><td>${t.sw} × ${n(t.sh,0)}</td><td>${n(t.a,1)}</td><td>${n(t.w,3)}</td><td>${n(t.Mu,2)}</td><td>${n(t.AsReq,3)}</td><td>${n(t.phiMn,2)}</td><td>${c2(t.Mu/t.phiMn)}</td><td>${n(t.Vu,2)}</td><td>${n(t.phiVc,1)}</td><td>${t.Vu?c2(t.Vu/t.phiVc):'—'}</td></tr>`; }).join('')}</table>
+        <p class="note">Wall-parallel shear is transferred from the plinth into the stemwall through the monolithic pour (plinth integral with the wall). Where a column is lowered the stem height includes the drop; a lowered wall with a grade change across it retains soil and needs its own design (not covered here).</p>`; })()}
+      <p class="note">${(P.jambs||[]).length?`Door jambs (${(P.jambs||[]).length}) bear on the stemwall. The PEMB manufacturer publishes no jamb reactions; the jamb anchor bolts are placed per the anchor bolt plan and drawn on the plan.`:'No door-jamb anchor bolts are shown on the manufacturer\'s anchor bolt plan, so none are placed. If the framed openings have jamb columns, add them (Layout → + Add jamb pair) once the manufacturer issues their locations.'} Provide the thickened edge at openings per the typical detail.</p>`,undefined,'perim');
   }
   // ------------------------------------------------ results matrix
   if(S.results!==0){
     const pick=(x,re)=>{ const s=x.d.summary.filter(s=>re.test(s.item)); return s.length?Math.max(...s.map(v=>v.ratio)):null; };
     const c=r=>r==null?'—':`<span class="${r>1.0001?'fail':''}">${n(r,2)}</span>`;
     page('Column-by-column results',`<p>Demand / capacity for every column (≤ 1.00 passes).</p>
-      <table class="tight"><tr><th class="l">Col.</th><th class="c">Ftg</th><th class="c">Plinth</th><th>Bearing</th><th>Uplift</th><th>Overturn</th><th>Sliding</th><th>Flexure</th><th>Shear</th><th>Min. A<sub>s</sub></th><th>Anchors</th><th>Plinth</th><th>${O.lateral==='tie'?'Tie':'Hairpin'}</th></tr>
-      ${cols.map(x=>`<tr><td class="l">${esc(x.col.id)}</td><td class="c">${esc(x.ft.mark)}</td><td class="c">${esc(x.pl.mark)}</td><td>${c(pick(x,/bearing/))}</td><td>${c(pick(x,/Uplift/))}</td><td>${c(pick(x,/Overturning/))}</td><td>${c(pick(x,/Sliding/))}</td><td>${c(pick(x,/Flexure/))}</td><td>${c(pick(x,/shear|punching/))}</td><td>${c(pick(x,/Min\. steel/))}</td><td>${c(x.a.gov.ratio)}</td><td>${c(Math.max(...x.p.items.map(s=>s.ratio)))}</td><td>${(()=>{ const t=(R.ties||[]).find(q=>q.from===x.col.id||q.to===x.col.id); if(t) return c(t.gov.ratio); if(O.lateral==='tie') return '—'; return x.lat.cases.length?c(Math.max(...x.lat.cases.map(q=>q.need/q.cap))):'—'; })()}</td></tr>`).join('')}</table>`,undefined,'results');
+      <table class="tight"><tr><th class="l">Col.</th><th class="c">Ftg</th><th class="c">Plinth</th><th>Bearing</th><th>Uplift</th><th>Overturn</th><th>Sliding</th><th>Flexure</th><th>Shear</th><th>Min. A<sub>s</sub></th><th>Anchors</th><th>Plinth</th><th>${(R.ties||[]).length?'Hairpin / tie':'Hairpin'}</th></tr>
+      ${cols.map(x=>`<tr><td class="l">${esc(x.col.id)}</td><td class="c">${esc(x.ft.mark)}</td><td class="c">${esc(x.pl.mark)}</td><td>${c(pick(x,/bearing/))}</td><td>${c(pick(x,/Uplift/))}</td><td>${c(pick(x,/Overturning/))}</td><td>${c(pick(x,/Sliding/))}</td><td>${c(pick(x,/Flexure/))}</td><td>${c(pick(x,/shear|punching/))}</td><td>${c(pick(x,/Min\. steel/))}</td><td>${c(x.a.gov.ratio)}</td><td>${c(Math.max(...x.p.items.map(s=>s.ratio)))}</td><td>${(()=>{ const t=(R.ties||[]).find(q=>q.from===x.col.id||q.to===x.col.id); if(t) return c(t.gov.ratio); if(O.lateral==='tie') return '—'; return (x.d.restrainPerp&&x.lat.items.length)?c(Math.max(...x.lat.items.map(q=>q.ratio))):'—'; })()}</td></tr>`).join('')}</table>`,undefined,'results');
   }
   // ------------------------------------------------ validation
   if(S.validation!==0){
@@ -19666,7 +19885,11 @@ Rp.build=function(P,R){
         <li>Every combination is evaluated for every column, so no "governing column" has to be picked in advance.</li></ul>
       <h2>Slab uplift equation — Temple, Loong &amp; Monforton (1991)</h2>
       <table><tr><th class="l">Source · case</th><th class="l">Quantity</th><th>Published</th><th>This package</th></tr>${e.validateSlab().map(v=>`<tr><td class="l">${v.src}</td><td class="l">${v.what}</td><td>${esc(v.ener)}</td><td><b>${esc(v.ours)}</b></td></tr>`).join('')}</table>
-      <p class="note">P<sub>s</sub> = 0.6 K<sub>s</sub><sup>0.2</sup> h<sup>1.4</sup> B<sup>0.56</sup> f<sub>r</sub> (N, with K<sub>s</sub> in N/mm³, h and B in mm, f<sub>r</sub> in MPa). The paper's worked example (p. 381) and the SE's spreadsheet are both reproduced exactly.</p>`,undefined,'valid');
+      <p class="note">P<sub>s</sub> = 0.6 K<sub>s</sub><sup>0.2</sup> h<sup>1.4</sup> B<sup>0.56</sup> f<sub>r</sub> (N, with K<sub>s</sub> in N/mm³, h and B in mm, f<sub>r</sub> in MPa). The paper's worked example (p. 381) and the SE's spreadsheet are both reproduced exactly. In design the slab term uses f<sub>r</sub> = 0.6√f'c with the design f'c.</p>
+      <h2>Anchor module — Hilti PROFIS Engineering 3.1.28 (SE's Crook package, 26-011 p. 24-30)</h2>
+      <p class="note">(4) 3/4" F1554 Gr 36 heavy hex, h<sub>ef</sub> = 12", 14" × 24" × 24" pedestal, cracked f'c = 2,500 psi, bolt spacing 3.5" × 4", edge distances 5.25 / 5.25 / 7.5 / 12.5" — the same geometry run through this package's anchor routine.</p>
+      <table><tr><th class="l">Quantity</th><th>PROFIS</th><th>This package</th></tr>${e.validateAnchor().map(v=>`<tr><td class="l">${esc(v.what)}</td><td>${esc(v.ener)}</td><td><b>${esc(v.ours)}</b></td></tr>`).join('')}</table>
+      <p class="note">Pullout differs by 4 lb because PROFIS rounds A<sub>brg</sub> to 0.91 in². Shear lugs (bearing 17.11.2, breakout and lug plate/weld per AISC Design Guide 1, 2nd ed., 3.5) have no PROFIS equivalent and are shown in full on each anchor page.</p>`,undefined,'valid');
   }
 
   // ------------------------------------------------ assemble
@@ -19870,10 +20093,10 @@ PM.defaults = function(){
   return {schema:'tamarack.pemb.v1',
     project:{name:'',number:'',client:'',address:'',city:'',county:'',firm:'Tamarack Drafting & Design, LLC',preparedBy:'',eor:'',date:'',rev:'P1'},
     pemb:{mfr:'',job:'',dwg:'',software:'MBS',width:40,length:80,eave:20,slope:'',basis:{},loadCombos:[],maxTables:null,boltSummary:[],notes:[]},
-    criteria:{code:'IBC 2021',asce:'ASCE 7-16',aci:'ACI 318-19',V:110,exposure:'C',riskCat:'II',Ss:0,S1:0,SDS:0,SD1:0,SDC:'D',R:3.25,Omega0:2.5,rho:1.0,Ie:1.0,pg:0,pf:0,
+    criteria:{code:'IBC 2021',asce:'ASCE 7-16',aci:'ACI 318-19',V:110,exposure:'C',riskCat:'II',Ss:0,S1:0,SDS:0,SD1:0,SDC:'D',siteClass:'',exposureF:'F1',R:3.25,Omega0:2.5,rho:1.0,Ie:1.0,pg:0,pf:0,
       qa:1.5,gammaSoil:0.120,gammaConc:0.150,passive:0.200,mu:0.40,fc:2.5,fcSpec:3.0,fy:60,cover:3.0,Dbase:2.0,slab:6.0,slabReinf:'#4 @ 18" o.c. E.W.',abGrade:'F1554-36',hef:12,datum:100},
     options:{autoFitPlinths:true,cornerSnap:30,braceAdd:'H',collInMin:false,pedWtBearing:true,slabUplift:true,perimUplift:true,stemPassive:true,stemPassiveLen:20,lateral:'hairpin',omegaAnchors:true,
-      hairpinBar:5,hairpinLeg:7,anchorReinf:true,ksSubgrade:0.1,frSlab:2.9,slabEdgeRed:0.5,slabWidthFactor:0.666,inplaneToStem:true,tieBar:6,tieN:2,tieElongLimit:0.5,tieTransferN:0,tieTransferBar:5,loadAt:'plate',edgeMin:5,plateClear:3,plinthMin:12,otFS:1.0,slFS:1.0,ftgPlace:'column'},
+      hairpinBar:5,hairpinLeg:7,anchorReinf:true,ksSubgrade:0.1,frSlab:0,slabEdgeRed:0.5,slabWidthFactor:0.666,inplaneToStem:true,tieBar:6,tieN:2,tieElongLimit:0.5,tieTransferN:0,tieTransferBar:5,loadAt:'plate',edgeMin:5,plateClear:3,plinthMin:12,otFS:1.0,slFS:1.0,ftgPlace:'column'},
     perimeter:{stemW:8,stemH:20,ftgW:16,ftgT:8,bars:'(2) #4 bot',wallDL:0.002,eave:20},
     grids:{x:[],y:[]}, cases:[], details:{}, columns:[], jambs:[], bracing:[], ties:[],
     types:[{mark:'F1',B:3,L:3,T:12,bar:4,n:4},{mark:'F2',B:4,L:4,T:12,bar:4,n:5}],
@@ -20139,9 +20362,21 @@ PM.sortMarks=function(P){ if((P.options||{}).sortMarks===false) return [];
   const f=redo('ft',P.types,t=>[(+t.B||0)*(+t.L||0),+t.T||0,+t.B||0],j=>'F'+(j+1)); if(f) out.push('footings '+f.join(', '));
   const pl=redo('pl',P.plinths,t=>[(+t.bx||0)*(+t.by||0),+t.h||0,+t.bx||0],j=>j<26?String.fromCharCode(65+j):'P'+(j+1)); if(pl) out.push('plinths '+pl.join(', '));
   return out; };
+// adjustable column widths for the EOR / geotech table (drag the header edges; remembered in this browser)
+PM.critCols=function(root){ if(!root) return; const K='tfr.pemb.critcols';
+  let w=null; try{ w=JSON.parse(localStorage.getItem(K)||'null'); }catch(e){}
+  const apply=()=>{ if(w&&w.length===3) root.style.setProperty('--crit-cols',`${w[0]}px ${w[1]}px ${w[2]}px minmax(0,1fr)`); else root.style.removeProperty('--crit-cols'); };
+  apply();
+  root.querySelectorAll('.pm-colrs').forEach(h=>{ h.onpointerdown=e=>{ e.preventDefault(); e.stopPropagation();
+      const cells=[...root.querySelectorAll('.pm-crit-h > span')].slice(0,3); const start=cells.map(c=>c.getBoundingClientRect().width); w=start.slice();
+      const i=+h.dataset.rs, x0=e.clientX; h.setPointerCapture(e.pointerId); document.body.style.cursor='col-resize';
+      h.onpointermove=ev=>{ w=start.slice(); w[i]=Math.max(i?60:120,Math.round(start[i]+ev.clientX-x0)); apply(); };
+      h.onpointerup=h.onpointercancel=()=>{ h.onpointermove=null; document.body.style.cursor=''; try{ localStorage.setItem(K,JSON.stringify(w)); }catch(e){} }; };
+    h.ondblclick=()=>{ w=null; try{ localStorage.removeItem(K); }catch(e){} apply(); }; }); };
 PM.run=function(){
   if(!PM.P || !(PM.P.columns||[]).length){ PM.R=null; PM.header(); return; }
   try{ const g=PM.fitPlinths(PM.P); if(g.length){ PM.save('Plinths grown to fit their base plates / corners: '+g.join(', ')); setTimeout(()=>PM.toast&&PM.toast('Plinth '+g.join(' · ')+' (fits base plate and corner)'),50); } }catch(e){ console.error('[PEMB fit]',e); }
+  try{ PM.autoSourceCrit(PM.P); }catch(e){ console.error('[PEMB crit]',e); }
   try{ const sm=PM.sortMarks(PM.P); if(sm.length){ PM.save('Marks re-ordered by size: '+sm.join('; ')); setTimeout(()=>PM.toast&&PM.toast('Marks follow size now — '+sm.join('; ')),60); } }catch(e){ console.error('[PEMB marks]',e); }
   try{ PM.R=E.run(PM.P); }catch(e){ console.error('[PEMB]',e); PM.R=null; }
   PM.header();
@@ -20215,10 +20450,28 @@ function field(path,label,o){
 // criteria that someone has to give you, grouped; each one can be marked confirmed / assumed with its source
 PM.CRIT_GROUPS=[
   ['Code & loads',[['criteria.code','Building code'],['criteria.asce','Loads standard'],['criteria.aci','Concrete standard'],['criteria.V','Wind speed V (mph)',1],['criteria.exposure','Exposure',0,['B','C','D']],['criteria.riskCat','Risk category (wind/snow)',0,['I','II','III','IV']],['criteria.pg','Ground snow pg (psf)',1],['criteria.pf','Roof snow pf (psf)',1]]],
-  ['Seismic',[['criteria.riskCatSeis','Seismic risk category',0,['','I','II','III','IV']],['criteria.Ie','Importance Ie',1],['criteria.Ss','Ss',1],['criteria.S1','S1',1],['criteria.SDS','SDS',1],['criteria.SD1','SD1',1],['criteria.SDC','Seismic design category',0,['A','B','C','D','E','F']],['criteria.R','R',1],['criteria.Omega0','Ω0 (anchors)',1],['criteria.rho','ρ (redundancy)',1]]],
+  ['Seismic',[['criteria.riskCatSeis','Seismic risk category',0,['','I','II','III','IV']],['criteria.Ie','Importance Ie',1],['criteria.Ss','Ss',1],['criteria.S1','S1',1],['criteria.SDS','SDS',1],['criteria.SD1','SD1',1],['criteria.SDC','Seismic design category',0,['A','B','C','D','E','F']],['criteria.siteClass','Site class',0,['','A','B','C','D','E','F']],['criteria.R','R',1],['criteria.Omega0','Ω0 (anchors)',1],['criteria.rho','ρ (redundancy)',1]]],
   ['Soil (geotech report)',[['criteria.qa','Allowable bearing (ksf)',1],['criteria.passive','Passive pressure (kcf/ft)',1],['criteria.mu','Friction μ',1],['criteria.gammaSoil','Soil unit weight (kcf)',1],['criteria.Dbase','Footing base below grade (ft)',1],['criteria.frost','Frost depth (in)',1]]],
-  ['Concrete, steel & slab',[['criteria.fc',"f'c used in design (ksi)",1],['criteria.fcSpec',"f'c specified (ksi)",1],['criteria.gammaConc','Concrete unit weight (kcf)',1],['criteria.fy','fy (ksi)',1],['criteria.cover','Bottom cover, clear (in)',1],['criteria.coverTop','Top cover, clear (in)',1],['criteria.datum','Finished floor / T.O. concrete elevation (ft) — callouts are relative to this',1],['criteria.slab','Slab thickness (in)',1],['criteria.slabReinf','Slab reinforcing'],['criteria.abGrade','Anchor rod grade',0,null,'ab'],['criteria.hef','Anchor embedment hef (in)',1]]]];
+  ['Concrete, steel & slab',[['criteria.fc',"f'c used in design (ksi)",1],['criteria.fcSpec',"f'c specified (ksi)",1],['criteria.gammaConc','Concrete unit weight (kcf)',1],['criteria.fy','fy (ksi)',1],['criteria.cover','Bottom cover, clear (in)',1],['criteria.coverTop','Top cover, clear (in)',1],['criteria.datum','Finished floor / T.O. concrete elevation (ft) — callouts are relative to this',1],['criteria.slab','Slab thickness (in)',1],['criteria.slabReinf','Slab reinforcing'],['criteria.exposureF','Freeze-thaw exposure, stemwall & plinths (ACI 19.3.1)',0,['F0','F1','F2','F3']],['criteria.abGrade','Anchor rod grade',0,null,'ab'],['criteria.hef','Anchor embedment hef (in)',1]]]];
 PM.GEOTECH=['criteria.qa','criteria.passive','criteria.mu','criteria.gammaSoil'];
+// values the PEMB drawings already give (Building Loads page) are marked confirmed with their source, so only the
+// EOR / geotech items are left open. Never overrides a status the user set.
+PM.autoSourceCrit=function(P){ const b=(P.pemb||{}).basis; if(!b) return 0; const C=P.criteria; P.critMeta=P.critMeta||{}; const M=P.critMeta;
+  if(!C.siteClass && b.site) C.siteClass=b.site; if(!C.exposureF) C.exposureF='F1';
+  const src='PEMB drawings — Building Loads'+((P.pemb||{}).dwg?' ('+String(P.pemb.dwg).replace(/\.pdf$/i,'')+')':'');
+  const bl=(b.bldgs||[])[0]||{}, eq=(a,v)=>v!=null&&v!==''&&(typeof v==='number'?Math.abs(+a-v)<1e-6*Math.max(1,Math.abs(v))+0.005:String(a)===String(v));
+  const map=[['criteria.code',b.code],['criteria.V',b.wind],['criteria.exposure',b.exposure],['criteria.riskCat',b.riskCat],['criteria.pg',b.pg],['criteria.pf',b.snow!=null?b.snow:bl.ps],
+    ['criteria.riskCatSeis',b.riskCat],['criteria.Ie',b.Ie],['criteria.Ss',b.Ss],['criteria.S1',b.S1],['criteria.SDS',b.SDS],['criteria.SD1',b.SD1],['criteria.SDC',b.SDC],['criteria.R',bl.R],['criteria.siteClass',b.site]];
+  let n=0;
+  if(!C.riskCatSeis && b.riskCat){ C.riskCatSeis=b.riskCat; }
+  map.forEach(([path,v])=>{ const k=path.split('.')[1]; if(M[path]&&M[path].st) return; if(eq(C[k],v)){ M[path]={st:'ok',src:src,auto:1}; n++; } });
+  // standards that follow from the code edition
+  const ed=/2024/.test(C.code||'')?'2024':(/2021/.test(C.code||'')?'2021':(/2018/.test(C.code||'')?'2018':''));
+  const std={'2024':['ASCE 7-22','ACI 318-19'],'2021':['ASCE 7-16','ACI 318-19'],'2018':['ASCE 7-16','ACI 318-14']}[ed];
+  if(std){ [['criteria.asce',std[0]],['criteria.aci',std[1]]].forEach(([path,v])=>{ const k=path.split('.')[1]; if(M[path]&&M[path].st) return; if(C[k]===v){ M[path]={st:'ok',src:C.code+' referenced standard',auto:1}; n++; } }); }
+  // anchor overstrength from the PEMB's seismic systems (ASCE 7 Table 12.2-1: ordinary moment frame 3, ordinary concentric brace 2)
+  if(!(M['criteria.Omega0']&&M['criteria.Omega0'].st) && b.SDC && /[CDEF]/.test(b.SDC) && +C.Omega0===3){ M['criteria.Omega0']={st:'ok',src:'ASCE 7 Table 12.2-1 — moment frames Ω0 = 3 (braced bays 2)',auto:1}; n++; }
+  return n; };
 PM.critSt=function(path){ const m=(PM.P.critMeta||{})[path]||{}; if(m.st) return m.st; return PM.GEOTECH.includes(path)?'assumed':''; };
 PM.assumedList=function(){ const out=[]; PM.CRIT_GROUPS.forEach(([g,rows])=>rows.forEach(r=>{ if(PM.critSt(r[0])==='assumed') out.push({path:r[0],label:r[1],v:get(PM.P,r[0])}); })); return out; };
 PM.basisMismatch=function(){ const P=PM.P, C=P.criteria, b=(P.pemb||{}).basis||{}; let n=0;
@@ -20747,19 +21000,20 @@ PM.renderCriteria=function(){
     if(opts) return `<select data-path="${path}">${opts.map(o=>`<option value="${esc(o)}" ${String(v==null?'':v)===String(o)?'selected':''}>${esc(o||'—')}</option>`).join('')}</select>`;
     return `<input ${num?'type="number" step="any" data-num':''} data-path="${path}" value="${esc(v==null?'':v)}">`; };
   $('pm-crit').innerHTML=`<div class="grp-label">From the EOR &amp; geotech</div>
-    <div class="pm-crit-row pm-crit-h"><span>Item</span><span>Value</span><span>Status</span><span>Source (sheet, report, email…)</span></div>
+    <div class="pm-crit-row pm-crit-h"><span>Item<i class="pm-colrs" data-rs="0" title="Drag to resize"></i></span><span>Value<i class="pm-colrs" data-rs="1" title="Drag to resize"></i></span><span>Status<i class="pm-colrs" data-rs="2" title="Drag to resize"></i></span><span>Source (sheet, report, email…)</span></div>
     ${PM.CRIT_GROUPS.map(([g,rows])=>`<div class="pm-crit-g">${esc(g)}</div>`+rows.map(r=>{ const st=PM.critSt(r[0]), m=CM[r[0]]||{};
       return `<div class="pm-crit-row ${st==='assumed'?'assumed':''}"><label style="margin:0">${esc(r[1])}</label>${inp(r)}
         <select data-cm="${r[0]}|st"><option value="" ${!st?'selected':''}>—</option><option value="ok" ${st==='ok'?'selected':''}>✓ confirmed</option><option value="assumed" ${st==='assumed'?'selected':''}>assumed</option></select>
         <input data-cm="${r[0]}|src" value="${esc(m.src||'')}" placeholder="${PM.GEOTECH.includes(r[0])?'geotech report…':'S-001, email…'}"></div>`; }).join('')).join('')}
     <p class="note">Assumed values are shaded and listed for the SE (Issues → Notes to the SE). Mark them confirmed once the EOR or the geotech report gives the number.</p>`;
+  PM.critCols($('pm-crit'));
   $('pm-crit').querySelectorAll('[data-cm]').forEach(el=>el.addEventListener('change',()=>{ const [path,k]=el.dataset.cm.split('|'); P.critMeta=P.critMeta||{}; const m=P.critMeta[path]=Object.assign({},P.critMeta[path]);
     m[k]=el.value; PM.syncCritNotes(); PM.save('Criteria '+path.replace('criteria.','')+': '+(k==='st'?(el.value||'—'):'source '+el.value)); PM.run(); PM.renderInputs(); PM.stepBadges(); }));
   const O=P.options;
   $('pm-opts').innerHTML=`<div class="grp-label">Design method options</div>
     <div class="pm-fields">
       ${field('options.lateral','Frame thrust resisted by',{opts:[['hairpin','Hairpins into slab (SE standard)'],['tie','Tie / grade beam across building'],['none','Footing only (friction + passive)']]})}
-      ${field('options.hairpinBar','Hairpin bar',{opts:[[4,'#4'],[5,'#5'],[6,'#6']],num:1})}${field('options.hairpinLeg','Hairpin leg (ft)',{num:1})}${field('options.tieBar','New-tie bar',{opts:[[5,'#5'],[6,'#6'],[7,'#7'],[8,'#8']],num:1})}${field('options.tieN','New-tie bars (no.)',{num:1})}${field('options.tieElongLimit','Tie elongation limit (in)',{num:1})}${field('options.tieTransferN','U-bars around AB at a tie (no.)',{num:1})}${field('options.tieTransferBar','U-bar size',{opts:[[4,'#4'],[5,'#5'],[6,'#6']],num:1})}
+      ${field('options.hairpinBar','Hairpin bar',{opts:[[4,'#4'],[5,'#5'],[6,'#6'],[7,'#7']],num:1})}${field('options.hairpinN','Hairpins per column',{opts:[[1,'1'],[2,'2']],num:1})}${field('options.hairpinLeg','Hairpin leg (ft)',{num:1})}${field('options.tieBar','New-tie bar',{opts:[[5,'#5'],[6,'#6'],[7,'#7'],[8,'#8']],num:1})}${field('options.tieN','New-tie bars (no.)',{num:1})}${field('options.tieElongLimit','Tie elongation limit (in)',{num:1})}${field('options.tieTransferN','U-bars around AB at a tie (no.)',{num:1})}${field('options.tieTransferBar','U-bar size',{opts:[[4,'#4'],[5,'#5'],[6,'#6']],num:1})}
       ${field('options.braceAdd','Bracing reactions',{opts:[['H','Add longitudinal H at braced frame columns'],['HV','Add H + V at every braced column'],['none','Already in column reactions']]})}
       ${field('options.ftgPlace','Footing centred on (if no edge projection is set)',{opts:[['column','Base-plate centre'],['plinth','Plinth centre']]})}${field('options.loadAt','Column load applied at',{opts:[['plate','Base-plate centre (actual eccentricity)'],['plinth','Plinth centroid (concentric ENERCALC input)']]})}
       ${field('options.edgeMin','Min. bolt edge dist. (in)',{num:1})}${field('options.plateClear','Plate-to-plinth edge (in)',{num:1})}${field('options.cornerSnap','Snap plinth to a wall within (in)',{num:1})}${field('options.sortMarks','Number footing / plinth marks by size (smallest first)',{type:'check'})}${field('options.autoFitPlinths','Grow plinths automatically to fit the base plate / corner',{type:'check'})}${field('options.otFS','Overturning FS (ASD)',{num:1})}${field('options.slFS','Sliding FS (ASD)',{num:1})}
@@ -20770,7 +21024,7 @@ PM.renderCriteria=function(){
       ${field('options.slabUplift','Count slab-on-grade uplift resistance (SE method)',{type:'check'})}${field('options.perimUplift','Count perimeter footing weight in uplift / overturning',{type:'check'})}
       ${field('options.stemPassive','Count stemwall passive for thrust ⟂ wall',{type:'check'})}${field('options.inplaneToStem','Shear ∥ wall goes into the stemwall (not the pad)',{type:'check'})}
       ${field('options.collInMin','Include collateral in 0.6D / 0.9D combos',{type:'check'})}${field('options.pedWtBearing','Include pedestal weight in soil pressure',{type:'check'})}
-      ${field('options.omegaAnchors','Anchors: amplify E by Ω<sub>0</sub> (ACI 17.10.5.3d)',{type:'check'})}${field('options.anchorReinf','Anchors: tension/shear via anchor reinforcement (ACI 17.5.2.1)',{type:'check'})}
+      ${field('options.omegaAnchors','Anchors: amplify E by Ω<sub>0</sub> (ACI 17.10.5.3d)',{type:'check'})}${field('options.flexDiaphragm','Flexible roof diaphragm: frame Ω<sub>0</sub> 3 → 2.5 (ASCE 7 Table 12.2-1 note g, EOR to confirm)',{type:'check'})}${field('options.anchorReinf','Anchors: tension/shear via anchor reinforcement (ACI 17.5.2.1)',{type:'check'})}
     </div>`;
   bindFields($('pm-crit'),()=>{ PM.syncCritNotes(); PM.renderInputs(); PM.stepBadges(); }); bindFields($('pm-basis')); bindFields($('pm-opts'),()=>PM.renderInputs());
 };
@@ -20808,7 +21062,7 @@ PM.openIssues=function(){ PM.setStep('design'); PM.setSide('issues'); };
 PM.view='plan'; PM.l3={slab:true,walls:true,ftg:true,plinth:true,beams:true,plates:true,steel:true,labels:true,grid:true};
 PM.setView=function(v){ PM.view=v; document.querySelectorAll('#pm-viewseg button').forEach(b=>b.classList.toggle('on',b.dataset.view===v));
   $('pm-plan').hidden=v!=='plan'; $('pm-3d').hidden=v!=='3d';
-  $('pm-viewhint').textContent=v==='3d'?'drag to orbit · right-drag or shift-drag to pan · scroll to zoom · click a footing, beam or wall':'scroll to zoom · drag to pan · click a footing · shift-click or shift-drag to pick several';
+  $('pm-viewhint').textContent=v==='3d'?'wheel to zoom at the cursor · hold the wheel (or Space) and drag to pan · drag to orbit · double-click the wheel to fit · click a footing, beam or wall':'wheel to zoom · hold the wheel (or Space) and drag to pan · double-click the wheel to fit · click a footing · drag a box to pick several';
   PM.renderPlanTools(); PM.drawPlan(); };
 PM.draw3d=function(){ const el=$('pm-3d'); if(!el||!PM.R||!window.PEMB3D) return; const R=PM.R;
   PM._v3=PEMB3D.mount(el,PM.P,R,{layers:PM.l3,colorBy:PM.colorBy,sel:PM.sel,multi:PM.bulk,selWall:PM.side==='walls'?PM.selWall:null,
@@ -20877,22 +21131,37 @@ PM.zoomSel=function(){ const svg=$('pm-plan')&&$('pm-plan').querySelector('svg')
   if(x0>x1) return; const pad=Math.max(60,(x1-x0)*0.6), w=x1-x0+2*pad, h=y1-y0+2*pad, ar=PM.vb0[3]/PM.vb0[2];
   let W=Math.max(w,h/ar), H=W*ar; PM.vb=[(x0+x1)/2-W/2,(y0+y1)/2-H/2,W,H]; PM.applyVB(); };
 PM.svgPt=function(svg,cx,cy){ const pt=svg.createSVGPoint(); pt.x=cx; pt.y=cy; return pt.matrixTransform(svg.getScreenCTM().inverse()); };
+// plan navigation - same as the PDF viewer: wheel zooms at the cursor, hold the wheel (middle button) and drag to pan,
+// or hold Space and drag; double-click the wheel to fit. Left-drag on empty paper draws a selection box (Shift adds).
 PM.hookZoom=function(el){ if(el._pz) return; el._pz=1;
-  el.addEventListener('wheel',e=>{ const svg=el.querySelector('svg'); if(!svg) return; e.preventDefault(); const p=PM.svgPt(svg,e.clientX,e.clientY); PM.zoomBy(Math.exp(e.deltaY*0.0015),p.x,p.y); },{passive:false});
-  let st=null;
-  el.addEventListener('pointerdown',e=>{ if(e.button!==0) return; const svg=el.querySelector('svg'); if(!svg) return; st={x:e.clientX,y:e.clientY,vb:(PM.vb||PM.vb0).slice(),shift:e.shiftKey,moved:false,id:e.pointerId}; });
-  el.addEventListener('pointermove',e=>{ if(!st) return; const dx=e.clientX-st.x, dy=e.clientY-st.y; if(!st.moved && Math.hypot(dx,dy)<5) return;
-    if(!st.moved){ st.moved=true; try{ el.setPointerCapture(st.id); }catch(_){} if(!st.shift) el.classList.add('panning'); }
+  el.addEventListener('wheel',e=>{ const svg=el.querySelector('svg'); if(!svg) return; e.preventDefault();
+    const dy=e.deltaMode===1?e.deltaY*33:(e.deltaMode===2?e.deltaY*400:e.deltaY); const p=PM.svgPt(svg,e.clientX,e.clientY); PM.zoomBy(Math.exp(dy*0.0015),p.x,p.y); },{passive:false});
+  let st=null, space=false, lastMid=0;
+  const onKey=e=>{ if(e.code!=='Space') return; const t=e.target, tag=(t&&t.tagName||'').toLowerCase(); if(tag==='input'||tag==='textarea'||tag==='select') return;
+    if(e.type==='keydown'){ if(el.matches(':hover')){ space=true; el.classList.add('pm-grab'); e.preventDefault(); } } else { space=false; el.classList.remove('pm-grab'); } };
+  document.addEventListener('keydown',onKey); document.addEventListener('keyup',onKey);
+  el.addEventListener('mousedown',e=>{ if(e.button===1) e.preventDefault(); });          // no browser auto-scroll
+  el.addEventListener('auxclick',e=>{ if(e.button===1) e.preventDefault(); });
+  el.addEventListener('pointerdown',e=>{ const svg=el.querySelector('svg'); if(!svg) return;
+    if(e.button===1){ const now=Date.now(); if(now-lastMid<350){ PM.zoomFit(); lastMid=0; return; } lastMid=now; }
+    const pan=e.button===1||(e.button===0&&space); if(!pan&&e.button!==0) return;
+    if(!pan && PM.mode!=='select') return;
+    if(!pan && e.target.closest && e.target.closest('.pm-hit,.pm-tie,.pm-wallhit,.pm-frame,.pm-tag')) return;   // clicks on things stay clicks
+    if(pan) e.preventDefault();
+    st={x:e.clientX,y:e.clientY,vb:(PM.vb||PM.vb0).slice(),pan,add:e.shiftKey||e.ctrlKey||e.metaKey,moved:false,id:e.pointerId}; },true);
+  el.addEventListener('pointermove',e=>{ if(!st) return; const dx=e.clientX-st.x, dy=e.clientY-st.y; if(!st.moved && Math.hypot(dx,dy)<(st.pan?2:5)) return;
+    if(!st.moved){ st.moved=true; try{ el.setPointerCapture(st.id); }catch(_){} if(st.pan) el.classList.add('panning'); }
     const svg=el.querySelector('svg'); const k=1/svg.getScreenCTM().a;
-    if(st.shift){ let bx=el.querySelector('.pm-selbox'); if(!bx){ bx=document.createElement('div'); bx.className='pm-selbox'; el.appendChild(bx); } const r=el.getBoundingClientRect();
+    if(!st.pan){ let bx=el.querySelector('.pm-selbox'); if(!bx){ bx=document.createElement('div'); bx.className='pm-selbox'; el.appendChild(bx); } const r=el.getBoundingClientRect();
       bx.style.left=(Math.min(st.x,e.clientX)-r.left)+'px'; bx.style.top=(Math.min(st.y,e.clientY)-r.top)+'px'; bx.style.width=Math.abs(dx)+'px'; bx.style.height=Math.abs(dy)+'px'; return; }
     PM.vb=[st.vb[0]-dx*k, st.vb[1]-dy*k, st.vb[2], st.vb[3]]; PM.applyVB(); });
   const end=e=>{ if(!st) return; const s0=st; st=null; el.classList.remove('panning'); const bx=el.querySelector('.pm-selbox'); if(bx) bx.remove();
     if(s0.moved){ PM._dragged=Date.now();
-      if(s0.shift){ const svg=el.querySelector('svg'); const a=PM.svgPt(svg,s0.x,s0.y), b=PM.svgPt(svg,e.clientX,e.clientY);
+      if(!s0.pan){ const svg=el.querySelector('svg'); const a=PM.svgPt(svg,s0.x,s0.y), b=PM.svgPt(svg,e.clientX,e.clientY);
         const X0=Math.min(a.x,b.x), X1=Math.max(a.x,b.x), Y0=Math.min(a.y,b.y), Y1=Math.max(a.y,b.y);
+        if(!s0.add){ PM.bulk={}; }
         svg.querySelectorAll('rect.pm-hit[data-col]').forEach(r=>{ const q=r.getBBox(), cx=q.x+q.width/2, cy=q.y+q.height/2; if(cx>=X0&&cx<=X1&&cy>=Y0&&cy<=Y1) PM.bulk[r.dataset.col]=1; });
-        PM.afterMulti(); } } };
+        const ids=Object.keys(PM.bulk); if(ids.length===1){ const one=ids[0]; PM.bulk={}; PM.selectCol(one); } else { PM.sel=null; PM.afterMulti(); } } } };
   el.addEventListener('pointerup',end); el.addEventListener('pointercancel',end);
   el.addEventListener('click',e=>{ if(PM._dragged && Date.now()-PM._dragged<250){ e.stopPropagation(); e.preventDefault(); } },true);
 };
@@ -21602,7 +21871,34 @@ PM.renderPackage=function(){
 };
 PM.dlXlsx=async function(){ try{ const buf=await window.PEMBXlsx.build(PM.P,PM.R); const b=new Blob([buf],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}); const a=document.createElement('a'); a.href=URL.createObjectURL(b); a.download=(PM.P.project.number||'PEMB')+'_foundation_review.xlsx'; document.body.appendChild(a); a.click(); setTimeout(()=>{ URL.revokeObjectURL(a.href); a.remove(); },500); }catch(e){ alert('Could not build the workbook: '+e.message); } };
 PM.packageHtml=function(){ return window.PEMBReport.build(PM.P,PM.R); };
-PM.previewPackage=function(){ const f=$('pm-pkgframe'); if(!f||!PM.R) return; f.srcdoc=PM.packageHtml(); };
+// calc package preview navigates like the PDF viewer (zoom lives in a screen-only style, so printing is unaffected)
+PM._pkgView=PM._pkgView||{z:0,sx:0,sy:0};
+PM.PKG_VIEWER=`<style id="pmv-z">@media screen{html{background:#e8eaee}}</style><script>(function(){
+  var z=1, sp=false, pan=null, lastMid=0, P=parent&&parent.PM;
+  function page(){ return document.querySelector('.page,.pg,section')||document.body; }
+  function apply(nz,cx,cy){ nz=Math.max(0.2,Math.min(6,nz)); var d=document.scrollingElement||document.documentElement;
+    if(cx==null){ cx=innerWidth/2; cy=innerHeight/2; }
+    var ax=(d.scrollLeft+cx)/z, ay=(d.scrollTop+cy)/z; z=nz;
+    document.getElementById('pmv-z').textContent='@media screen{html{background:#e8eaee} body{zoom:'+z+'}}';
+    d.scrollLeft=ax*z-cx; d.scrollTop=ay*z-cy; save(); }
+  function save(){ var d=document.scrollingElement||document.documentElement; if(P){ P._pkgView={z:z,sx:d.scrollLeft,sy:d.scrollTop}; var l=parent.document.getElementById('pm-pkgz'); if(l) l.textContent=Math.round(z*100)+'%'; } }
+  function fitW(){ var pg=page(), w=(pg.getBoundingClientRect().width/z)||816; apply((innerWidth-28)/(w+24),0,0); }
+  function fitP(){ var pg=page(), r=pg.getBoundingClientRect(), w=r.width/z||816, h=r.height/z||1056; apply(Math.min((innerWidth-28)/(w+24),(innerHeight-20)/(h+20)),0,0); }
+  window.PMV={zoom:function(f){ apply(z*f); }, set:function(v){ apply(v); }, fitW:fitW, fitP:fitP};
+  addEventListener('wheel',function(e){ e.preventDefault(); var dy=e.deltaMode===1?e.deltaY*33:(e.deltaMode===2?e.deltaY*400:e.deltaY); apply(z*Math.exp(-dy*0.0015),e.clientX,e.clientY); },{passive:false});
+  addEventListener('keydown',function(e){ if(e.code==='Space'){ sp=true; document.documentElement.style.cursor='grab'; e.preventDefault(); } });
+  addEventListener('keyup',function(e){ if(e.code==='Space'){ sp=false; document.documentElement.style.cursor=''; } });
+  addEventListener('mousedown',function(e){ if(e.button===1) e.preventDefault(); });
+  addEventListener('pointerdown',function(e){ if(e.button===1){ var n=Date.now(); if(n-lastMid<350){ lastMid=0; fitW(); return; } lastMid=n; }
+    if(e.button===1||(e.button===0&&sp)){ e.preventDefault(); var d=document.scrollingElement||document.documentElement; pan={x:e.clientX,y:e.clientY,sl:d.scrollLeft,st:d.scrollTop}; document.documentElement.style.cursor='grabbing'; try{ document.documentElement.setPointerCapture(e.pointerId); }catch(_){} } },true);
+  addEventListener('pointermove',function(e){ if(!pan) return; var d=document.scrollingElement||document.documentElement; d.scrollLeft=pan.sl-(e.clientX-pan.x); d.scrollTop=pan.st-(e.clientY-pan.y); },true);
+  addEventListener('pointerup',function(){ if(pan){ pan=null; document.documentElement.style.cursor=sp?'grab':''; save(); } },true);
+  addEventListener('scroll',function(){ save(); });
+  addEventListener('load',function(){ var v=P&&P._pkgView; if(v&&v.z){ z=1; apply(v.z,0,0); var d=document.scrollingElement||document.documentElement; d.scrollLeft=v.sx; d.scrollTop=v.sy; } else fitW(); });
+})();<\/script>`;
+PM.previewPackage=function(){ const f=$('pm-pkgframe'); if(!f||!PM.R) return; const h=PM.packageHtml(); f.srcdoc=h.includes('</body>')?h.replace('</body>',PM.PKG_VIEWER+'</body>'):h+PM.PKG_VIEWER;
+  const tb=$('pm-pkgtools'); if(tb&&!tb._h){ tb._h=1; tb.querySelectorAll('[data-pz]').forEach(b=>b.onclick=()=>{ const v=f.contentWindow&&f.contentWindow.PMV; if(!v) return; const k=b.dataset.pz;
+    if(k==='in') v.zoom(1.25); else if(k==='out') v.zoom(1/1.25); else if(k==='width') v.fitW(); else if(k==='page') v.fitP(); else v.set(1); }); } };
 PM.printPackage=function(){ const w=window.open('','_blank'); if(!w){ alert('Allow pop-ups for this page to open the printable package, or use Download HTML.'); return; } w.document.open(); w.document.write(PM.packageHtml()); w.document.close(); setTimeout(()=>{ try{ w.focus(); w.print(); }catch(e){} },600); };
 PM.downloadPackage=function(){ PM.download((PM.P.project.number||'PEMB')+'_foundation_calcs.html', PM.packageHtml(),'text/html'); };
 
