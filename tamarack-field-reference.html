@@ -16291,7 +16291,7 @@ def previous():
     for bic in (DB.BuiltInCategory.OST_StructuralFoundation, DB.BuiltInCategory.OST_StructuralColumns,
                 DB.BuiltInCategory.OST_StructuralFraming, DB.BuiltInCategory.OST_Walls,
                 DB.BuiltInCategory.OST_IOSDetailGroups, DB.BuiltInCategory.OST_Lines,
-                DB.BuiltInCategory.OST_StructuralFoundationTags):
+                DB.BuiltInCategory.OST_StructuralFoundationTags, DB.BuiltInCategory.OST_Floors):
         for e in DB.FilteredElementCollector(doc).OfCategory(bic).WhereElementIsNotElementType():
             p = e.get_Parameter(DB.BuiltInParameter.ALL_MODEL_INSTANCE_COMMENTS)
             if p and p.AsString() and p.AsString().startswith(TAG):
@@ -16326,6 +16326,34 @@ def lvl_elev(e, bip):
         return None
 
 
+def plan_extents(e):
+    """(size along ux, size along uy, centre [x, y] in building feet) from the element's real geometry,
+    so the check does not depend on which family parameter runs which way."""
+    pts = []
+    try:
+        opt = DB.Options()
+        opt.ComputeReferences = False
+        opt.DetailLevel = DB.ViewDetailLevel.Fine
+
+        def walk(g):
+            for o in g:
+                if isinstance(o, DB.Solid) and o.Volume > 1e-9:
+                    for ed in o.Edges:
+                        c = ed.AsCurve()
+                        pts.append(c.GetEndPoint(0))
+                        pts.append(c.GetEndPoint(1))
+                elif isinstance(o, DB.GeometryInstance):
+                    walk(o.GetInstanceGeometry())
+        walk(e.get_Geometry(opt))
+    except Exception:
+        pass
+    if not pts:
+        return None
+    us = [(p_ - O).DotProduct(ux) for p_ in pts]
+    vs = [(p_ - O).DotProduct(uy) for p_ in pts]
+    return (round(max(us) - min(us), 4), round(max(vs) - min(vs), 4), [round((max(us) + min(us)) / 2, 4), round((max(vs) + min(vs)) / 2, 4)])
+
+
 def measure():
     """Read back everything this button placed (keys in Comments) plus hand-placed foundations."""
     res = {'footings': [], 'plinths': [], 'gradeBeams': [], 'walls': [], 'extras': [], 'dupes': []}
@@ -16348,7 +16376,8 @@ def measure():
             off = pval(e, DB.BuiltInParameter.FLOOR_HEIGHTABOVELEVEL_PARAM)
             if off is None:
                 off = pval(e, DB.BuiltInParameter.INSTANCE_ELEVATION_PARAM)
-            res['footings'].append({'key': 'FTG/' + col, 'col': col, 'cx': xy[0], 'cy': xy[1], 'B': get_double(sym, 'Width'), 'L': get_double(sym, 'Length'),
+            ext = plan_extents(e)
+            res['footings'].append({'key': 'FTG/' + col, 'col': col, 'cx': xy[0], 'cy': xy[1], 'B': ext[0] if ext else get_double(sym, 'Width'), 'L': ext[1] if ext else get_double(sym, 'Length'),
                                     'T': get_double(sym, 'Foundation Thickness'), 'drop': round(tof - (off or 0.0), 4), 'type': DB.Element.Name.GetValue(sym), 'id': eid(e.Id)})
     for e in DB.FilteredElementCollector(doc).OfCategory(DB.BuiltInCategory.OST_StructuralColumns).WhereElementIsNotElementType():
         k = key_of(e)
@@ -16359,7 +16388,9 @@ def measure():
         xy = Winv(e.Location.Point)
         be = (lvl_elev(e, DB.BuiltInParameter.FAMILY_BASE_LEVEL_PARAM) or 0.0) + (pval(e, DB.BuiltInParameter.FAMILY_BASE_LEVEL_OFFSET_PARAM) or 0.0)
         te = (lvl_elev(e, DB.BuiltInParameter.FAMILY_TOP_LEVEL_PARAM) or 0.0) + (pval(e, DB.BuiltInParameter.FAMILY_TOP_LEVEL_OFFSET_PARAM) or 0.0)
-        res['plinths'].append({'key': 'PL/' + col, 'col': col, 'cx': xy[0], 'cy': xy[1], 'bx': get_double(e.Symbol, 'h'), 'by': get_double(e.Symbol, 'b'),
+        ext = plan_extents(e)
+        res['plinths'].append({'key': 'PL/' + col, 'col': col, 'cx': ext[2][0] if ext else xy[0], 'cy': ext[2][1] if ext else xy[1],
+                               'bx': ext[0] if ext else get_double(e.Symbol, 'h'), 'by': ext[1] if ext else get_double(e.Symbol, 'b'),
                                'h': round(te - be, 4), 'drop': round((level.Elevation + tof) - be, 4), 'type': DB.Element.Name.GetValue(e.Symbol), 'id': eid(e.Id)})
     for e in DB.FilteredElementCollector(doc).OfCategory(DB.BuiltInCategory.OST_StructuralFraming).WhereElementIsNotElementType():
         k = key_of(e)
@@ -16439,7 +16470,7 @@ if mode == 'check':
             ogs.SetProjectionLineWeight(6)
         except Exception:
             pass
-        with revit.Transaction('PEMB check - highlight changes'):
+        with revit.Transaction('PEMB check - highlight changes', doc=doc):
             for x in changed:
                 try:
                     view.SetElementOverrides(to_eid(x['id']), ogs)
@@ -16553,7 +16584,7 @@ for _d in sorted(set(float(b_.get('dia', 0.75)) for b_ in data.get('baseplates',
             warnings.append('Could not build the nut detail component for {}" rods ({}) - nuts drawn as lines.'.format(_d, ex))
             NUT_RFA[_d] = None
 
-with revit.Transaction('Place PEMB foundations'):
+with revit.Transaction('Place PEMB foundations', doc=doc):
     for i in old:
         try:
             doc.Delete(i)
@@ -16615,6 +16646,7 @@ with revit.Transaction('Place PEMB foundations'):
         tagsym = ts
 
     # -------------------------------------------------- footings
+    ft_probe = None
     for f in data.get('footings', []):
         sym = ftypes.get(f['mark'])
         if sym is None:
@@ -16627,6 +16659,18 @@ with revit.Transaction('Place PEMB foundations'):
         set_param(inst, [DB.BuiltInParameter.ALL_MODEL_INSTANCE_COMMENTS], TAG + ':FTG/' + f['col'])
         rotate(inst, pt)
         counts['footings'] += 1
+        if ft_probe is None and abs(float(f['B']) - float(f['L'])) > 0.05:
+            doc.Regenerate()
+            ext = plan_extents(inst)
+            ft_probe = False
+            if ext and abs(ext[0] - float(f['L'])) < abs(ext[0] - float(f['B'])):
+                ft_probe = True
+                for sym_ in ftypes.values():
+                    w_, l_ = get_double(sym_, 'Width'), get_double(sym_, 'Length')
+                    set_param(sym_, 'Width', l_)
+                    set_param(sym_, 'Length', w_)
+                doc.Regenerate()
+                TYPE_WARN.append('Footing family "{}" runs Width / Length the other way - swapped them on every footing type.'.format(S.get('footingFamily')))
         if tagsym is not None:
             try:
                 tg = DB.IndependentTag.Create(doc, tagsym.Id, view.Id, DB.Reference(inst), False,
@@ -16637,6 +16681,7 @@ with revit.Transaction('Place PEMB foundations'):
                 pass
 
     # -------------------------------------------------- plinths
+    pl_probe = None
     for p in data.get('plinths', []):
         sym = ptypes.get(p['mark'])
         if sym is None:
@@ -16652,6 +16697,20 @@ with revit.Transaction('Place PEMB foundations'):
         set_param(inst, [DB.BuiltInParameter.ALL_MODEL_INSTANCE_COMMENTS], TAG + ':PL/' + p['col'])
         rotate(inst, pt)
         counts['plinths'] += 1
+        if pl_probe is None and abs(float(p['bx']) - float(p['by'])) > 0.05:
+            doc.Regenerate()
+            ext = plan_extents(inst)
+            pl_probe = False
+            if ext and abs(ext[0] - float(p['by'])) < abs(ext[0] - float(p['bx'])):
+                pl_probe = True    # this family's b / h run the other way: swap every plinth type
+                for sym_ in ptypes.values():
+                    b_, h_ = get_double(sym_, 'b'), get_double(sym_, 'h')
+                    set_param(sym_, 'b', h_)
+                    set_param(sym_, 'h', b_)
+                doc.Regenerate()
+                ext2 = plan_extents(inst)
+                TYPE_WARN.append('Plinth family "{}" runs b / h the other way - swapped them on every plinth type so the long side matches the design ({}).'.format(
+                    S.get('plinthFamily'), 'now {:.2f} x {:.2f} ft'.format(ext2[0], ext2[1]) if ext2 else 'check'))
 
     # -------------------------------------------------- grade-beam ties (structural framing)
     btypes = {}
@@ -16767,6 +16826,51 @@ with revit.Transaction('Place PEMB foundations'):
                         warnings.append('Wall footing not created: {}'.format(ex))
             if ftype is None:
                 warnings.append('Wall foundation type "{}" not found - wall footing skipped.'.format(wl.get('foundationType')))
+
+    # -------------------------------------------------- slab on grade (optional)
+    sl = data.get('slab') or {}
+    if sl.get('create') and len(sl.get('outline') or []) >= 3:
+        try:
+            tname = sl.get('typeName') or 'PEMB SOG'
+            thk = float(sl.get('thickness') or 0.5)
+            fltype = None
+            for ft_ in DB.FilteredElementCollector(doc).OfClass(DB.FloorType):
+                if DB.Element.Name.GetValue(ft_) == tname:
+                    fltype = ft_
+                    break
+            if fltype is None:
+                cands = [ft_ for ft_ in DB.FilteredElementCollector(doc).OfClass(DB.FloorType) if not ft_.IsFoundationSlab]
+                src = next((ft_ for ft_ in cands if 'concrete' in DB.Element.Name.GetValue(ft_).lower()), cands[0] if cands else None)
+                if src is not None:
+                    fltype = src.Duplicate(tname)
+                    mat = DB.ElementId.InvalidElementId
+                    try:
+                        cs0 = fltype.GetCompoundStructure()
+                        mat = cs0.GetMaterialId(max(cs0.GetFirstCoreLayerIndex(), 0))
+                    except Exception:
+                        pass
+                    fltype.SetCompoundStructure(DB.CompoundStructure.CreateSingleLayerCompoundStructure(DB.MaterialFunctionAssignment.Structure, thk, mat))
+                    TYPE_WARN.append('Created floor type "{}" ({:.0f}" concrete).'.format(tname, thk * 12))
+            if fltype is None:
+                warnings.append('No floor type to build the slab from - slab skipped.')
+            else:
+                pts = [W(q[0], q[1], level.Elevation) for q in sl['outline']]
+                loop = DB.CurveLoop()
+                for i in range(len(pts)):
+                    a_, b_ = pts[i], pts[(i + 1) % len(pts)]
+                    if a_.DistanceTo(b_) > 1e-4:
+                        loop.Append(DB.Line.CreateBound(a_, b_))
+                loops = List[DB.CurveLoop]()
+                loops.Add(loop)
+                fl = DB.Floor.Create(doc, loops, fltype.Id, level.Id)
+                set_param(fl, [DB.BuiltInParameter.FLOOR_HEIGHTABOVELEVEL_PARAM], float(sl.get('top', 0.0)))
+                set_param(fl, [DB.BuiltInParameter.FLOOR_PARAM_IS_STRUCTURAL], 1)
+                set_param(fl, [DB.BuiltInParameter.ALL_MODEL_INSTANCE_COMMENTS], TAG + ':SLAB ' + (sl.get('reinf') or ''))
+                counts['slab'] = 1
+        except Exception as ex:
+            warnings.append('Slab not created: {}'.format(ex))
+    elif not sl.get('create'):
+        TYPE_WARN.append('Created no slab - "Create the slab on grade" is off in the tab.')
 
     # -------------------------------------------------- detail groups (plates, hairpins)
     def detail_line(a, b):
@@ -17047,10 +17151,16 @@ E.faceAt = function(P, col, f){
   if(best) return best.v*12;
   return ({W:0,S:0,E:(P.pemb.length||0)*12,N:(P.pemb.width||0)*12})[f];
 };
+// exterior faces a column's plinth sits against: the ones the PEMB sheet names, plus any other outline face
+// within 30" of the column centre (a frame column at a re-entrant / building corner is really a corner column)
+E.colFaces = function(P, col){ const faces=(col.faces||[col.face]).filter(Boolean).slice(), x=col.x*12, y=col.y*12, lim=+((P.options||{}).cornerSnap||30);
+  [['W',f=>x-f],['E',f=>f-x],['S',f=>y-f],['N',f=>f-y]].forEach(([f,d])=>{ if(faces.includes(f)) return; const opp={W:'E',E:'W',S:'N',N:'S'}[f]; if(faces.includes(opp)) return;
+    const v=d(E.faceAt(P,col,f)); if(v>=-6 && v<=lim) faces.push(f); });
+  return faces; };
 // plinth rectangle (inches, global) snapped to the steel line on the column's exterior face(s)
 E.plinthRect = function(P, col, pl){
   const x=col.x*12, y=col.y*12, bx=pl.bx, by=pl.by;
-  const faces = (col.faces || [col.face]).filter(Boolean);
+  const faces = E.colFaces(P,col);
   const F=f=>E.faceAt(P,col,f);
   let x0=x-bx/2, y0=y-by/2;
   if(faces.includes('W')) x0=F('W');
@@ -17079,7 +17189,7 @@ E.footingCenter = function(P, col, pl, ft){
   const hb=ft.B*6, hl=ft.L*6;
   // footing edge set a given distance past the exterior face of concrete (= steel line):
   // col.ftgProj {W:16,S:11} (in) per face, else the type's projOut for every exterior face
-  const faces=(col.faces||[col.face]).filter(Boolean);
+  const faces=E.colFaces(P,col);
   const proj=f=> (col.ftgProj && col.ftgProj[f]!=null) ? +col.ftgProj[f] : (ft.projOut!=null && ft.projOut!=='' ? +ft.projOut : null);
   faces.forEach(f=>{ const p=proj(f); if(p==null) return; const c=E.faceAt(P,col,f);
     if(f==='W') x=c-p+hb; if(f==='E') x=c+p-hb; if(f==='S') y=c-p+hl; if(f==='N') y=c+p-hl; });
@@ -17091,7 +17201,7 @@ E.footingCenter = function(P, col, pl, ft){
 E.plinthRequired = function(P, col){
   const opt=P.options||{}, ed=+opt.edgeMin||5, pc=+opt.plateClear||3, minD=+opt.plinthMin||12;
   const bs=E.boltsGlobal(col), pg=E.plateGlobal(col);
-  const faces=(col.faces||[col.face]).filter(Boolean);
+  const faces=E.colFaces(P,col);
   const xs=bs.map(b=>b.x), ys=bs.map(b=>b.y);
   const up2 = v=>Math.max(minD, Math.ceil(v/2-1e-9)*2);
   function need(axis){
@@ -17871,6 +17981,24 @@ E.perimSegments = function(P){
       const zz=inz.reduce((m,q)=>(!m||q.drop>m.drop)?q:m,null);
       out.push(Object.assign({edge:i,t0,t1,p0:at(t0),p1:at(t1),L:t1-t0,drop:zz?zz.drop:0,edgeL:L,zone:zz?zz.zi:null},E.perimProps(P,i,zz&&zz.z))); } });
   return out; };
+// plan quads for each wall segment (wall and wall footing), mitred at the corners like Revit wall joins.
+// Returns [{wall:[o0,o1,i1,i0], ftg:[o0,o1,i1,i0]}] in ft; outline = exterior face of concrete, walls inside it.
+E.perimQuads = function(P, SEG){
+  SEG=SEG||E.perimSegments(P); const o=E.outline(P), N=o.length;
+  let A=0; o.forEach((p,i)=>{ const q=o[(i+1)%N]; A+=p[0]*q[1]-q[0]*p[1]; }); const k=A>0?1:-1;
+  const ed=i=>{ const a=o[i], b=o[(i+1)%N], L=Math.hypot(b[0]-a[0],b[1]-a[1])||1, ux=(b[0]-a[0])/L, uy=(b[1]-a[1])/L; return {a,ux,uy,nx:-uy*k,ny:ux*k,L}; };
+  const line=(i,d)=>{ const e=ed(i); return {p:[e.a[0]+e.nx*d,e.a[1]+e.ny*d],u:[e.ux,e.uy]}; };
+  const meet=(l1,l2,fb)=>{ const den=l1.u[0]*l2.u[1]-l1.u[1]*l2.u[0]; if(Math.abs(den)<1e-9) return fb;
+    const t=((l2.p[0]-l1.p[0])*l2.u[1]-(l2.p[1]-l1.p[1])*l2.u[0])/den; return [l1.p[0]+l1.u[0]*t,l1.p[1]+l1.u[1]*t]; };
+  const at=(l,t)=>[l.p[0]+l.u[0]*t,l.p[1]+l.u[1]*t];
+  const first=i=>SEG.find(g=>g.edge===i&&g.t0<1e-6), last=i=>SEG.filter(g=>g.edge===i).sort((a,b)=>b.t1-a.t1)[0];
+  const quad=(g,dO,dI)=>{ const i=g.edge, lo=line(i,dO(g)), li=line(i,dI(g)), pv=(i-1+N)%N, nx=(i+1)%N;
+    const gp=last(pv), gn=first(nx); const s0=g.t0<1e-6, s1=Math.abs(g.t1-g.edgeL)<1e-6;
+    const o0=s0&&gp?meet(lo,line(pv,dO(gp)),at(lo,g.t0)):at(lo,g.t0), i0=s0&&gp?meet(li,line(pv,dI(gp)),at(li,g.t0)):at(li,g.t0);
+    const o1=s1&&gn?meet(lo,line(nx,dO(gn)),at(lo,g.t1)):at(lo,g.t1), i1=s1&&gn?meet(li,line(nx,dI(gn)),at(li,g.t1)):at(li,g.t1);
+    return [o0,o1,i1,i0]; };
+  return SEG.map(g=>({wall:quad(g,()=>0,q=>q.sw), ftg:quad(g,q=>-(q.fw-q.sw)/2,q=>q.sw+(q.fw-q.sw)/2)}));
+};
 E.designPerimeter = function(P){
   const C=P.criteria, per=P.perimeter||{};
   const sw=(+per.stemW||8)/12, sh00=(+per.stemH||20)/12, fw=(+per.ftgW||16)/12, fh=(+per.ftgT||8)/12;
@@ -18050,10 +18178,7 @@ D.plan = function(P, R, o){
     if(!SEG.some(q=>Math.abs(q.fw-fw)>1e-6)){
       g.push(`<path d="${pth(off(-fo))}" ${dash}/>`);
       g.push(`<path d="${pth(off(sw+fo))}" ${dash}/>`);
-    } else SEG.forEach(q=>{ const n=nrm(q), f=(q.fw-sw)/2, s0=q.t0<1e-6, s1=Math.abs(q.t1-q.edgeL)<1e-6;
-      const P0=(d,ext0,ext1)=>[[q.p0[0]+n.nx*d-n.ux*ext0,q.p0[1]+n.ny*d-n.uy*ext0],[q.p1[0]+n.nx*d+n.ux*ext1,q.p1[1]+n.ny*d+n.uy*ext1]];
-      const o1=P0(-f,s0?f:0,s1?f:0), i1=P0(sw+f,s0?-(sw+f):0,s1?-(sw+f):0);
-      g.push(ln(o1[0],o1[1],dash)); g.push(ln(i1[0],i1[1],dash)); });
+    } else { const QQ=E().perimQuads(P,SEG); QQ.forEach(qd=>{ const f=qd.ftg; g.push(ln(f[0],f[1],dash)); g.push(ln(f[3],f[2],dash)); }); }
     g.push(`<path d="${pth(poly)} ${pth(off(sw).slice().reverse())}" fill="url(#${o.id}-hatch)" fill-rule="evenodd" stroke="${ink}" stroke-width="${med}"/>`);
     // lowered (stepped) wall zones + non-typical runs
     SEG.forEach((q,qi)=>{ const n=nrm(q), m=sw/2, a=[q.p0[0]+n.nx*m,q.p0[1]+n.ny*m], b=[q.p1[0]+n.nx*m,q.p1[1]+n.ny*m];
@@ -18271,6 +18396,20 @@ const hex=c=>{ const m=c.replace('#',''); return [parseInt(m.slice(0,2),16),pars
 // oriented box from a centre line p0->p1 (plan, ft), width w, z from z0 to z1
 function beamBox(p0,p1,w,z0,z1){ const dx=p1[0]-p0[0], dy=p1[1]-p0[1], L=Math.hypot(dx,dy)||1, nx=-dy/L*w/2, ny=dx/L*w/2;
   const q=[[p0[0]+nx,p0[1]+ny],[p1[0]+nx,p1[1]+ny],[p1[0]-nx,p1[1]-ny],[p0[0]-nx,p0[1]-ny]]; return prism(q,z0,z1); }
+function chunks(q){ // q = [outer0, outer1, inner1, inner0]
+  const L=Math.max(Math.hypot(q[1][0]-q[0][0],q[1][1]-q[0][1]),Math.hypot(q[2][0]-q[3][0],q[2][1]-q[3][1])), n=Math.max(1,Math.ceil(L/(root.PEMB3D_CHUNK||8))), out=[];
+  const lerp=(a,b,t)=>[a[0]+(b[0]-a[0])*t,a[1]+(b[1]-a[1])*t];
+  for(let i=0;i<n;i++){ const t0=i/n, t1=(i+1)/n; out.push([lerp(q[0],q[1],t0),lerp(q[0],q[1],t1),lerp(q[3],q[2],t1),lerp(q[3],q[2],t0)]); }
+  return out; }
+// a wall run split into pieces (for correct depth sorting) that still reads as one solid: no end caps and
+// no outline between pieces
+function chunkPrism(pieces,z0,z1){ const faces=[], n=pieces.length, eq=(a,b)=>Math.abs(a[0]-b[0])<1e-6&&Math.abs(a[1]-b[1])<1e-6;
+  pieces.forEach((q,j)=>{ const seams=[]; if(j<n-1) seams.push([q[1],q[2]]); if(j>0) seams.push([q[3],q[0]]);
+    const isSeam=(a,b)=>seams.some(sg=>(eq(a,sg[0])&&eq(b,sg[1]))||(eq(a,sg[1])&&eq(b,sg[0])));
+    const onSeamPt=p=>seams.some(sg=>eq(p,sg[0])||eq(p,sg[1]));
+    prism(q,z0,z1).forEach((f,fi)=>{ if(fi>=2){ if(isSeam(f[0],f[1])) return; const sk=[]; if(onSeamPt(f[1])) sk.push(1); if(onSeamPt(f[0])) sk.push(3); if(sk.length) f.skip=sk; faces.push(f); return; }
+      const sk=[]; for(let i=0;i<f.length;i++){ if(isSeam(f[i],f[(i+1)%f.length])) sk.push(i); } if(sk.length) f.skip=sk; faces.push(f); }); });
+  return faces; }
 function rectBox(x0,y0,x1,y1,z0,z1){ return prism([[x0,y0],[x1,y0],[x1,y1],[x0,y1]],z0,z1); }
 // extruded polygon -> faces (each a list of 3D points, CCW seen from outside)
 function prism(poly,z0,z1){
@@ -18305,13 +18444,11 @@ V.build=function(P,R,o){
   // stemwall + wall footing, segment by segment (lowered zones step down)
   if(L.walls){
     const sw=(+per.stemW||8)/12;
-    const poly=E().outline(P); let A=0; poly.forEach((p,i)=>{ const q=poly[(i+1)%poly.length]; A+=p[0]*q[1]-q[0]*p[1]; }); const k=A>0?1:-1;
-    E().perimSegments(P).forEach(g=>{ const dx=g.p1[0]-g.p0[0], dy=g.p1[1]-g.p0[1], Lg=Math.hypot(dx,dy)||1, ux=dx/Lg, uy=dy/Lg, nx=-uy*k, ny=ux*k;
-      const ext=sw/2;   // run the stem past the corner by half its thickness so corners close
-      const c0=[g.p0[0]+nx*sw/2-(g.t0===0?ux*ext:0), g.p0[1]+ny*sw/2-(g.t0===0?uy*ext:0)], c1=[g.p1[0]+nx*sw/2+(Math.abs(g.t1-g.edgeL)<1e-6?ux*ext:0), g.p1[1]+ny*sw/2+(Math.abs(g.t1-g.edgeL)<1e-6?uy*ext:0)];
-      const fw=g.fw, fh=g.fh, key=g.edge+'|'+(+g.t0.toFixed(3)), sel=o.selWall===key; const zb=-g.sh0-g.drop; add(beamBox(c0,c1,sw,zb,0),sel?'#9cc0f5':'#c4c9d1','wall:'+key,{kind:'wall',drop:g.drop,seg:g});
-      const e2=fw/2; const d0=[c0[0]-(g.t0===0?ux*(e2-ext):0), c0[1]-(g.t0===0?uy*(e2-ext):0)], d1=[c1[0]+(Math.abs(g.t1-g.edgeL)<1e-6?ux*(e2-ext):0), c1[1]+(Math.abs(g.t1-g.edgeL)<1e-6?uy*(e2-ext):0)];
-      add(beamBox(d0,d1,fw,zb-fh,zb),sel?'#7fa9ef':(g.drop?'#f0b27a':(g.custom?'#c9b8e8':'#b3b9c2')),'wall:'+key,{kind:'wallftg',drop:g.drop,seg:g}); });
+    // mitred like Revit wall joins: each face line meets the neighbouring wall's matching face line at the corner
+    const SEG=E().perimSegments(P), Q=E().perimQuads(P,SEG);
+    SEG.forEach((g,gi)=>{ const q=Q[gi], key=g.edge+'|'+(+g.t0.toFixed(3)), sel=o.selWall===key, zb=-g.sh0-g.drop;
+      add(chunkPrism(chunks(q.wall),zb,0),sel?'#9cc0f5':'#c4c9d1','wall:'+key,{kind:'wall',drop:g.drop,seg:g});
+      [chunkPrism(chunks(q.ftg),zb-g.fh,zb)].forEach(fs=>add(fs,sel?'#7fa9ef':(g.drop?'#f0b27a':(g.custom?'#c9b8e8':'#b3b9c2')),'wall:'+key,{kind:'wallftg',drop:g.drop,seg:g})); });
   }
   // grade beams / struts: top just under the slab
   if(L.beams) ((R&&R.ties)||[]).forEach(t=>{ const tt=t.t, h=(+tt.h||12)/12, b=(+tt.b||12)/12, zt=-(+C.slab||6)/12;
@@ -18368,7 +18505,7 @@ V.draw=function(st){
     if(dot(n,sub(B.eye,ctr))<=0 && alpha==null) return;   // back face
     const pp=fc.map(proj); if(pp.some(q=>!q)) return;
     const depth=Math.hypot(...sub(ctr,B.eye));
-    polys.push({pp,depth,n,it,alpha}); });
+    polys.push({pp,depth,n,it,alpha,skip:fc.skip}); });
   st.scene.items.forEach(it=>push(it,null));
   polys.sort((a,b)=>b.depth-a.depth);
   if(st.scene.slab){ const n0=polys.length; push(st.scene.slab,st.scene.slab.alpha); }   // see-through slab laid over everything
@@ -18377,7 +18514,9 @@ V.draw=function(st){
     if(on) col=[Math.round(col[0]*0.55+47*0.45),Math.round(col[1]*0.55+124*0.45),Math.round(col[2]*0.55+246*0.45)];
     g.beginPath(); q.pp.forEach((p,i)=>i?g.lineTo(p[0],p[1]):g.moveTo(p[0],p[1])); g.closePath();
     g.fillStyle=`rgba(${Math.round(col[0]*sh)},${Math.round(col[1]*sh)},${Math.round(col[2]*sh)},${q.alpha==null?1:q.alpha})`; g.fill();
-    g.lineWidth=on?1.4:0.5; g.strokeStyle=on?'#1d4ed8':(it.drop?'rgba(168,90,18,.75)':'rgba(40,48,60,.45)'); g.stroke(); });
+    g.lineWidth=on?1.4:0.5; g.strokeStyle=on?'#1d4ed8':(it.drop?'rgba(168,90,18,.75)':'rgba(40,48,60,.45)');
+    if(q.skip){ g.strokeStyle=g.fillStyle; g.lineWidth=0.8; g.stroke(); g.lineWidth=on?1.4:0.5; g.strokeStyle=on?'#1d4ed8':(it.drop?'rgba(168,90,18,.75)':'rgba(40,48,60,.45)'); g.beginPath(); const P_=q.pp; for(let i=0;i<P_.length;i++){ if(q.skip.includes(i)) continue; const a=P_[i], b=P_[(i+1)%P_.length]; g.moveTo(a[0],a[1]); g.lineTo(b[0],b[1]); } g.stroke(); }
+    else g.stroke(); });
   st.polys=polys;
   // labels
   if(st.scene.labels.length){ g.font='700 11px system-ui,Arial'; g.textAlign='center';
@@ -19404,7 +19543,7 @@ PM.defaults = function(){
     pemb:{mfr:'',job:'',dwg:'',software:'MBS',width:40,length:80,eave:20,slope:'',basis:{},loadCombos:[],maxTables:null,boltSummary:[],notes:[]},
     criteria:{code:'IBC 2021',asce:'ASCE 7-16',aci:'ACI 318-19',V:110,exposure:'C',riskCat:'II',Ss:0,S1:0,SDS:0,SD1:0,SDC:'D',R:3.25,Omega0:2.5,rho:1.0,Ie:1.0,pg:0,pf:0,
       qa:1.5,gammaSoil:0.120,gammaConc:0.150,passive:0.200,mu:0.40,fc:2.5,fcSpec:3.0,fy:60,cover:3.0,Dbase:2.0,slab:6.0,slabReinf:'#4 @ 18" o.c. E.W.',abGrade:'F1554-36',hef:12,datum:100},
-    options:{braceAdd:'H',collInMin:false,pedWtBearing:true,slabUplift:true,perimUplift:true,stemPassive:true,stemPassiveLen:20,lateral:'hairpin',omegaAnchors:true,
+    options:{autoFitPlinths:true,cornerSnap:30,braceAdd:'H',collInMin:false,pedWtBearing:true,slabUplift:true,perimUplift:true,stemPassive:true,stemPassiveLen:20,lateral:'hairpin',omegaAnchors:true,
       hairpinBar:5,hairpinLeg:7,anchorReinf:true,ksSubgrade:0.1,frSlab:2.9,slabEdgeRed:0.5,slabWidthFactor:0.666,inplaneToStem:true,tieBar:6,tieN:2,tieElongLimit:0.5,tieTransferN:0,tieTransferBar:5,loadAt:'plate',edgeMin:5,plateClear:3,plinthMin:12,otFS:1.0,slFS:1.0,ftgPlace:'column'},
     perimeter:{stemW:8,stemH:20,ftgW:16,ftgT:8,bars:'(2) #4 bot',wallDL:0.002,eave:20},
     grids:{x:[],y:[]}, cases:[], details:{}, columns:[], jambs:[], bracing:[], ties:[],
@@ -19416,7 +19555,7 @@ PM.defaults = function(){
     revit:{createWalls:true,level:'T.O. FOOTING',viewName:'',footingFamily:'Footing-Rectangular',footingTypePrefix:'PEMB-',plinthFamily:'Concrete-Rectangular-Column',
       tofElev:-2.0,plinthTop:0.0,groupPrefix:'BP-',hairpinGroup:'HAIRPIN-#5',originGridX:'1',originGridY:'A',createGrids:false,tag:true,
       footingLevel:'',footingTypeName:'',plinthTypeName:'',beamFamily:'Concrete-Rectangular Beam',beamTypeName:'{b} X {h} GRADE BEAM',beamTop:1.0,
-      wallType:'Exterior - 8" Concrete',wallFtgType:'Bearing Footing - 16" x 8"',wallTop:2.0},
+      wallType:'Exterior - 8" Concrete',wallFtgType:'Bearing Footing - 16" x 8"',wallTop:2.0,createSlab:true,slabType:'PEMB SOG {t}"'},
     pkg:{sections:{cover:1,guide:1,senotes:1,handcalc:1,basis:1,rxn:1,plan:1,combos:1,footings:1,uplift:1,hairpin:1,anchors:1,plinth:1,perim:1,results:1,validation:1}},
     verified:false};
 };
@@ -19647,8 +19786,15 @@ PM.renderLibrary=function(){
 };
 
 // ---------------------------------------------------------------- run + header
+// plinth types never smaller than their columns need: flush in corners (both outside faces) and around the base plate
+PM.fitPlinths=function(P){ if((P.options||{}).autoFitPlinths===false) return []; const out=[];
+  (P.plinths||[]).forEach(pl=>{ const us=(P.columns||[]).filter(c=>E.plinthFor(P,c)===pl); if(!us.length) return;
+    let bx=pl.bx, by=pl.by; us.forEach(c=>{ try{ const r=E.plinthRequired(P,c); bx=Math.max(bx,r.bx); by=Math.max(by,r.by); }catch(e){} });
+    if(bx>pl.bx+0.01||by>pl.by+0.01){ out.push(pl.mark+' '+pl.bx+'"×'+pl.by+'" → '+bx+'"×'+by+'"'); pl.bx=bx; pl.by=by; } });
+  return out; };
 PM.run=function(){
   if(!PM.P || !(PM.P.columns||[]).length){ PM.R=null; PM.header(); return; }
+  try{ const g=PM.fitPlinths(PM.P); if(g.length){ PM.save('Plinths grown to fit their base plates / corners: '+g.join(', ')); setTimeout(()=>PM.toast&&PM.toast('Plinth '+g.join(' · ')+' (fits base plate and corner)'),50); } }catch(e){ console.error('[PEMB fit]',e); }
   try{ PM.R=E.run(PM.P); }catch(e){ console.error('[PEMB]',e); PM.R=null; }
   PM.header();
 };
@@ -20268,7 +20414,7 @@ PM.renderCriteria=function(){
       ${field('options.hairpinBar','Hairpin bar',{opts:[[4,'#4'],[5,'#5'],[6,'#6']],num:1})}${field('options.hairpinLeg','Hairpin leg (ft)',{num:1})}${field('options.tieBar','New-tie bar',{opts:[[5,'#5'],[6,'#6'],[7,'#7'],[8,'#8']],num:1})}${field('options.tieN','New-tie bars (no.)',{num:1})}${field('options.tieElongLimit','Tie elongation limit (in)',{num:1})}${field('options.tieTransferN','U-bars around AB at a tie (no.)',{num:1})}${field('options.tieTransferBar','U-bar size',{opts:[[4,'#4'],[5,'#5'],[6,'#6']],num:1})}
       ${field('options.braceAdd','Bracing reactions',{opts:[['H','Add longitudinal H at braced frame columns'],['HV','Add H + V at every braced column'],['none','Already in column reactions']]})}
       ${field('options.ftgPlace','Footing centred on (if no edge projection is set)',{opts:[['column','Base-plate centre'],['plinth','Plinth centre']]})}${field('options.loadAt','Column load applied at',{opts:[['plate','Base-plate centre (actual eccentricity)'],['plinth','Plinth centroid (concentric ENERCALC input)']]})}
-      ${field('options.edgeMin','Min. bolt edge dist. (in)',{num:1})}${field('options.plateClear','Plate-to-plinth edge (in)',{num:1})}${field('options.otFS','Overturning FS (ASD)',{num:1})}${field('options.slFS','Sliding FS (ASD)',{num:1})}
+      ${field('options.edgeMin','Min. bolt edge dist. (in)',{num:1})}${field('options.plateClear','Plate-to-plinth edge (in)',{num:1})}${field('options.cornerSnap','Snap plinth to a wall within (in)',{num:1})}${field('options.autoFitPlinths','Grow plinths automatically to fit the base plate / corner',{type:'check'})}${field('options.otFS','Overturning FS (ASD)',{num:1})}${field('options.slFS','Sliding FS (ASD)',{num:1})}
       ${field('options.stemPassiveLen','Stemwall passive length (ft)',{num:1})}${field('options.ksSubgrade','Slab k<sub>s</sub> (N/mm³)',{num:1})}${field('options.frSlab','Slab f<sub>r</sub> (MPa)',{num:1})}${field('options.slabEdgeRed','Slab edge reduction',{num:1})}${field('options.slabWidthFactor','Slab width factor',{num:1})}
       ${field('perimeter.stemW','Stemwall width (in)',{num:1})}${field('perimeter.stemH','Stemwall height (in)',{num:1})}${field('perimeter.ftgW','Cont. ftg width (in)',{num:1})}${field('perimeter.ftgT','Cont. ftg depth (in)',{num:1})}
     </div>
@@ -20305,7 +20451,7 @@ PM.renderDesign=function(){
 };
 PM.toggleResults=function(){ PM._resClosed=!PM._resClosed; const rb=$('pm-resbody'); if(rb) rb.hidden=PM._resClosed; const rc=$('pm-rescaret'); if(rc) rc.textContent=PM._resClosed?'▸':'▾'; };
 // side panel tabs
-PM.setSide=function(k){ PM.side=k;
+PM.setSide=function(k){ const was=PM.side; PM.side=k; if(was!==k && (was==='walls'||k==='walls') && PM.selWall) setTimeout(()=>PM.drawPlan(),0);
   document.querySelectorAll('#pm-sidetabs button').forEach(b=>{ b.classList.toggle('on',b.dataset.side===k); b.onclick=()=>PM.setSide(b.dataset.side); });
   document.querySelectorAll('#pemb .pm-side').forEach(d=>d.hidden=d.dataset.side!==k);
   if(k==='col') PM.renderInspector(); if(k==='types') PM.renderTypes(); if(k==='beams') PM.renderBeams(); if(k==='walls') PM.renderWalls(); if(k==='issues'){ PM.renderIssues(); PM.renderSENotes(); }
@@ -20317,7 +20463,7 @@ PM.setView=function(v){ PM.view=v; document.querySelectorAll('#pm-viewseg button
   $('pm-viewhint').textContent=v==='3d'?'drag to orbit · right-drag or shift-drag to pan · scroll to zoom · click a footing, beam or wall':'scroll to zoom · drag to pan · click a footing · shift-click or shift-drag to pick several';
   PM.renderPlanTools(); PM.drawPlan(); };
 PM.draw3d=function(){ const el=$('pm-3d'); if(!el||!PM.R||!window.PEMB3D) return; const R=PM.R;
-  PM._v3=PEMB3D.mount(el,PM.P,R,{layers:PM.l3,colorBy:PM.colorBy,sel:PM.sel,multi:PM.bulk,selWall:PM.selWall,
+  PM._v3=PEMB3D.mount(el,PM.P,R,{layers:PM.l3,colorBy:PM.colorBy,sel:PM.sel,multi:PM.bulk,selWall:PM.side==='walls'?PM.selWall:null,
     tipFor:it=>{ if(it.kind==='wall'||it.kind==='wallftg'){ const q=it.seg||{}; return '<b>'+(it.kind==='wall'?'Stemwall':'Wall footing')+'</b> · '+esc(PM.wallName(q.edge))+(it.drop?' · lowered '+E.frac(it.drop*12):'')+'<br>'+PM.P.perimeter.stemW+'" × '+E.frac((q.sh0+q.drop)*12)+' stem, '+E.frac(q.fw*12)+' × '+E.frac(q.fh*12)+' footing<br><span style="opacity:.7">click to edit</span>'; }
       if(String(it.tag).startsWith('tie:')){ const t=(R.ties||[]).find(q=>'tie:'+q.id===it.tag); return t?'<b>'+esc(t.id)+'</b> · '+esc(t.from)+' → '+esc(t.to||'')+'<br>('+t.n+') #'+t.bar+' · ratio '+t.gov.ratio.toFixed(2):''; }
       const x=R.cols[it.tag]; if(!x) return ''; const w=x.d.summary.concat([{item:'Anchors',ratio:x.a.gov.ratio}]).sort((a,b)=>b.ratio-a.ratio)[0];
@@ -20335,12 +20481,19 @@ PM.autoDesign=function(auto){ const P=PM.P; if(!P||!(P.columns||[]).length) retu
     PM.save((auto?'Auto-designed the new job':'Design it for me')+': '+r.log.length+' change'+(r.log.length===1?'':'s')+(r.left.length?', '+r.left.length+' left for review':', everything passes'));
     PM.run(); PM.renderDesign(); PM.setSide('issues');
     PM.toast(r.left.length?r.log.length+' changes · '+r.left.length+' checks still need you (see Issues)':'Every check passes · '+r.log.length+' changes (Ctrl+Z undoes)'); },20); };
+PM.selectSimilar=function(how){ const R=PM.R; if(!R||!how) return; const seed=PM.sel?[PM.sel]:Object.keys(PM.bulk||{}); if(!seed.length) return;
+  const key=x=>{ const c=x.col; return how==='ft'?x.ft.mark:how==='pl'?x.pl.mark:how==='both'?x.ft.mark+'|'+x.pl.mark:how==='kind'?c.kind:how==='line'?String((c.grid||[])[0]):String(c.detail||''); };
+  const want=new Set(seed.map(id=>R.cols[id]).filter(Boolean).map(key)); PM.bulk={};
+  Object.values(R.cols).forEach(x=>{ if(want.has(key(x))) PM.bulk[x.col.id]=1; });
+  const n=Object.keys(PM.bulk).length; PM.toast(n+' column'+(n===1?'':'s')+' selected — '+({ft:'same footing type',pl:'same plinth type',both:'same footing + plinth',kind:'same kind',line:'same frame line',detail:'same base plate detail'})[how]);
+  PM.afterMulti(); if(PM.side!=='col') PM.setSide('col'); PM.renderPlanTools(); };
 PM.renderPlanTools=function(){ const el=$('pm-ptools'); if(!el) return; const L=PM.layers;
+  setTimeout(()=>{ const ss=$('pm-simsel'); if(ss) ss.onchange=()=>PM.selectSimilar(ss.value); },0);
   const ad=$('pm-autodesign'); if(ad){ ad.disabled=false; ad.textContent='Design it for me'; ad.onclick=()=>PM.autoDesign(false); }
   document.querySelectorAll('#pm-viewseg button').forEach(b=>{ b.onclick=()=>PM.setView(b.dataset.view); });
   if(PM.view==='3d'){ const L3=PM.l3;
     el.innerHTML=`<span class="note" style="margin:0">View</span>${[['iso','3D'],['top','Top'],['front','Front'],['side','Side'],['under','From below']].map(([k,t])=>`<button class="pm-btn small" data-v3="${k}">${t}</button>`).join('')}
-      <button class="pm-btn small" data-v3f="1" title="Centre on the selected footing">Selected</button>
+      <button class="pm-btn small" data-v3f="1" title="Centre on the selected footing">Selected</button><select id="pm-simsel" title="Select similar (like Revit): picks every column that matches the selected one" ${PM.sel||Object.keys(PM.bulk||{}).length?'':'disabled'}><option value="">Select similar…</option><option value="ft">same footing type</option><option value="pl">same plinth type</option><option value="both">same footing + plinth</option><option value="kind">same kind (frame / endwall / corner…)</option><option value="line">same frame line</option><option value="detail">same base plate detail</option></select>
       <span class="sep"></span><label style="margin:0;display:flex;gap:4px;align-items:center">Colour by <select id="pm-colorby">${[['gov','worst check'],['sliding','sliding'],['anchors','anchors + plinth'],['type','footing type'],['none','none']].map(([k,t])=>`<option value="${k}" ${PM.colorBy===k?'selected':''}>${t}</option>`).join('')}</select></label>
       <details><summary>Show ▾</summary><div>${[['slab','Slab (see-through)'],['walls','Stemwall + wall footing'],['ftg','Footings'],['plinth','Plinths'],['beams','Grade beams'],['plates','Base plates'],['steel','Column stubs'],['labels','Column labels'],['grid','Grids']].map(([k,t])=>`<label><input type="checkbox" data-l3="${k}" ${L3[k]?'checked':''}>${t}</label>`).join('')}</div></details>`;
     el.querySelectorAll('[data-v3]').forEach(b=>b.onclick=()=>{ if(PM._v3) PEMB3D.view(PM._v3,b.dataset.v3); });
@@ -20354,7 +20507,7 @@ PM.renderPlanTools=function(){ const el=$('pm-ptools'); if(!el) return; const L=
   el.innerHTML=`${b('select','Select','Click a footing or a grade beam to review / edit it. Shift-click to pick several.')}${b('tie','Draw grade beam','Click the first column, then a second column (or a point on a grid line)')}${b('erase','Delete grade beam','Click a grade beam to remove it')}
     <span class="sep"></span><label style="margin:0;display:flex;gap:4px;align-items:center">Colour by <select id="pm-colorby">${[['gov','worst check'],['sliding','sliding'],['anchors','anchors + plinth'],['type','footing type'],['none','none']].map(([k,t])=>`<option value="${k}" ${PM.colorBy===k?'selected':''}>${t}</option>`).join('')}</select></label>
     <details><summary>Layers ▾</summary><div>${layers.map(([k,t])=>`<label><input type="checkbox" data-layer="${k}" ${L[k]!==false?'checked':''}>${t}</label>`).join('')}</div></details>
-    <span class="sep"></span><button class="pm-btn small" onclick="PM.zoomBy(1/1.3)" title="Zoom in (or scroll)">＋</button><button class="pm-btn small" onclick="PM.zoomBy(1.3)" title="Zoom out">－</button><button class="pm-btn small" onclick="PM.zoomFit()" title="Fit the whole plan">Fit</button><button class="pm-btn small" onclick="PM.zoomSel()" title="Zoom to the selected footing(s)">Zoom to selected</button>
+    <span class="sep"></span><button class="pm-btn small" onclick="PM.zoomBy(1/1.3)" title="Zoom in (or scroll)">＋</button><button class="pm-btn small" onclick="PM.zoomBy(1.3)" title="Zoom out">－</button><button class="pm-btn small" onclick="PM.zoomFit()" title="Fit the whole plan">Fit</button><button class="pm-btn small" onclick="PM.zoomSel()" title="Zoom to the selected footing(s)">Zoom to selected</button><select id="pm-simsel" title="Select similar (like Revit): picks every column that matches the selected one" ${PM.sel||Object.keys(PM.bulk||{}).length?'':'disabled'}><option value="">Select similar…</option><option value="ft">same footing type</option><option value="pl">same plinth type</option><option value="both">same footing + plinth</option><option value="kind">same kind (frame / endwall / corner…)</option><option value="line">same frame line</option><option value="detail">same base plate detail</option></select>
     <span class="note" style="margin:0 0 0 4px" id="pm-toolhint">${PM.mode==='tie'?(PM.tieStart?'From <b>'+esc(PM.tieStart)+'</b> — now click the end column, or a point on a grid line.':'Click the column the beam starts at.'):(PM.mode==='erase'?'Click a grade beam to delete it (Ctrl+Z undoes).':'')}</span>`;
   $('pm-colorby').onchange=e=>{ PM.colorBy=e.target.value; PM.drawPlan(); };
   el.querySelectorAll('[data-layer]').forEach(i=>i.onchange=()=>{ L[i.dataset.layer]=i.checked; PM.drawPlan(); });
@@ -20396,7 +20549,7 @@ PM.hookZoom=function(el){ if(el._pz) return; el._pz=1;
   el.addEventListener('click',e=>{ if(PM._dragged && Date.now()-PM._dragged<250){ e.stopPropagation(); e.preventDefault(); } },true);
 };
 PM.afterMulti=function(){ PM.drawPlan(); PM.renderResults(); if(PM.side==='col') PM.renderInspector(); };
-PM.selectCol=function(cid){ PM.selTie=null; PM.sel=cid; const c=PM.P.columns.find(q=>q.id===cid); if(c&&c.grid) PM.selFrame=c.grid[0];
+PM.selectCol=function(cid){ PM.selTie=null; PM.selWall=null; PM.sel=cid; const c=PM.P.columns.find(q=>q.id===cid); if(c&&c.grid) PM.selFrame=c.grid[0];
   PM.drawPlan(); if(PM.side!=='col') PM.setSide('col'); else PM.renderInspector(); PM.renderResults(); if(PM._modal) PM.renderModal(); };
 PM.planPoint=function(svg,ev){ const pt=svg.createSVGPoint(); pt.x=ev.clientX; pt.y=ev.clientY; const p=pt.matrixTransform(svg.getScreenCTM().inverse());
   const xmin=+svg.dataset.xmin, ymax=+svg.dataset.ymax, sc=+svg.dataset.s; return {x:p.x/sc+xmin, y:ymax-p.y/sc}; };
@@ -20414,7 +20567,7 @@ PM.drawPlan=function(){
   if(PM.view==='3d'){ PM.draw3d(); return; }
   const el=$('pm-plan'); if(!el) return; if(!PM.R){ el.innerHTML='<div class="pm-empty">No columns yet.</div>'; return; }
   const L=Object.assign({},PM.layers,{util:PM.colorBy!=='none'});
-  el.innerHTML=D.plan(PM.P,PM.R,{w:1200,layers:L,colorBy:PM.colorBy,sel:PM.sel,multi:PM.bulk,selFrame:null,selTie:PM.selTie,selWall:PM.selWall,tieStart:PM.tieStart,title:false,edit:PM.mode!=='select'});
+  el.innerHTML=D.plan(PM.P,PM.R,{w:1200,layers:L,colorBy:PM.colorBy,sel:PM.sel,multi:PM.bulk,selFrame:null,selTie:PM.selTie,selWall:PM.side==='walls'?PM.selWall:null,tieStart:PM.tieStart,title:false,edit:PM.mode!=='select'});
   const svg=el.querySelector('svg'); if(!svg) return;
   svg.removeAttribute('width'); svg.setAttribute('preserveAspectRatio','xMidYMid meet');
   PM.vb0=svg.getAttribute('viewBox').split(/\s+/).map(Number); PM.applyVB(); PM.hookZoom(el);
@@ -21135,6 +21288,11 @@ PM.revitJson=function(){
           stemH:+((g.sh0+g.drop)).toFixed(5),ftgW:+g.fw.toFixed(5),ftgT:+g.fh.toFixed(5),
           foundationType:typ?rv.wallFtgType:(()=>{ const base=rv.wallFtgType||'PEMB Wall Footing', sz=E.fracIn(g.fw*12)+' x '+E.fracIn(g.fh*12); return /\d[\d\s\/]*"\s*[xX]\s*\d[\d\s\/]*"/.test(base)?base.replace(/\d[\d\s\/]*"\s*[xX]\s*\d[\d\s\/]*"/,sz):base+' '+sz; })()}; }); })(),
     note:'Wall segments on the centreline, stemW/2 inside the steel line (face of concrete = steel line). Base at the footing level minus drop (drop includes any extra stem height on that run), top = level + top. Each wall gets its wall footing; foundationType per segment (created at ftgW x ftgT if missing).'};
+  // slab on grade: inside face of the stemwall (or the steel line when no walls are made), top at T.O. concrete
+  out.slab={create:rv.createSlab!==false, typeName:PM.typeName(rv.slabType||'PEMB SOG {t}"',{t:E.frac(+P.criteria.slab||6).replace(/"$/,'')}), thickness:(+P.criteria.slab||6)/12,
+    top:+(rv.slabTop!=null&&rv.slabTop!==''?rv.slabTop:rv.plinthTop)||0, reinf:P.criteria.slabReinf||'',
+    outline:(()=>{ let o=E.outline(P); let A=0; o.forEach((p,i)=>{ const q=o[(i+1)%o.length]; A+=p[0]*q[1]-q[0]*p[1]; }); if(A>0) o=o.slice().reverse(); return (rv.createWalls?E.offsetPoly(o,(+per.stemW||8)/12):o).map(p=>p.map(v=>+v.toFixed(5))); })(),
+    note:'Outline = inside face of the stemwall when walls are created, else the steel line. Top = level + top.'};
   out.perimeter={stemW:per.stemW/12,stemH:per.stemH/12,ftgW:per.ftgW/12,ftgT:per.ftgT/12,outline:E.outline(P),note:'Outline = exterior face of concrete (steel line). Wall is inside the outline.'};
   return out;
 };
@@ -21262,7 +21420,7 @@ PM.renderRevit=function(){
     <p class="note" style="margin-top:0">Two files: <b>placement JSON</b> (this design) and a <b>pyRevit script</b>. Put the script in your Tamarack pyRevit extension as a button, open the foundation plan view, run it and pick the JSON. It finds existing footing, plinth and grade-beam types by their dimensions (so your own type names are kept), places the footings, plinths and grade-beam ties, optionally the stemwall and its wall footing, draws each base plate and its bolts as a <b>detail group</b> (one group type per plate detail, copied to every column), draws the hairpins as a detail group, and sets Mark/Comments. Everything it creates is tagged <code>PEMB-AUTO</code>, so a re-run replaces it cleanly.</p>
     <div class="pm-fields">${field('revit.level','Plinth / grade-beam / wall level')}${field('revit.footingLevel','Footing level (blank = same)')}${field('revit.viewName','Plan view name (blank = active view)')}${field('revit.footingFamily','Isolated footing family')}${field('revit.footingTypeName','Footing type name {B} {L} {T}')}${field('revit.footingTypePrefix','…or prefix + mark')}${field('revit.plinthFamily','Plinth family (structural column)')}${field('revit.plinthTypeName','Plinth type name {bx} {by}')}
       ${field('revit.beamFamily','Grade-beam family (structural framing)')}${field('revit.beamTypeName','Grade-beam type name {b} {h}')}${field('revit.beamTop','T.O. grade beam above level (ft)',{num:1})}
-      ${field('revit.wallType','Stemwall type')}${field('revit.wallFtgType','Wall foundation type')}${field('revit.wallTop','T.O. wall above level (ft)',{num:1})}${field('revit.createWalls','Create stemwall + wall footing',{type:'check'})}
+      ${field('revit.wallType','Stemwall type')}${field('revit.wallFtgType','Wall foundation type')}${field('revit.wallTop','T.O. wall above level (ft)',{num:1})}${field('revit.createWalls','Create stemwall + wall footing',{type:'check'})}${field('revit.createSlab','Create the slab on grade',{type:'check'})}${field('revit.slabType','Slab floor type ({t} = thickness)')}
       ${field('revit.tofElev','T.O. footing offset from level (ft)',{num:1})}${field('revit.plinthTop','T.O. plinth offset from level (ft)',{num:1})}${field('revit.groupPrefix','Detail group prefix')}${field('revit.originGridX','Origin grid (numbered)')}${field('revit.originGridY','Origin grid (lettered)')}
       ${field('revit.createGrids','Create grids if missing',{type:'check'})}${field('revit.tag','Tag footings (if a foundation tag is loaded)',{type:'check'})}</div>
     <div class="row" style="gap:8px;margin-top:12px"><button class="pm-btn primary" onclick="PM.dlRevitJson()">Download placement JSON</button><button class="pm-btn" onclick="PM.dlPyRevit()">Download pyRevit script</button><button class="pm-btn" onclick="PM.dlCsv()">Download schedules (CSV)</button></div>
